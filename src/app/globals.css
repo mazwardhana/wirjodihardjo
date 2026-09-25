@@ -1,26 +1,117 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────
+   Arah Desain: Hangat, Budaya Jawa
+   Palet inti (2-3 + 1 aksen):
+     - cream / parchment  : latar, kesan kertas tua & arsip keluarga
+     - forest (hijau tua) : warna utama, wibawa & keteduhan
+     - wood (coklat kayu) : warna sekunder, kehangatan
+     - gold               : satu aksen, penanda warisan
+   Tipografi:
+     - Fraunces      : display serif berkarakter untuk judul (warisan)
+     - Plus Jakarta Sans : isi, humanist sans yang sangat terbaca lintas usia
+   Dials: publik ENERGY 3 / RHYTHM 3 / MOTION 3, dashboard 1/1/1
+   ───────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Core palette */
+  --color-cream: #f7f1e2;
+  --color-parchment: #efe3c8;
+  --color-ink: #221a11;
+  --color-muted: #5c5040;
+  --color-forest: #1f3a2b;
+  --color-forest-soft: #2c4f3b;
+  --color-wood: #6f4a2b;
+  --color-wood-soft: #8a6238;
+  --color-gold: #b4872a;
+  --color-gold-deep: #8a6519;
+
+  /* Fonts */
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-jakarta), system-ui, -apple-system, sans-serif;
+
+  /* Motion */
+  --ease-warm: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--color-cream);
+  --foreground: var(--color-ink);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Fokus terlihat (R-32) ── */
+:focus-visible {
+  outline: 3px solid var(--color-gold);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── Utilitas tema ── */
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+}
+
+/* Motif identitas: garis gelombang batik yang sangat halus.
+   Alasan: penanda keluarga Jawa yang konsisten, dipakai hemat sebagai
+   pemisah bagian, bukan latar penuh. */
+.motif-divider {
+  height: 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='14' viewBox='0 0 28 14'%3E%3Cpath d='M0 7 C7 0 7 14 14 7 C21 0 21 14 28 7' fill='none' stroke='%23b4872a' stroke-width='1.2' stroke-opacity='.55'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: center;
+}
+
+/* ── Animasi yang menghormati preferensi pengguna (R-19, aksesibilitas) ── */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Reveal lembut saat scroll; dimatikan bila pengguna meminta gerak minimum */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.7s var(--ease-warm),
+    transform 0.7s var(--ease-warm);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Kanvas silsilah ── */
+.tree-canvas {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(111, 74, 43, 0.12) 1px,
+    transparent 0
+  );
+  background-size: 24px 24px;
 }

@@ -1,0 +1,414 @@
+// Prisma schema for Website Keluarga Besar Wirjodihardjo
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ──────────────────────────────────────
+// Enums
+// ──────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  BRANCH_ADMIN
+  MEMBER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum ParentRole {
+  FATHER
+  MOTHER
+  UNKNOWN
+}
+
+enum PartnerStatus {
+  MARRIED
+  DIVORCED
+  WIDOWED
+  UNKNOWN
+}
+
+enum SubmissionType {
+  ADD_CHILD
+  ADD_SPOUSE
+  ADD_PERSON
+  EDIT_PERSON
+  EDIT_RELATION
+}
+
+enum SubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum MediaStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ReunionStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum RegistrationStatus {
+  CONFIRMED
+  CANCELLED
+  WAITLIST
+}
+
+enum EntryType {
+  ACHIEVEMENT
+  IN_MEMORIAM
+}
+
+// ──────────────────────────────────────
+// Genealogy core
+// ──────────────────────────────────────
+
+model Branch {
+  id            String   @id @default(uuid())
+  name          String
+  slug          String   @unique
+  description   String?
+  coverImageUrl String?
+  orderIndex    Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // The child of the founders that heads this branch
+  rootPersonId String? @unique
+  rootPerson   Person? @relation("BranchRoot", fields: [rootPersonId], references: [id])
+
+  // The user that administers this branch
+  adminId String? @unique
+  admin   User?   @relation("BranchAdmin", fields: [adminId], references: [id])
+
+  members Person[] @relation("PersonBranch")
+}
+
+model Person {
+  id                 String    @id @default(uuid())
+  fullName           String
+  nickname           String?
+  gender             Gender
+  birthDate          DateTime?
+  birthDatePrecision String?
+  birthPlace         String?
+  deathDate          DateTime?
+  isDeceased         Boolean   @default(false)
+  bio                String?
+  photoUrl           String?
+  generationLevel    Int?
+  isPublicProfile    Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  branchId String?
+  branch   Branch? @relation("PersonBranch", fields: [branchId], references: [id])
+
+  rootedBranch Branch? @relation("BranchRoot")
+
+  private PersonPrivate?
+  user    User?
+
+  // Parent-child edges, from this person's point of view
+  parents  PersonChild[] @relation("AsChild")
+  children PersonChild[] @relation("AsParent")
+
+  // Partnerships
+  partnershipsA PersonPartner[] @relation("PartnerA")
+  partnershipsB PersonPartner[] @relation("PartnerB")
+
+  submissions       Submission[]
+  hallOfFameEntries HallOfFameEntry[]
+  galleryMedia      GalleryMedia[]
+
+  @@index([fullName])
+  @@index([branchId])
+  @@index([generationLevel])
+  @@index([isDeceased])
+}
+
+model PersonPrivate {
+  personId         String   @id
+  person           Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  addressLine      String?
+  city             String?
+  province         String?
+  postalCode       String?
+  phone            String?
+  whatsapp         String?
+  email            String?
+  maritalStatus    String?
+  familyNotes      String?
+  visibleToMembers Boolean  @default(true)
+  updatedAt        DateTime @updatedAt
+}
+
+model PersonChild {
+  id         String     @id @default(uuid())
+  parentId   String
+  childId    String
+  parentRole ParentRole @default(UNKNOWN)
+  isAdopted  Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+
+  parent Person @relation("AsParent", fields: [parentId], references: [id], onDelete: Cascade)
+  child  Person @relation("AsChild", fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, childId])
+  @@index([childId])
+}
+
+model PersonPartner {
+  id           String        @id @default(uuid())
+  partnerAId   String
+  partnerBId   String
+  marriageDate DateTime?
+  status       PartnerStatus @default(MARRIED)
+  createdAt    DateTime      @default(now())
+
+  partnerA Person @relation("PartnerA", fields: [partnerAId], references: [id], onDelete: Cascade)
+  partnerB Person @relation("PartnerB", fields: [partnerBId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerAId, partnerBId])
+  @@index([partnerBId])
+}
+
+// ──────────────────────────────────────
+// Accounts & authorization
+// ──────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  role         Role      @default(MEMBER)
+  isVerified   Boolean   @default(false)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Every account maps to exactly one Person
+  personId String @unique
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  // A BRANCH_ADMIN is linked from Branch.adminId (inverse side below)
+  branchAdminOf Branch? @relation("BranchAdmin")
+
+  submissions         Submission[]          @relation("Submitter")
+  reviewedSubmissions Submission[]          @relation("Reviewer")
+  albums              Album[]               @relation("AlbumCreator")
+  galleryUploads      GalleryMedia[]        @relation("MediaUploader")
+  hallOfFameEntries   HallOfFameEntry[]     @relation("EntryCreator")
+  reunions            Reunion[]             @relation("ReunionCreator")
+  reunionRegistrations ReunionRegistration[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+// ──────────────────────────────────────
+// Approval workflow
+// ──────────────────────────────────────
+
+model Submission {
+  id         String           @id @default(uuid())
+  type       SubmissionType
+  payload    Json
+  status     SubmissionStatus @default(PENDING)
+  reviewNote String?
+  reviewedAt DateTime?
+  createdAt  DateTime         @default(now())
+
+  submittedByUserId String
+  submitter         User    @relation("Submitter", fields: [submittedByUserId], references: [id])
+
+  targetPersonId String?
+  targetPerson   Person? @relation(fields: [targetPersonId], references: [id])
+
+  reviewedByUserId String?
+  reviewer         User?   @relation("Reviewer", fields: [reviewedByUserId], references: [id])
+
+  @@index([status])
+  @@index([submittedByUserId])
+  @@index([targetPersonId])
+}
+
+// ──────────────────────────────────────
+// Gallery
+// ──────────────────────────────────────
+
+model Album {
+  id            String    @id @default(uuid())
+  title         String
+  slug          String    @unique
+  description   String?
+  eventDate     DateTime?
+  coverImageUrl String?
+  isPublished   Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  createdByUserId String
+  createdBy       User     @relation("AlbumCreator", fields: [createdByUserId], references: [id])
+  media           GalleryMedia[]
+
+  @@index([slug])
+}
+
+model GalleryMedia {
+  id           String      @id @default(uuid())
+  url          String
+  thumbnailUrl String?
+  caption      String?
+  mediaType    String      @default("IMAGE")
+  width        Int?
+  height       Int?
+  status       MediaStatus @default(PENDING)
+  createdAt    DateTime    @default(now())
+
+  albumId String
+  album   Album  @relation(fields: [albumId], references: [id], onDelete: Cascade)
+
+  uploadedByUserId String?
+  uploader         User?   @relation("MediaUploader", fields: [uploadedByUserId], references: [id])
+
+  personId String?
+  person   Person? @relation(fields: [personId], references: [id])
+
+  @@index([albumId])
+  @@index([status])
+}
+
+// ──────────────────────────────────────
+// Hall of Fame
+// ──────────────────────────────────────
+
+model HallOfFameEntry {
+  id          String    @id @default(uuid())
+  category    String
+  title       String
+  description String
+  year        Int?
+  photoUrl    String?
+  entryType   EntryType @default(ACHIEVEMENT)
+  isPublished Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  createdByUserId String
+  createdBy       User    @relation("EntryCreator", fields: [createdByUserId], references: [id])
+
+  @@index([category])
+  @@index([isPublished])
+}
+
+// ──────────────────────────────────────
+// Reunions
+// ──────────────────────────────────────
+
+model Reunion {
+  id                   String        @id @default(uuid())
+  title                String
+  slug                 String        @unique
+  description          String?
+  startAt              DateTime
+  endAt                DateTime?
+  locationName         String?
+  locationUrl          String?
+  capacity             Int?
+  registrationDeadline DateTime?
+  heroImageUrl         String?
+  status               ReunionStatus @default(DRAFT)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  createdByUserId String
+  createdBy       User     @relation("ReunionCreator", fields: [createdByUserId], references: [id])
+
+  registrations ReunionRegistration[]
+
+  @@index([status])
+  @@index([startAt])
+}
+
+model ReunionRegistration {
+  id         String             @id @default(uuid())
+  guestCount Int                @default(1)
+  notes      String?
+  status     RegistrationStatus @default(CONFIRMED)
+  createdAt  DateTime           @default(now())
+
+  reunionId String
+  reunion   Reunion @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reunionId, userId])
+}
+
+// ──────────────────────────────────────
+// System
+// ──────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String
+  title     String
+  body      String?
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  entityType String
+  entityId   String?
+  beforeData Json?
+  afterData  Json?
+  createdAt  DateTime @default(now())
+
+  actorUserId String?
+  actor       User?   @relation(fields: [actorUserId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// Seeded reference table, generation names per Javanese tradition
+model GenerationLabel {
+  level     Int    @id
+  jawa      String
+  indonesia String?
+}

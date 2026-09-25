@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Wirjodihardjo
 
-## Getting Started
+Website keluarga besar **Wirjodihardjo** — rumah digital untuk silsilah
+interaktif, galeri kenangan, Hall of Fame, dan Reuni keluarga.
 
-First, run the development server:
+## Fitur
+
+- **Silsilah interaktif** — pohon keluarga dengan zoom, pan, lipat cabang,
+  pencarian, dan pelabelan generasi adat Jawa (Anak, Putu, Buyut, Canggah,
+  hingga Trah tumerah).
+- **Profil anggota** — data publik (nama, generasi, bio, foto) dan data privat
+  (alamat, kontak) yang hanya tampil setelah login.
+- **Upload foto profil** — foto yang diunggah tampil di halaman profil **dan**
+  pada simpul silsilah.
+- **Pengajuan & persetujuan** — penambahan anggota divalidasi admin cabang.
+- **Galeri** — album foto dengan moderasi admin.
+- **Hall of Fame** — apresiasi kontribusi anggota.
+- **Reuni** — jadwal, detail, dan pendaftaran reuni keluarga.
+- **Panel admin** — kelola anggota, cabang, pengguna, audit log, dan moderasi.
+
+## Teknologi
+
+| Lapisan | Teknologi |
+|---------|-----------|
+| Framework | Next.js 16 (App Router) + React 19 + TypeScript |
+| Styling | Tailwind CSS v4 |
+| Database | PostgreSQL 17 + Prisma 7 (driver adapter `pg`) |
+| Autentikasi | NextAuth v5 (Credentials) |
+| Pohon silsilah | D3-hierarchy + React Flow |
+| Animasi | Scrollytelling CSS + IntersectionObserver, Framer Motion |
+| Deployment | Docker Compose + Nginx reverse proxy |
+
+## Menjalankan Secara Lokal
 
 ```bash
+# 1. Pasang dependensi
+npm install
+
+# 2. Siapkan environment
+cp .env.example .env.local
+# sesuaikan DATABASE_URL dan NEXTAUTH_SECRET
+
+# 3. Jalankan database
+docker compose up -d wirjodihardjo-db wirjodihardjo-redis
+
+# 4. Migrasi & seed data awal
+npx prisma migrate dev
+npx prisma db seed
+
+# 5. Buat akun Super Admin
+npx tsx prisma/create-admin.ts
+
+# 6. Jalankan
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deployment (Docker)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# Build & jalankan seluruh layanan
+docker compose up -d --build
 
-## Learn More
+# Aplikasi berjalan di 127.0.0.1:3100, dilayani Nginx sebagai reverse proxy
+```
 
-To learn more about Next.js, take a look at the following resources:
+Konfigurasi Nginx contoh tersedia pada `docs/` atau ikuti pola pada server:
+`/opt/teknoloka/nginx/conf.d/wirjodihardjo.conf`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Peran Pengguna
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Peran | Hak Akses |
+|-------|-----------|
+| `SUPER_ADMIN` | Akses penuh, kelola cabang, pengguna, audit log |
+| `BRANCH_ADMIN` | Kelola data cabangnya, moderasi, setujui pengajuan cabang |
+| `MEMBER` | Lihat data privat, ajukan anggota, kelola profil |
 
-## Deploy on Vercel
+## Struktur Proyek
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+src/
+├── app/            # Rute App Router (publik, dashboard, admin, API)
+├── components/     # Komponen UI, silsilah, galeri, landing
+├── lib/            # Prisma, auth, generasi Jawa, util
+└── proxy.ts        # Penjaga rute (auth guard)
+prisma/
+├── schema.prisma   # 13 entitas
+├── seed.ts         # Seed generasi Jawa + keluarga pendiri
+└── create-admin.ts # Pembuat akun Super Admin
+docs/               # PRD, arsitektur data, wireframe, rencana implementasi
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Lisensi
+
+Proyek internal keluarga. Hak cipta Keluarga Besar Wirjodihardjo.
