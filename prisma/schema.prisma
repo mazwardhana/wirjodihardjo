@@ -88,14 +88,13 @@ model Branch {
   description   String?
   coverImageUrl String?
   orderIndex    Int      @default(0)
+  isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  // The child of the founders that heads this branch
   rootPersonId String? @unique
   rootPerson   Person? @relation("BranchRoot", fields: [rootPersonId], references: [id])
 
-  // The user that administers this branch
   adminId String? @unique
   admin   User?   @relation("BranchAdmin", fields: [adminId], references: [id])
 
@@ -106,43 +105,47 @@ model Person {
   id                 String    @id @default(uuid())
   fullName           String
   nickname           String?
+  slug               String?   @unique
   gender             Gender
   birthDate          DateTime?
   birthDatePrecision String?
   birthPlace         String?
   deathDate          DateTime?
   isDeceased         Boolean   @default(false)
+  isMarriedInto      Boolean   @default(false)
   bio                String?
   photoUrl           String?
   generationLevel    Int?
   isPublicProfile    Boolean   @default(true)
+  deletedAt          DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
   branchId String?
   branch   Branch? @relation("PersonBranch", fields: [branchId], references: [id])
-
   rootedBranch Branch? @relation("BranchRoot")
 
   private PersonPrivate?
   user    User?
 
-  // Parent-child edges, from this person's point of view
   parents  PersonChild[] @relation("AsChild")
   children PersonChild[] @relation("AsParent")
 
-  // Partnerships
   partnershipsA PersonPartner[] @relation("PartnerA")
   partnershipsB PersonPartner[] @relation("PartnerB")
 
-  submissions       Submission[]
+  submissions       Submission[]          @relation("SubmissionApplied")
   hallOfFameEntries HallOfFameEntry[]
   galleryMedia      GalleryMedia[]
+  adminNotes        AdminNote[]
+  targetOf          Submission[]          @relation("SubmissionTarget")
 
   @@index([fullName])
+  @@index([slug])
   @@index([branchId])
   @@index([generationLevel])
   @@index([isDeceased])
+  @@index([deletedAt])
 }
 
 model PersonPrivate {
@@ -167,6 +170,7 @@ model PersonChild {
   childId    String
   parentRole ParentRole @default(UNKNOWN)
   isAdopted  Boolean    @default(false)
+  isStep     Boolean    @default(false)
   createdAt  DateTime   @default(now())
 
   parent Person @relation("AsParent", fields: [parentId], references: [id], onDelete: Cascade)
@@ -181,7 +185,10 @@ model PersonPartner {
   partnerAId   String
   partnerBId   String
   marriageDate DateTime?
+  divorceDate  DateTime?
   status       PartnerStatus @default(MARRIED)
+  orderIndex   Int           @default(0)
+  notes        String?
   createdAt    DateTime      @default(now())
 
   partnerA Person @relation("PartnerA", fields: [partnerAId], references: [id], onDelete: Cascade)
@@ -189,6 +196,7 @@ model PersonPartner {
 
   @@unique([partnerAId, partnerBId])
   @@index([partnerBId])
+  @@index([orderIndex])
 }
 
 // ──────────────────────────────────────
@@ -196,32 +204,40 @@ model PersonPartner {
 // ──────────────────────────────────────
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String
-  role         Role      @default(MEMBER)
-  isVerified   Boolean   @default(false)
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                   String    @id @default(uuid())
+  email                String    @unique
+  passwordHash         String
+  role                 Role      @default(MEMBER)
+  isVerified           Boolean   @default(false)
+  isActive             Boolean   @default(true)
+  mustChangePassword   Boolean   @default(false)
+  passwordResetToken   String?   @unique
+  passwordResetExpires DateTime?
+  lastLoginAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  // Every account maps to exactly one Person
   personId String @unique
   person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 
-  // A BRANCH_ADMIN is linked from Branch.adminId (inverse side below)
   branchAdminOf Branch? @relation("BranchAdmin")
+
+  createdById String?
+  createdBy   User?   @relation("UserCreator", fields: [createdById], references: [id])
+  createdUsers User[] @relation("UserCreator")
 
   submissions         Submission[]          @relation("Submitter")
   reviewedSubmissions Submission[]          @relation("Reviewer")
   albums              Album[]               @relation("AlbumCreator")
+  publishedAlbums     Album[]               @relation("AlbumPublisher")
   galleryUploads      GalleryMedia[]        @relation("MediaUploader")
+  moderatedMedia      GalleryMedia[]        @relation("MediaModerator")
   hallOfFameEntries   HallOfFameEntry[]     @relation("EntryCreator")
   reunions            Reunion[]             @relation("ReunionCreator")
   reunionRegistrations ReunionRegistration[]
   notifications       Notification[]
   auditLogs           AuditLog[]
+  adminNotes          AdminNote[]
 
   @@index([email])
   @@index([role])
@@ -244,7 +260,10 @@ model Submission {
   submitter         User    @relation("Submitter", fields: [submittedByUserId], references: [id])
 
   targetPersonId String?
-  targetPerson   Person? @relation(fields: [targetPersonId], references: [id])
+  targetPerson   Person? @relation("SubmissionTarget", fields: [targetPersonId], references: [id])
+
+  appliedPersonId String?
+  appliedPerson   Person? @relation("SubmissionApplied", fields: [appliedPersonId], references: [id])
 
   reviewedByUserId String?
   reviewer         User?   @relation("Reviewer", fields: [reviewedByUserId], references: [id])
@@ -269,9 +288,12 @@ model Album {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  createdByUserId String
-  createdBy       User     @relation("AlbumCreator", fields: [createdByUserId], references: [id])
-  media           GalleryMedia[]
+  createdByUserId  String
+  createdBy        User     @relation("AlbumCreator", fields: [createdByUserId], references: [id])
+  publishedByUserId String?
+  publishedBy      User?    @relation("AlbumPublisher", fields: [publishedByUserId], references: [id])
+  publishedAt      DateTime?
+  media            GalleryMedia[]
 
   @@index([slug])
 }
@@ -293,11 +315,17 @@ model GalleryMedia {
   uploadedByUserId String?
   uploader         User?   @relation("MediaUploader", fields: [uploadedByUserId], references: [id])
 
+  moderatedByUserId String?
+  moderatedBy      User?   @relation("MediaModerator", fields: [moderatedByUserId], references: [id])
+  moderatedAt      DateTime?
+  rejectionReason  String?
+
   personId String?
   person   Person? @relation(fields: [personId], references: [id])
 
   @@index([albumId])
   @@index([status])
+  @@index([moderatedByUserId])
 }
 
 // ──────────────────────────────────────
@@ -361,6 +389,7 @@ model ReunionRegistration {
   notes      String?
   status     RegistrationStatus @default(CONFIRMED)
   createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
 
   reunionId String
   reunion   Reunion @relation(fields: [reunionId], references: [id], onDelete: Cascade)
@@ -397,6 +426,9 @@ model AuditLog {
   entityId   String?
   beforeData Json?
   afterData  Json?
+  actorLabel String?
+  ipAddress  String?
+  userAgent  String?
   createdAt  DateTime @default(now())
 
   actorUserId String?
@@ -404,6 +436,20 @@ model AuditLog {
 
   @@index([entityType, entityId])
   @@index([createdAt])
+}
+
+model AdminNote {
+  id        String   @id @default(uuid())
+  body      String
+  createdAt DateTime @default(now())
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  @@index([personId])
 }
 
 // Seeded reference table, generation names per Javanese tradition
