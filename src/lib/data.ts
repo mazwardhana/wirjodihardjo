@@ -78,17 +78,27 @@ export async function getPersonCount() {
  * Ambil data pohon lengkap untuk halaman silsilah.
  * Hanya field publik. Relasi diambil dari edge parent-child dan partner.
  */
-export async function getFamilyTree() {
+export async function getFamilyTree(filters?: {
+  branchId?: string;
+  generationLevel?: number;
+  isDeceased?: boolean;
+}) {
+  const where: Record<string, unknown> = {};
+  if (filters?.branchId) where.branchId = filters.branchId;
+  if (filters?.generationLevel !== undefined) where.generationLevel = filters.generationLevel;
+  if (filters?.isDeceased !== undefined) where.isDeceased = filters.isDeceased;
+
   const [persons, childEdges, partnerEdges] = await Promise.all([
     prisma.person.findMany({
+      where: where as any,
       select: publicPersonSelect,
       orderBy: { generationLevel: "asc" },
     }),
     prisma.personChild.findMany({
-      select: { parentId: true, childId: true, parentRole: true },
+      select: { parentId: true, childId: true, parentRole: true, isStep: true, isAdopted: true },
     }),
     prisma.personPartner.findMany({
-      select: { partnerAId: true, partnerBId: true, status: true },
+      select: { partnerAId: true, partnerBId: true, status: true, marriageDate: true, divorceDate: true, orderIndex: true },
     }),
   ]);
 

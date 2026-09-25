@@ -207,7 +207,7 @@ export async function getImmediateFamily(personId: string) {
   const [person, parentEdges, partnerEdges, childEdges] = await Promise.all([
     prisma.person.findUnique({
       where: { id: personId },
-      select: { id: true, fullName: true, gender: true, generationLevel: true, isDeceased: true },
+      select: { id: true, fullName: true, nickname: true, photoUrl: true, gender: true, generationLevel: true, isDeceased: true },
     }),
     prisma.personChild.findMany({
       where: { childId: personId },

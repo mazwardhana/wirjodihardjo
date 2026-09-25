@@ -11,11 +11,32 @@ export type PersonNodeData = {
   childCount: number;
   hasHiddenChildren: boolean;
   collapsed: boolean;
+  partnerStatus: "MARRIED" | "DIVORCED" | "WIDOWED" | "UNKNOWN" | null;
+};
+
+const statusBadge: Record<string, { label: string; cls: string }> = {
+  MARRIED: {
+    label: "Menikah",
+    cls: "bg-gold/15 text-gold-deep border-gold/30",
+  },
+  DIVORCED: {
+    label: "Cerai",
+    cls: "bg-red-100/60 text-red-700 border-red-300/50",
+  },
+  WIDOWED: {
+    label: "Alm./Almh.",
+    cls: "bg-wood/10 text-wood-soft border-wood/20",
+  },
+  UNKNOWN: {
+    label: "?",
+    cls: "bg-muted/10 text-muted border-muted/20",
+  },
 };
 
 function PersonNodeComponent({ data, selected }: NodeProps) {
   const d = data as unknown as PersonNodeData;
-  const { person, childCount, hasHiddenChildren } = d;
+  const { person, childCount, hasHiddenChildren, partnerStatus } = d;
+  const badge = partnerStatus ? statusBadge[partnerStatus] : null;
 
   return (
     <div
@@ -56,15 +77,24 @@ function PersonNodeComponent({ data, selected }: NodeProps) {
         </div>
       </div>
 
-      <div className="mt-1.5 flex items-center justify-between">
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
         {person.isDeceased && (
-          <span className="text-[9px] uppercase tracking-wide text-muted">
+          <span className="rounded-full bg-muted/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted">
             Almarhum
+          </span>
+        )}
+        {badge && (
+          <span
+            className={`rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${badge.cls}`}
+          >
+            {badge.label}
           </span>
         )}
         {childCount > 0 && (
           <span className="ml-auto rounded-full bg-forest/10 px-1.5 py-0.5 text-[9px] font-medium text-forest">
-            {hasHiddenChildren ? `${childCount} disembunyikan` : `${childCount} anak`}
+            {hasHiddenChildren
+              ? `${childCount} disembunyikan`
+              : `${childCount} anak`}
           </span>
         )}
       </div>

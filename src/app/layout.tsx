@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Providers } from "@/components/Providers";
+import { ToastContainer } from "@/components/ui/Toast";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             {children}
           </main>
           <Footer />
+          <ToastContainer />
         </Providers>
       </body>
     </html>

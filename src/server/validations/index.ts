@@ -1,1 +1,2 @@
-export { personSchema } from "./person";
+export { personSchema, addChildSchema, addSpouseSchema, editPersonSchema, editRelationSchema } from "./submission";
+export type { PersonInput, AddChildInput, AddSpouseInput, EditPersonInput, EditRelationInput } from "./submission";

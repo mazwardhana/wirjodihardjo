@@ -2,13 +2,10 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Avatar } from "@/components/ui/Avatar";
-import { auth } from "@/lib/auth";
 
-// Entri dibaca langsung dari basis data saat diminta.
 export const dynamic = "force-dynamic";
 
 export default async function HallOfFamePage() {
-  const session = await auth();
   const entries = await prisma.hallOfFameEntry.findMany({
     where: { isPublished: true },
     include: {
@@ -60,7 +57,28 @@ export default async function HallOfFamePage() {
                   <p className="text-xs font-medium text-wood">{entry.category}</p>
                 </div>
               </div>
-              <h3 className="mt-3 font-display text-base font-semibold text-forest">
+
+              {entry.photoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={entry.photoUrl}
+                  alt={`Foto terkait: ${entry.title}`}
+                  className="mt-3 aspect-video w-full rounded-md border border-wood/15 object-cover"
+                />
+              )}
+
+              {entry.entryType === "IN_MEMORIAM" && (
+                <p className="mt-3 inline-block rounded-full bg-wood/10 px-2.5 py-0.5 text-[10px] font-medium text-wood">
+                  In Memoriam
+                </p>
+              )}
+              {entry.entryType === "ACHIEVEMENT" && (
+                <p className="mt-3 inline-block rounded-full bg-gold/15 px-2.5 py-0.5 text-[10px] font-medium text-gold-deep">
+                  Prestasi
+                </p>
+              )}
+
+              <h3 className="mt-2 font-display text-base font-semibold text-forest">
                 {entry.title}
               </h3>
               <p className="mt-1 text-sm leading-relaxed text-muted">

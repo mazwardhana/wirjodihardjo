@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Avatar } from "@/components/ui/Avatar";
 import { getGenerationLabel } from "@/lib/generations";
+import { recordUpcomingReunionReminders } from "@/lib/notifications";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -25,6 +26,9 @@ export default async function DashboardPage() {
   });
 
   if (!user) redirect("/login");
+
+  // Catat reminder reuni mendatang (idempoten)
+  try { await recordUpcomingReunionReminders(user.id); } catch {}
 
   const [pendingCount, reunionCount, notificationCount] = await Promise.all([
     prisma.submission.count({

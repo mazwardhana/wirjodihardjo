@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getGenerationLabel } from "@/lib/generations";
 import { Avatar } from "@/components/ui/Avatar";
 import { auth } from "@/lib/auth";
+import { getImmediateFamily, getClassifiedSiblings } from "@/lib/genealogy";
+import { FamilyPanel } from "@/components/profil/FamilyPanel";
 
 export async function generateMetadata({
   params,
@@ -59,21 +61,23 @@ export default async function ProfilPage({
     }
   }
 
-  // Konteks keluarga
-  const [parents, children] = await Promise.all([
-    prisma.personChild.findMany({
-      where: { childId: id },
-      include: {
-        parent: { select: { id: true, fullName: true } },
-      },
-    }),
-    prisma.personChild.findMany({
-      where: { parentId: id },
-      include: {
-        child: { select: { id: true, fullName: true, gender: true, generationLevel: true } },
-      },
-    }),
+  // Konteks keluarga — via FamilyPanel, serialize Date ke string untuk client component
+  const [immediateFamily, siblings] = await Promise.all([
+    getImmediateFamily(id),
+    getClassifiedSiblings(id),
   ]);
+
+  const familyData = immediateFamily
+    ? {
+        ...immediateFamily,
+        siblings,
+        partners: immediateFamily.partners.map((p) => ({
+          ...p,
+          marriageDate: p.marriageDate?.toISOString() ?? null,
+          divorceDate: p.divorceDate?.toISOString() ?? null,
+        })),
+      }
+    : null;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
@@ -168,50 +172,12 @@ export default async function ProfilPage({
         )}
       </div>
 
-      {/* Konteks keluarga */}
-      <div className="mt-8 grid gap-6 sm:grid-cols-2">
-        {parents.length > 0 && (
-          <div className="rounded-lg border border-wood/15 bg-cream p-5">
-            <h2 className="font-display text-lg font-semibold text-forest">
-              Orang Tua
-            </h2>
-            <ul className="mt-3 space-y-2">
-              {parents.map((p) => (
-                <li key={p.id} className="text-sm">
-                  <a
-                    href={`/profil/${p.parent.id}`}
-                    className="text-forest underline hover:text-gold-deep"
-                  >
-                    {p.parent.fullName}
-                  </a>
-                  <span className="ml-1 text-xs text-muted">
-                    ({p.parentRole === "MOTHER" ? "Ibu" : p.parentRole === "FATHER" ? "Ayah" : "Wali"})
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {children.length > 0 && (
-          <div className="rounded-lg border border-wood/15 bg-cream p-5">
-            <h2 className="font-display text-lg font-semibold text-forest">
-              Anak
-            </h2>
-            <ul className="mt-3 space-y-2">
-              {children.map((c) => (
-                <li key={c.id} className="text-sm">
-                  <a
-                    href={`/profil/${c.child.id}`}
-                    className="text-forest underline hover:text-gold-deep"
-                  >
-                    {c.child.fullName}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
+      {/* Keluarga terdekat — FamilyPanel */}
+      {familyData && (
+        <div className="mt-8">
+          <FamilyPanel data={familyData} />
+        </div>
+      )}
     </div>
   );
 }

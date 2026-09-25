@@ -24,7 +24,9 @@
   --color-wood: #6f4a2b;
   --color-wood-soft: #8a6238;
   --color-gold: #b4872a;
-  --color-gold-deep: #8a6519;
+  --color-gold-deep: #7d5b16;
+  /* Emas terang untuk teks di atas forest: 5.94:1, lolos AA (gold asli hanya 3.79:1). */
+  --color-gold-light: #d4af5c;
 
   /* Fonts */
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;

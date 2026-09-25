@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { getGenerationLabel } from "@/lib/generations";
-import { searchPersons, getFamilyTree } from "@/lib/data";
+import { searchPersons, getFamilyTree, getBranches, getGenerationBreakdown } from "@/lib/data";
 import { auth } from "@/lib/auth";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FamilyTreeCanvas } from "@/components/silsilah/FamilyTreeCanvas";
+import { FilterPanel } from "@/components/silsilah/FilterPanel";
 
 // Data silsilah dibaca langsung dari basis data saat diminta.
 export const dynamic = "force-dynamic";
@@ -12,14 +13,25 @@ export const dynamic = "force-dynamic";
 export default async function SilsilahPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; branchId?: string; generation?: string; deceased?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, branchId, generation, deceased } = await searchParams;
   const session = await auth();
 
-  const [results, treeData] = await Promise.all([
+  // Parse filter
+  const filters = q
+    ? null
+    : {
+        branchId: branchId || undefined,
+        generationLevel: generation ? parseInt(generation) : undefined,
+        isDeceased: deceased !== undefined ? deceased === "true" : undefined,
+      };
+
+  const [results, treeData, branches, genBreakdown] = await Promise.all([
     q ? searchPersons(q) : null,
-    q ? null : getFamilyTree(),
+    filters !== null ? getFamilyTree(filters) : null,
+    getBranches(),
+    getGenerationBreakdown(),
   ]);
 
   return (
@@ -38,6 +50,15 @@ export default async function SilsilahPage({
             Data kontak hanya untuk anggota yang login.
           </p>
         </div>
+
+        {/* Filter — client component */}
+        {treeData && (
+          <FilterPanel
+            branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+            generations={genBreakdown.filter((g): g is { level: number; count: number } => g.level !== null)}
+            current={{ branchId, generationLevel: generation ? parseInt(generation) : undefined, isDeceased: deceased }}
+          />
+        )}
       </div>
 
       {/* Pencarian */}

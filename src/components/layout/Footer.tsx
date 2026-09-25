@@ -26,14 +26,14 @@ export function Footer() {
           </div>
 
           <nav aria-label="Navigasi footer">
-            <h2 className="font-display text-base font-semibold text-gold">
+            <h2 className="font-display text-base font-semibold text-gold-light">
               Jelajahi
             </h2>
             <ul className="mt-4 space-y-2.5 text-sm">
               <li>
                 <Link
                   href="/silsilah"
-                  className="text-cream/80 transition-colors hover:text-gold"
+                  className="text-cream/80 transition-colors hover:text-gold-light"
                 >
                   Silsilah Keluarga
                 </Link>
@@ -41,7 +41,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/galeri"
-                  className="text-cream/80 transition-colors hover:text-gold"
+                  className="text-cream/80 transition-colors hover:text-gold-light"
                 >
                   Galeri
                 </Link>
@@ -49,7 +49,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/hall-of-fame"
-                  className="text-cream/80 transition-colors hover:text-gold"
+                  className="text-cream/80 transition-colors hover:text-gold-light"
                 >
                   Hall of Fame
                 </Link>
@@ -57,7 +57,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/reuni"
-                  className="text-cream/80 transition-colors hover:text-gold"
+                  className="text-cream/80 transition-colors hover:text-gold-light"
                 >
                   Reuni
                 </Link>
@@ -65,7 +65,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/tentang"
-                  className="text-cream/80 transition-colors hover:text-gold"
+                  className="text-cream/80 transition-colors hover:text-gold-light"
                 >
                   Tentang Keluarga
                 </Link>

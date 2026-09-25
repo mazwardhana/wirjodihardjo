@@ -35,15 +35,35 @@ export default async function DashboardReuniPage() {
         </div>
       ) : (
         <ul className="mt-8 space-y-3">
-          {registrations.map((r) => (
-            <li key={r.id} className="rounded-lg border border-wood/15 bg-cream p-4">
-              <Link href={`/reuni/${r.reunion.slug}`} className="font-semibold text-forest hover:text-gold-deep">
-                {r.reunion.title}
-              </Link>
-              <p className="text-sm text-muted">{formatDate(r.reunion.startAt)}</p>
-              <p className="text-sm text-wood">Status: {r.status === "CONFIRMED" ? "Terdaftar" : r.status === "CANCELLED" ? "Dibatalkan" : "Waitlist"}</p>
-            </li>
-          ))}
+          {registrations.map((r) => {
+            const statusText =
+              r.status === "CONFIRMED"
+                ? "Terdaftar"
+                : r.status === "CANCELLED"
+                  ? "Dibatalkan"
+                  : "Daftar tunggu";
+            const statusColor =
+              r.status === "CONFIRMED"
+                ? "text-forest"
+                : r.status === "CANCELLED"
+                  ? "text-wood"
+                  : "text-gold-deep";
+            return (
+              <li key={r.id} className="rounded-lg border border-wood/15 bg-cream p-4">
+                <Link
+                  href={`/reuni/${r.reunion.slug}`}
+                  className="font-semibold text-forest hover:text-gold-deep"
+                >
+                  {r.reunion.title}
+                </Link>
+                <p className="mt-1 text-sm text-muted">{formatDate(r.reunion.startAt)}</p>
+                <p className={`mt-1 text-xs ${statusColor}`}>
+                  {statusText}
+                  {r.guestCount > 1 ? ` untuk ${r.guestCount} orang` : ""}
+                </p>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
