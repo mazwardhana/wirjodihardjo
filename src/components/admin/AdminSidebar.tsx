@@ -11,6 +11,8 @@ const menu = [
   { href: "/admin/cabang", label: "Cabang", icon: "⊟" },
   { href: "/admin/galeri", label: "Galeri", icon: "⊠" },
   { href: "/admin/hall-of-fame", label: "Hall of Fame", icon: "★" },
+  { href: "/admin/artikel", label: "Artikel", icon: "▤" },
+  { href: "/admin/impor", label: "Impor Data", icon: "⇧" },
   { href: "/admin/reuni", label: "Reuni", icon: "☰" },
   { href: "/admin/pengguna", label: "Pengguna", icon: "☷" },
   { href: "/admin/audit-log", label: "Audit Log", icon: "☰" },

@@ -77,6 +77,19 @@ enum EntryType {
   IN_MEMORIAM
 }
 
+enum ArticleStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ImportStatus {
+  VALIDATED
+  COMMITTED
+  PARTIAL
+  FAILED
+}
+
 // ──────────────────────────────────────
 // Genealogy core
 // ──────────────────────────────────────
@@ -103,6 +116,7 @@ model Branch {
 
 model Person {
   id                 String    @id @default(uuid())
+  externalRef        String?   @unique
   fullName           String
   nickname           String?
   slug               String?   @unique
@@ -121,8 +135,8 @@ model Person {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  branchId String?
-  branch   Branch? @relation("PersonBranch", fields: [branchId], references: [id])
+  branchId     String?
+  branch       Branch? @relation("PersonBranch", fields: [branchId], references: [id])
   rootedBranch Branch? @relation("BranchRoot")
 
   private PersonPrivate?
@@ -134,11 +148,12 @@ model Person {
   partnershipsA PersonPartner[] @relation("PartnerA")
   partnershipsB PersonPartner[] @relation("PartnerB")
 
-  submissions       Submission[]          @relation("SubmissionApplied")
+  submissions       Submission[]      @relation("SubmissionApplied")
   hallOfFameEntries HallOfFameEntry[]
   galleryMedia      GalleryMedia[]
   adminNotes        AdminNote[]
-  targetOf          Submission[]          @relation("SubmissionTarget")
+  targetOf          Submission[]      @relation("SubmissionTarget")
+  articles          Article[]
 
   @@index([fullName])
   @@index([slug])
@@ -165,19 +180,22 @@ model PersonPrivate {
 }
 
 model PersonChild {
-  id         String     @id @default(uuid())
-  parentId   String
-  childId    String
-  parentRole ParentRole @default(UNKNOWN)
-  isAdopted  Boolean    @default(false)
-  isStep     Boolean    @default(false)
-  createdAt  DateTime   @default(now())
+  id                 String     @id @default(uuid())
+  parentId           String
+  childId            String
+  parentRole         ParentRole @default(UNKNOWN)
+  isAdopted          Boolean    @default(false)
+  isStep             Boolean    @default(false)
+  createdAt          DateTime   @default(now())
+  sourceSubmissionId String?
 
-  parent Person @relation("AsParent", fields: [parentId], references: [id], onDelete: Cascade)
-  child  Person @relation("AsChild", fields: [childId], references: [id], onDelete: Cascade)
+  parent     Person      @relation("AsParent", fields: [parentId], references: [id], onDelete: Cascade)
+  child      Person      @relation("AsChild", fields: [childId], references: [id], onDelete: Cascade)
+  submission Submission? @relation("ChildSubmission", fields: [sourceSubmissionId], references: [id])
 
   @@unique([parentId, childId])
   @@index([childId])
+  @@index([sourceSubmissionId])
 }
 
 model PersonPartner {
@@ -222,22 +240,26 @@ model User {
 
   branchAdminOf Branch? @relation("BranchAdmin")
 
-  createdById String?
-  createdBy   User?   @relation("UserCreator", fields: [createdById], references: [id])
-  createdUsers User[] @relation("UserCreator")
+  createdById  String?
+  createdBy    User?   @relation("UserCreator", fields: [createdById], references: [id])
+  createdUsers User[]  @relation("UserCreator")
 
-  submissions         Submission[]          @relation("Submitter")
-  reviewedSubmissions Submission[]          @relation("Reviewer")
-  albums              Album[]               @relation("AlbumCreator")
-  publishedAlbums     Album[]               @relation("AlbumPublisher")
-  galleryUploads      GalleryMedia[]        @relation("MediaUploader")
-  moderatedMedia      GalleryMedia[]        @relation("MediaModerator")
-  hallOfFameEntries   HallOfFameEntry[]     @relation("EntryCreator")
-  reunions            Reunion[]             @relation("ReunionCreator")
+  submissions          Submission[]          @relation("Submitter")
+  reviewedSubmissions  Submission[]          @relation("Reviewer")
+  albums               Album[]               @relation("AlbumCreator")
+  publishedAlbums      Album[]               @relation("AlbumPublisher")
+  galleryUploads       GalleryMedia[]        @relation("MediaUploader")
+  moderatedMedia       GalleryMedia[]        @relation("MediaModerator")
+  hallOfFameEntries    HallOfFameEntry[]     @relation("EntryCreator")
+  reunions             Reunion[]             @relation("ReunionCreator")
   reunionRegistrations ReunionRegistration[]
-  notifications       Notification[]
-  auditLogs           AuditLog[]
-  adminNotes          AdminNote[]
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+  adminNotes           AdminNote[]
+
+  importBatches    ImportBatch[] @relation("ImportCreator")
+  articles         Article[]     @relation("ArticleAuthor")
+  reviewedArticles Article[]     @relation("ArticleReviewer")
 
   @@index([email])
   @@index([role])
@@ -257,7 +279,7 @@ model Submission {
   createdAt  DateTime         @default(now())
 
   submittedByUserId String
-  submitter         User    @relation("Submitter", fields: [submittedByUserId], references: [id])
+  submitter         User   @relation("Submitter", fields: [submittedByUserId], references: [id])
 
   targetPersonId String?
   targetPerson   Person? @relation("SubmissionTarget", fields: [targetPersonId], references: [id])
@@ -267,6 +289,8 @@ model Submission {
 
   reviewedByUserId String?
   reviewer         User?   @relation("Reviewer", fields: [reviewedByUserId], references: [id])
+
+  childEdges PersonChild[] @relation("ChildSubmission")
 
   @@index([status])
   @@index([submittedByUserId])
@@ -288,12 +312,12 @@ model Album {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  createdByUserId  String
-  createdBy        User     @relation("AlbumCreator", fields: [createdByUserId], references: [id])
+  createdByUserId   String
+  createdBy         User           @relation("AlbumCreator", fields: [createdByUserId], references: [id])
   publishedByUserId String?
-  publishedBy      User?    @relation("AlbumPublisher", fields: [publishedByUserId], references: [id])
-  publishedAt      DateTime?
-  media            GalleryMedia[]
+  publishedBy       User?          @relation("AlbumPublisher", fields: [publishedByUserId], references: [id])
+  publishedAt       DateTime?
+  media             GalleryMedia[]
 
   @@index([slug])
 }
@@ -316,9 +340,9 @@ model GalleryMedia {
   uploader         User?   @relation("MediaUploader", fields: [uploadedByUserId], references: [id])
 
   moderatedByUserId String?
-  moderatedBy      User?   @relation("MediaModerator", fields: [moderatedByUserId], references: [id])
-  moderatedAt      DateTime?
-  rejectionReason  String?
+  moderatedBy       User?     @relation("MediaModerator", fields: [moderatedByUserId], references: [id])
+  moderatedAt       DateTime?
+  rejectionReason   String?
 
   personId String?
   person   Person? @relation(fields: [personId], references: [id])
@@ -348,7 +372,7 @@ model HallOfFameEntry {
   person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   createdByUserId String
-  createdBy       User    @relation("EntryCreator", fields: [createdByUserId], references: [id])
+  createdBy       User   @relation("EntryCreator", fields: [createdByUserId], references: [id])
 
   @@index([category])
   @@index([isPublished])
@@ -375,7 +399,7 @@ model Reunion {
   updatedAt            DateTime      @updatedAt
 
   createdByUserId String
-  createdBy       User     @relation("ReunionCreator", fields: [createdByUserId], references: [id])
+  createdBy       User   @relation("ReunionCreator", fields: [createdByUserId], references: [id])
 
   registrations ReunionRegistration[]
 
@@ -454,7 +478,76 @@ model AdminNote {
 
 // Seeded reference table, generation names per Javanese tradition
 model GenerationLabel {
-  level     Int    @id
+  level     Int     @id
   jawa      String
   indonesia String?
+}
+
+// ──────────────────────────────────────
+// Bulk import
+// ──────────────────────────────────────
+
+model ImportBatch {
+  id          String       @id @default(uuid())
+  type        String       @default("PERSON_FULL")
+  filename    String
+  status      ImportStatus @default(VALIDATED)
+  totalRows   Int          @default(0)
+  successRows Int          @default(0)
+  errorRows   Int          @default(0)
+  reportJson  Json?
+  createdAt   DateTime     @default(now())
+
+  createdById String
+  createdBy   User   @relation("ImportCreator", fields: [createdById], references: [id])
+
+  @@index([status])
+  @@index([createdById])
+}
+
+// ──────────────────────────────────────
+// Articles & stories
+// ──────────────────────────────────────
+
+model ArticleCategory {
+  id   String @id @default(uuid())
+  name String @unique
+  slug String @unique
+
+  articles Article[]
+
+  createdAt DateTime @default(now())
+}
+
+model Article {
+  id          String        @id @default(uuid())
+  title       String
+  slug        String        @unique
+  body        String
+  excerpt     String?
+  youtubeUrl  String?
+  photoUrl    String?
+  status      ArticleStatus @default(PENDING)
+  reviewNote  String?
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  authorUserId String
+  author       User   @relation("ArticleAuthor", fields: [authorUserId], references: [id])
+
+  reviewedByUserId String?
+  reviewedBy       User?     @relation("ArticleReviewer", fields: [reviewedByUserId], references: [id])
+  reviewedAt       DateTime?
+
+  categoryId String
+  category   ArticleCategory @relation(fields: [categoryId], references: [id])
+
+  personId String?
+  person   Person? @relation(fields: [personId], references: [id])
+
+  @@index([status])
+  @@index([slug])
+  @@index([authorUserId])
+  @@index([categoryId])
 }
