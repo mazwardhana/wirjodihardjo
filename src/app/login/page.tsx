@@ -1,15 +1,41 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { signIn } from "@/lib/auth-client";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn, useSession } from "@/lib/auth-client";
 
-export default function LoginPage() {
+function getSafeRedirect(next: string | null, role?: string): string {
+  const defaultTarget =
+    role === "SUPER_ADMIN" || role === "BRANCH_ADMIN" ? "/admin" : "/dashboard";
+
+  // Hanya izinkan path internal: diawali satu "/" dan tanpa backslash.
+  const internal =
+    next !== null &&
+    next.startsWith("/") &&
+    !next.startsWith("//") &&
+    !next.includes("\\");
+
+  if (internal && next !== "/login") {
+    return next;
+  }
+
+  return defaultTarget;
+}
+
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session, update } = useSession();
+
+  useEffect(() => {
+    if (session?.user) {
+      router.replace(getSafeRedirect(searchParams.get("next"), session.user.role));
+    }
+  }, [router, searchParams, session]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,10 +52,12 @@ export default function LoginPage() {
       if (result?.error) {
         setError("Email atau kata sandi salah.");
         setPending(false);
-      } else {
-        router.push("/dashboard");
-        router.refresh();
+        return;
       }
+
+      // Segarkan sesi agar peran terbaru tersedia untuk redirect role-aware.
+      await update();
+      router.refresh();
     } catch {
       setError("Terjadi kesalahan. Coba lagi.");
       setPending(false);
@@ -38,9 +66,7 @@ export default function LoginPage() {
 
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-16">
-      <h1 className="font-display text-3xl font-semibold text-forest">
-        Masuk
-      </h1>
+      <h1 className="font-display text-3xl font-semibold text-forest">Masuk</h1>
       <p className="mt-2 text-muted">
         Masuk sebagai anggota keluarga Wirjodihardjo.
       </p>
@@ -100,5 +126,13 @@ export default function LoginPage() {
         Belum punya akun? Hubungi admin keluarga untuk pendaftaran.
       </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

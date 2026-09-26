@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/Avatar";
 import { Dialog } from "@/components/ui/Dialog";
-import { ReactFlow, Background, useNodesState, useEdgesState, type Node, type Edge } from "@xyflow/react";
+import { ReactFlow, Background, useNodesState, useEdgesState } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { getGenerationLabel } from "@/lib/generations";
 
 type RawFamily = {
   person: { id: string; fullName: string; nickname: string | null; photoUrl: string | null; gender: string; generationLevel: number | null; isDeceased: boolean };
@@ -15,6 +14,11 @@ type RawFamily = {
     role: string;
     isStep: boolean;
     isAdopted: boolean;
+  }>;
+  grandparents: Array<{
+    member: { id: string; fullName: string; photoUrl: string | null };
+    role: string;
+    throughParentId: string;
   }>;
   partners: Array<{
     member: { id: string; fullName: string; photoUrl: string | null };
@@ -47,13 +51,38 @@ export function FamilyPanel({ data }: { data: RawFamily }) {
 
   if (!data) return null;
 
-  const { person, parents, partners, children, siblings } = data;
+  const { person, parents, grandparents, partners, children, siblings } = data;
 
   return (
     <div className="rounded-lg border border-wood/15 bg-cream p-5">
       <h2 className="font-display text-lg font-semibold text-forest">Keluarga Terdekat</h2>
 
       <div className="mt-4 space-y-4">
+        {/* Kakek-nenek */}
+        {grandparents.length > 0 && (
+          <div>
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted">Kakek-Nenek</h3>
+            <div className="mt-1.5 flex flex-wrap gap-3">
+              {grandparents.map((gp) => {
+                const parentName = parents.find((p) => p.member.id === gp.throughParentId)?.member.fullName;
+                return (
+                  <Link key={gp.member.id} href={`/profil/${gp.member.id}`} className="flex items-center gap-2 text-sm text-forest hover:text-gold-deep">
+                    <Avatar name={gp.member.fullName} photoUrl={gp.member.photoUrl} size="sm" />
+                    <div>
+                      <span className="font-medium">{gp.member.fullName}</span>
+                      {parentName && (
+                        <span className="ml-1 text-xs text-muted">
+                          (orang tua {parentName})
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Orang tua */}
         {parents.length > 0 && (
           <div>

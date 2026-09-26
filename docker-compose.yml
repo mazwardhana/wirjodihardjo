@@ -13,7 +13,7 @@ services:
     environment:
       DATABASE_URL: postgresql://wirjo:wirjo_secret@wirjodihardjo-db:5432/wirjodihardjo
       NEXTAUTH_URL: https://wirjodihardjo.teknoloka.id
-      NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:-change-this-to-a-random-secret-in-production}"
+      NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set}"
       AUTH_TRUST_HOST: "true"
       UPLOAD_DIR: /app/uploads
       REDIS_URL: redis://wirjodihardjo-redis:6379

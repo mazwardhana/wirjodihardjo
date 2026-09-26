@@ -229,14 +229,36 @@ export async function getImmediateFamily(personId: string) {
 
   if (!person) return null;
 
+  const parents = parentEdges.map((e) => ({
+    member: e.parent as FamilyMember,
+    role: e.parentRole,
+    isStep: e.isStep,
+    isAdopted: e.isAdopted,
+  }));
+
+  // Ambil kakek-nenek (orang tua dari orang tua)
+  const parentIds = parents.map((p) => p.member.id);
+  const grandparentEdges =
+    parentIds.length > 0
+      ? await prisma.personChild.findMany({
+          where: { childId: { in: parentIds } },
+          include: {
+            parent: { select: { id: true, fullName: true, nickname: true, photoUrl: true, gender: true, generationLevel: true, isDeceased: true } },
+            child: { select: { id: true } },
+          },
+        })
+      : [];
+
+  const grandparents = grandparentEdges.map((e) => ({
+    member: e.parent as FamilyMember,
+    role: e.parentRole,
+    throughParentId: e.childId,
+  }));
+
   return {
     person: person as FamilyMember,
-    parents: parentEdges.map((e) => ({
-      member: e.parent as FamilyMember,
-      role: e.parentRole,
-      isStep: e.isStep,
-      isAdopted: e.isAdopted,
-    })),
+    parents,
+    grandparents,
     partners: partnerEdges.map((e) => ({
       member: (e.partnerAId === personId ? e.partnerB : e.partnerA) as FamilyMember,
       status: e.status,

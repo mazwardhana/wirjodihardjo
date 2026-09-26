@@ -137,7 +137,12 @@ export async function POST(request: Request) {
   let appliedPersonId: string | null = null;
 
   try {
-    appliedPersonId = await applySubmission(payload, submission.type, submission.targetPerson?.id);
+    appliedPersonId = await applySubmission(
+      payload,
+      submission.type,
+      submission.targetPerson?.id,
+      submission.id,
+    );
   } catch (e) {
     return NextResponse.json({ error: `Gagal menerapkan: ${(e as Error).message}` }, { status: 500 });
   }
@@ -176,6 +181,7 @@ async function applySubmission(
   payload: Record<string, unknown>,
   type: string,
   targetPersonId?: string | null,
+  submissionId?: string,
 ): Promise<string | null> {
   switch (type) {
     case "ADD_PERSON": {
@@ -213,6 +219,7 @@ async function applySubmission(
           parentRole: (payload.parentRole as any) ?? "UNKNOWN",
           isStep: (payload.isStep as boolean) ?? false,
           isAdopted: (payload.isAdopted as boolean) ?? false,
+          ...(submissionId ? { sourceSubmissionId: submissionId } : {}),
         },
       });
       return child.id;

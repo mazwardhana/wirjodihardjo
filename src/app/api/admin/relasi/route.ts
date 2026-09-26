@@ -4,6 +4,55 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { recalculateGenerationLevel } from "@/lib/genealogy";
 
+const MAX_PARENTS = 2;
+
+/** Telusuri anak dari `ancestorId` untuk memastikan `descendantId` bukan keturunannya. */
+async function isDescendant(ancestorId: string, descendantId: string): Promise<boolean> {
+  const queue = [ancestorId];
+  const visited = new Set<string>();
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    if (current === descendantId) return true;
+
+    const edges = await prisma.personChild.findMany({
+      where: { parentId: current },
+      select: { childId: true },
+    });
+    for (const edge of edges) {
+      if (!visited.has(edge.childId)) queue.push(edge.childId);
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Validasi relasi orang tua-anak: batas dua orang tua dan anti-siklus.
+ * Mengembalikan pesan error yang aman ditampilkan, atau null jika valid.
+ */
+async function validateParentChild(
+  parentId: string,
+  childId: string,
+): Promise<string | null> {
+  if (parentId === childId) {
+    return "Seseorang tidak dapat menjadi orang tua bagi dirinya sendiri.";
+  }
+
+  const parentCount = await prisma.personChild.count({ where: { childId } });
+  if (parentCount >= MAX_PARENTS) {
+    return `Anggota ini sudah memiliki ${MAX_PARENTS} orang tua. Hapus salah satu relasi terlebih dahulu.`;
+  }
+
+  if (await isDescendant(childId, parentId)) {
+    return "Relasi ini akan membentuk siklus silsilah yang tidak valid.";
+  }
+
+  return null;
+}
+
 /**
  * API relasi untuk admin: tambah/hapus relasi keluarga.
  * Setiap perubahan diaudit dan memicu rekalkulasi generasi.
@@ -55,6 +104,10 @@ export async function POST(request: Request) {
         if (existing) {
           return NextResponse.json({ error: "Relasi sudah ada" }, { status: 409 });
         }
+        const invalid = await validateParentChild(targetPersonId, personId);
+        if (invalid) {
+          return NextResponse.json({ error: invalid }, { status: 409 });
+        }
         await prisma.personChild.create({
           data: {
             parentId: targetPersonId,
@@ -69,6 +122,10 @@ export async function POST(request: Request) {
         });
         if (existing) {
           return NextResponse.json({ error: "Relasi sudah ada" }, { status: 409 });
+        }
+        const invalid = await validateParentChild(personId, targetPersonId);
+        if (invalid) {
+          return NextResponse.json({ error: invalid }, { status: 409 });
         }
         await prisma.personChild.create({
           data: {
