@@ -4,9 +4,11 @@
 **Update terakhir:** 26 September 2026  
 **Target:** Bug fix + Import data + Artikel/Cerita  
 **Branch:** `develop` (dari `main`)  
-**HEAD checkpoint:** `ffcd7bd feat(artikel): add article/story system with moderation`
+**HEAD:** `ee18c0b feat(import): add safe family data import workflow`
 
-**Catatan status terbaru:** Tabel ringkasan berikut diperbarui setelah checkpoint artikel. Checklist rinci di bawah sebagian masih merekam keadaan sebelum checkpoint; jangan menganggapnya bukti QA. Pembagian tugas aktif dan urutan verifikasi ada di `SESSION-LOG-DEVELOP.md`.
+**Status sesi:** Modul import dan artikel sudah ter-commit. Belum di-push ke origin; belum di-deploy. Smoke test browser dan QA manual menunggu environment dev/staging.
+
+> Detail teknis, pembagian tugas agent, dan hasil tes di `SESSION-LOG-DEVELOP.md`.
 
 > Dokumen ini adalah sumber kebenaran status. Status di bawah diverifikasi langsung
 > dari workspace (git status + isi file), bukan dari laporan subagent.
@@ -20,13 +22,13 @@
 | 🌿 Branch setup | ✅ DONE | `develop` dibuat dari `main`; commit baru belum di-push |
 | 🐛 Bug Fix (B1-B7) | ✅ DONE | Ter-commit di `6b7c90d` |
 | 🧱 Schema + Migration | ✅ DONE | Migrasi `20260926134000_add_import_and_article_support` sudah di-apply ke DB |
-| 📦 Import Data | IN PROGRESS | Library, API, dan UI sudah ada; integrasi dan tes belum final |
-| ✍️ Artikel/Cerita | CHECKPOINT | Kode tersimpan di `ffcd7bd`; smoke test dan review keamanan belum final |
-| 🧭 Sidebar Admin | CHECKPOINT | Menu artikel dan impor tersimpan di `ffcd7bd` |
-| ✅ Testing & QA | IN PROGRESS | Build menghasilkan daftar rute; tes CSV laporan 2/2 lulus; tes format/transaksi dan browser belum final |
-| 🚀 Deployment | ⏸️ PENDING | Menunggu import + QA selesai |
+| 📦 Import Data | ✅ COMMITTED | Library + API + UI + 55 tes, commit `ee18c0b` |
+| ✍️ Artikel/Cerita | ✅ COMMITTED | Kode + schema + migration, commit `ffcd7bd` |
+| 🧭 Sidebar Admin | ✅ COMMITTED | Menu artikel + impor di `ffcd7bd` |
+| ✅ Testing & QA | 🟡 PARTIAL | Build sukses, 55 tes lulus; smoke test browser dan staging belum |
+| 🚀 Deployment | ⏸️ PENDING | Menunggu review + QA manual + push origin + rebuild Docker |
 
-**Ringkas:** Bug fix dan artikel sudah checkpoint; implementasi impor ada tetapi belum siap deploy. Checklist lama di bawah adalah histori sebelum integrasi, bukan status rilis.
+**Ringkas:** Bug fix, artikel, dan import sudah ter-commit (belum push/deploy). Checklist di bawah adalah histori implementasi, bukan bukti QA produksi.
 
 ---
 
