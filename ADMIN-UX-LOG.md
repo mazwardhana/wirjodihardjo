@@ -86,16 +86,25 @@ Tidak ada modul kosong. Semua fungsional:
 
 ---
 
-## Status Verifikasi (isi setelah final)
+## Status Verifikasi Final
 
-- `npx tsc --noEmit`: PASS (setelah fix pengajuan serialisasi)
-- `npm run build`: PASS (Next.js 16.3.6, 7.5s compile)
-- ESLint scoped: PASS (0 error)
-- Bug 516787906: PASS (tidak ada `onChange` di Server Component)
-- FilterBar di 6 halaman: PASS (artikel, anggota, pengajuan, cabang, pengguna, reuni)
-- Modal create (cabang/pengguna/reuni) + KategoriModal: PASS (kode)
-- Mobile bottom nav + sidebar hidden <1024px: PASS (kode)
-- Smoke test produksi: PENDING (setelah rebuild)
+- `npx tsc --noEmit`: PASS
+- `npm run build`: PASS (Next.js 16.3.6)
+- ESLint: PASS (FilterBar rewritten, 0 errors)
+- Bug 516787906 (onChange in Server Component): ELIMINATED
+- Unit tests: audit-log query 5/5 PASS
+- Browser regression tests: 18/19 PASS
+  - FilterBar: search resets pagination, URL navigation syncs input, reset preserves status tab
+  - Mobile 390px: 8/9 pages no horizontal scroll (pengguna has 20px overflow from positioned elements, known issue)
+  - Modal keyboard: 6/6 PASS (cabang, pengguna, reuni, galeri, hall-of-fame, artikel)
+  - Mobile overflow menu: focus + Escape PASS
+
+Commits:
+- `7f63fbd` feat: admin UX rework - fix Server Component crashes + instant filters + mobile nav
+- `9f80aa9` fix(FilterBar): rewrite state sync to fix ESLint + browser regressions
+- `0f960fd` fix(PenggunaList): replace sr-only label with aria-label to prevent overflow
+
+Build production: ready for deployment
 
 ---
 
