@@ -88,12 +88,9 @@ export function PenggunaList({ users }: { users: PenggunaListUser[] }) {
                     </td>
                     <td className="px-4 py-3 pr-6 text-muted">{user.email}</td>
                     <td className="px-4 py-3 pr-6">
-                      <label className="sr-only" htmlFor={`role-${user.id}`}>
-                        Peran {name}
-                      </label>
                       <select
-                        id={`role-${user.id}`}
                         value={user.role}
+                        aria-label={`Peran ${name}`}
                         disabled={busy !== null}
                         onChange={(event) => updateUser(user.id, { role: event.target.value })}
                         className="rounded-md border border-wood/25 bg-cream px-2.5 py-1.5 text-xs text-forest focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30 disabled:opacity-50"
