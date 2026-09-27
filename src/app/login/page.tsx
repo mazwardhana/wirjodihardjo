@@ -23,7 +23,7 @@ function getSafeRedirect(next: string | null, role?: string): string {
 }
 
 function LoginForm() {
-  const [email, setEmail] = useState("");
+  const [usernameOrEmail, setUsernameOrEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -33,7 +33,12 @@ function LoginForm() {
 
   useEffect(() => {
     if (session?.user) {
-      router.replace(getSafeRedirect(searchParams.get("next"), session.user.role));
+      const mustChange = (session.user as { mustChangeCredentials?: boolean }).mustChangeCredentials;
+      if (mustChange) {
+        router.replace("/onboarding");
+      } else {
+        router.replace(getSafeRedirect(searchParams.get("next"), session.user.role));
+      }
     }
   }, [router, searchParams, session]);
 
@@ -44,13 +49,13 @@ function LoginForm() {
 
     try {
       const result = await signIn("credentials", {
-        email,
+        usernameOrEmail,
         password,
         redirect: false,
       });
 
       if (result?.error) {
-        setError("Email atau kata sandi salah.");
+        setError("Username/email atau kata sandi salah.");
         setPending(false);
         return;
       }
@@ -74,19 +79,19 @@ function LoginForm() {
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         <div>
           <label
-            htmlFor="email"
+            htmlFor="usernameOrEmail"
             className="block text-sm font-medium text-forest"
           >
-            Email
+            Username atau Email
           </label>
           <input
-            id="email"
-            type="email"
+            id="usernameOrEmail"
+            type="text"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={usernameOrEmail}
+            onChange={(e) => setUsernameOrEmail(e.target.value)}
             className="mt-1 block w-full rounded-md border border-wood/30 bg-cream px-4 py-2.5 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
-            placeholder="email@contoh.com"
+            placeholder="username atau email@contoh.com"
           />
         </div>
 

@@ -10,7 +10,7 @@ export type Row = Record<string, unknown>;
 export function fixture() {
   const state = {
     session: { user: { id: "u1", role: "MEMBER" } } as { user: { id: string; role: string } } | null,
-    user: { personId: "p1" } as { personId: string } | null,
+    user: { personId: "p1" } as { personId: string; id?: string; mustChangeCredentials?: boolean } | null,
     existing: { id: "r1", personId: "p1" } as Row | null,
     writes: [] as Row[],
     queries: [] as Row[],
@@ -25,7 +25,10 @@ export function fixture() {
     upsert: async (args: Row) => { state.writes.push(args); return args; },
   };
   const prisma = {
-    user: { findUnique: async () => state.user },
+    user: {
+      findUnique: async () => state.user,
+      update: async (args: { data: Row }) => { state.writes.push(args.data); return { ...state.user, ...args.data }; },
+    },
     education: model, socialLink: model, person: model, personPrivate: model,
     socialPlatform: { findUnique: async () => state.platform },
     auditLog: { create: async (args: Row) => { state.writes.push(args); return args; } },

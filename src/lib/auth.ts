@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const credentialsSchema = z.object({
-  email: z.string().email(),
+  usernameOrEmail: z.string().min(1),
   password: z.string().min(1),
 });
 
@@ -15,15 +15,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       credentials: {
-        email: { label: "Email", type: "email" },
+        usernameOrEmail: { label: "Username atau Email", type: "text" },
         password: { label: "Kata sandi", type: "password" },
       },
       async authorize(raw) {
         const parsed = credentialsSchema.safeParse(raw);
         if (!parsed.success) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: parsed.data.email.toLowerCase() },
+        const input = parsed.data.usernameOrEmail;
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { username: input },
+              { email: input.toLowerCase() },
+            ],
+          },
           include: { person: { select: { fullName: true } } },
         });
         if (!user || !user.isActive) return null;
@@ -41,6 +47,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.person.fullName,
           role: user.role,
+          mustChangeCredentials: user.mustChangeCredentials,
         };
       },
     }),
@@ -50,6 +57,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role;
+        token.mustChangeCredentials = (user as { mustChangeCredentials?: boolean }).mustChangeCredentials;
       }
       return token;
     },
@@ -57,6 +65,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         (session.user as { id?: string }).id = token.id as string;
         (session.user as { role?: string }).role = token.role as string;
+        (session.user as { mustChangeCredentials?: boolean }).mustChangeCredentials = token.mustChangeCredentials as boolean;
       }
       return session;
     },
@@ -66,11 +75,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 declare module "next-auth" {
   interface User {
     role?: string;
+    mustChangeCredentials?: boolean;
   }
   interface Session {
     user: {
       id: string;
       role: string;
+      mustChangeCredentials: boolean;
       name?: string | null;
       email?: string | null;
     };
