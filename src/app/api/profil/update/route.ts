@@ -7,6 +7,8 @@ const schema = z.object({
   fullName: z.string().min(1).max(200).optional(),
   nickname: z.string().max(100).optional(),
   bio: z.string().max(2000).optional(),
+  occupation: z.string().max(200).optional(),
+  status: z.string().max(500).optional(),
   phone: z.string().max(40).optional(),
   whatsapp: z.string().max(40).optional(),
   addressLine: z.string().max(300).optional(),
@@ -42,6 +44,8 @@ export async function POST(request: Request) {
       ...(data.fullName !== undefined && { fullName: data.fullName }),
       ...(data.nickname !== undefined && { nickname: data.nickname }),
       ...(data.bio !== undefined && { bio: data.bio }),
+      ...(data.occupation !== undefined && { occupation: data.occupation }),
+      ...(data.status !== undefined && { status: data.status }),
     },
   });
 
