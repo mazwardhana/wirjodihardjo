@@ -21,13 +21,15 @@ type HallOfFameFormProps = {
     photoUrl: string | null;
   };
   initialPerson?: PersonOption | null;
+  onSuccess?: () => void;
+  onCancel?: () => void;
 };
 
 const inputCls =
   "mt-1 block w-full rounded-md border border-wood/30 bg-cream px-4 py-2.5 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30";
 const labelCls = "block text-sm font-medium text-forest";
 
-export function HallOfFameForm({ entryId, initial, initialPerson }: HallOfFameFormProps) {
+export function HallOfFameForm({ entryId, initial, initialPerson, onSuccess, onCancel }: HallOfFameFormProps) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -127,8 +129,12 @@ export function HallOfFameForm({ entryId, initial, initialPerson }: HallOfFameFo
       if (!res.ok) throw new Error((data as { error?: string }).error ?? "Gagal menyimpan entri");
 
       toast("success", entryId ? "Entri diperbarui." : "Entri dibuat.");
-      router.push("/admin/hall-of-fame");
-      router.refresh();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push("/admin/hall-of-fame");
+        router.refresh();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal menyimpan entri");
       setSaving(false);
@@ -331,14 +337,14 @@ export function HallOfFameForm({ entryId, initial, initialPerson }: HallOfFameFo
       <div className="flex gap-3">
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || uploading}
           className="rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50"
         >
           {saving ? "Menyimpan..." : entryId ? "Simpan Perubahan" : "Simpan Entri"}
         </button>
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={onCancel ?? (() => router.push("/admin/hall-of-fame"))}
           className="rounded-md border border-wood/30 px-5 py-2.5 text-sm text-muted transition-colors hover:bg-wood/10"
         >
           Batal

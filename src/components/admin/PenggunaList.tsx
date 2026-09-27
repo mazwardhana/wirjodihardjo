@@ -48,27 +48,13 @@ export function PenggunaList({ users }: { users: PenggunaListUser[] }) {
     <div className="mt-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-display text-xl font-semibold text-forest">Daftar akun</h2>
-        <Link
-          href="/admin/pengguna/baru"
-          className="rounded-md bg-gold px-4 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep"
-        >
-          Tambah pengguna
-        </Link>
       </div>
 
       {users.length === 0 ? (
         <div className="mt-6">
           <EmptyState
             title="Belum ada pengguna"
-            description="Akun pengguna yang dibuat akan tampil di halaman ini."
-            action={
-              <Link
-                href="/admin/pengguna/baru"
-                className="inline-block rounded-md bg-gold px-4 py-2.5 text-sm font-semibold text-forest"
-              >
-                Buat akun
-              </Link>
-            }
+            description="Akun pengguna yang dibuat akan tampil di halaman ini. Gunakan tombol di bagian atas untuk membuat akun baru."
           />
         </div>
       ) : (

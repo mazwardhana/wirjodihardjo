@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 export type FilterConfig = {
   search?: {
@@ -17,16 +17,16 @@ export type FilterConfig = {
 
 export function FilterBar({ config }: { config: FilterConfig }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
-  const [localSearch, setLocalSearch] = useState(
-    searchParams.get(config.search?.param ?? "q") ?? ""
-  );
+  const searchParam = config.search?.param;
+  const urlValue = searchParam ? (searchParams.get(searchParam) ?? "") : "";
+  const [localSearch, setLocalSearch] = useState(urlValue);
 
-  // Debounced search (500ms)
+  // Skip navigation when the URL already matches to avoid repeated requests.
   useEffect(() => {
-    if (!config.search) return;
-    const searchParam = config.search.param;
+    if (!searchParam || localSearch.trim() === urlValue) return;
     const timer = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
       if (localSearch.trim()) {
@@ -35,11 +35,11 @@ export function FilterBar({ config }: { config: FilterConfig }) {
         params.delete(searchParam);
       }
       startTransition(() => {
-        router.push(`?${params.toString()}`, { scroll: false });
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
       });
     }, 500);
     return () => clearTimeout(timer);
-  }, [localSearch, config.search, router, searchParams]);
+  }, [localSearch, urlValue, searchParam, router, pathname, searchParams]);
 
   const handleFilterChange = (param: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -49,7 +49,7 @@ export function FilterBar({ config }: { config: FilterConfig }) {
       params.delete(param);
     }
     startTransition(() => {
-      router.push(`?${params.toString()}`, { scroll: false });
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     });
   };
 
@@ -62,7 +62,7 @@ export function FilterBar({ config }: { config: FilterConfig }) {
   const handleReset = () => {
     setLocalSearch("");
     startTransition(() => {
-      router.push(window.location.pathname, { scroll: false });
+      router.replace(pathname, { scroll: false });
     });
   };
 

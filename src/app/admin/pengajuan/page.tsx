@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AdminPengajuanList } from "@/components/admin/PengajuanList";
 import { FilterBar } from "@/components/admin/FilterBar";
@@ -98,7 +99,7 @@ export default async function AdminPengajuanPage({
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <div className="flex gap-1 rounded-lg border border-wood/15 bg-cream p-1">
           {tabs.map((t) => (
-            <a
+            <Link
               key={t.key}
               href={tabHref(t.key)}
               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -113,12 +114,12 @@ export default async function AdminPengajuanPage({
                   {t.count}
                 </span>
               )}
-            </a>
+            </Link>
           ))}
         </div>
       </div>
 
-      {/* Search & filters */}
+      {/* Search & type filter (status handled by tabs) */}
       <div className="mt-4">
         <FilterBar
           config={{
@@ -128,12 +129,14 @@ export default async function AdminPengajuanPage({
             },
             filters: [
               {
-                param: "status",
-                label: "Status",
+                param: "type",
+                label: "Jenis",
                 options: [
-                  { value: "PENDING", label: "Tertunda" },
-                  { value: "APPROVED", label: "Disetujui" },
-                  { value: "REJECTED", label: "Ditolak" },
+                  { value: "ADD_CHILD", label: "Tambah Anak" },
+                  { value: "ADD_SPOUSE", label: "Tambah Pasangan" },
+                  { value: "ADD_PERSON", label: "Tambah Anggota" },
+                  { value: "EDIT_PERSON", label: "Edit Anggota" },
+                  { value: "EDIT_RELATION", label: "Edit Relasi" },
                 ],
               },
             ],

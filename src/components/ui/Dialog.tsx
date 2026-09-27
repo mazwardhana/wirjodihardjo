@@ -27,34 +27,57 @@ export function Dialog({
   children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
-
   useEffect(() => {
-    if (open) {
-      previousFocusRef.current = document.activeElement as HTMLElement;
-      setTimeout(() => dialogRef.current?.focus(), 50);
-    } else {
-      previousFocusRef.current?.focus();
-    }
+    if (!open) return;
+
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialogRef.current?.focus({ preventScroll: true });
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus({ preventScroll: true });
+      }
+    };
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      // Trap focus
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
       if (e.key === "Tab" && dialogRef.current) {
-        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        const panel = dialogRef.current;
+        const focusable = Array.from(
+          panel.querySelectorAll<HTMLElement>(
+            'button, a[href], input, select, textarea, [tabindex], [contenteditable="true"]'
+          )
+        ).filter((el) =>
+          el.tabIndex >= 0 &&
+          !el.matches(":disabled") &&
+          !el.closest('[hidden], [inert], [aria-hidden="true"]') &&
+          el.getClientRects().length > 0 &&
+          getComputedStyle(el).visibility === "visible"
         );
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
+        const active = document.activeElement;
+        if (!first) {
           e.preventDefault();
-          last?.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
+          panel.focus();
+        } else if (!focusable.some((el) => el === active)) {
           e.preventDefault();
-          first?.focus();
+          (e.shiftKey ? last : first).focus();
+        } else if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
         }
       }
     };
@@ -87,7 +110,7 @@ export function Dialog({
             type="button"
             onClick={onClose}
             aria-label="Tutup"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-muted hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-md text-muted hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M6 6l12 12M18 6L6 18" />

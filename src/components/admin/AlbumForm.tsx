@@ -13,9 +13,11 @@ interface AlbumFormProps {
     eventDate: string;
     coverImageUrl: string | null;
   };
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
-export function AlbumForm({ initial }: AlbumFormProps) {
+export function AlbumForm({ initial, onSuccess, onCancel }: AlbumFormProps) {
   const router = useRouter();
   const isEdit = Boolean(initial?.id);
 
@@ -48,8 +50,12 @@ export function AlbumForm({ initial }: AlbumFormProps) {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Gagal menyimpan album");
-        router.push("/admin/galeri");
-        router.refresh();
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push("/admin/galeri");
+          router.refresh();
+        }
       } else {
         const res = await fetch("/api/admin/galeri", {
           method: "POST",
@@ -58,8 +64,12 @@ export function AlbumForm({ initial }: AlbumFormProps) {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Gagal membuat album");
-        router.push("/admin/galeri");
-        router.refresh();
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push("/admin/galeri");
+          router.refresh();
+        }
       }
     } catch (err) {
       setError((err as Error).message);
@@ -134,7 +144,7 @@ export function AlbumForm({ initial }: AlbumFormProps) {
         </button>
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={onCancel ?? (() => router.push("/admin/galeri"))}
           className="rounded-md border border-wood/30 px-5 py-2.5 text-sm text-muted transition-colors hover:bg-wood/10"
         >
           Batal

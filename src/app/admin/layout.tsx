@@ -33,7 +33,7 @@ export default async function AdminLayout({
   return (
     <div className="flex min-h-screen">
       <AdminSidebar role={user.role} fullName={user.person.fullName} />
-      <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">{children}</main>
+      <main className="min-w-0 flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
       <MobileBottomNav />
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Dialog } from "@/components/ui/Dialog";
 import { ArticleCategoryManager } from "@/components/admin/ArticleCategoryManager";
 
@@ -13,6 +14,12 @@ type Kategori = {
 
 export function KategoriModal({ initial }: { initial: Kategori[] }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+
+  const handleClose = () => {
+    setOpen(false);
+    router.refresh();
+  };
 
   return (
     <>
@@ -26,7 +33,7 @@ export function KategoriModal({ initial }: { initial: Kategori[] }) {
 
       <Dialog
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={handleClose}
         title="Kelola Kategori Artikel"
         description="Tambah, ubah, atau hapus kategori artikel. Kategori yang masih digunakan oleh artikel tidak bisa dihapus."
         size="lg"

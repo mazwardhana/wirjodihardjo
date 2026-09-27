@@ -2,7 +2,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
-import { formatDate } from "@/lib/utils";
 import { AdminAlbumDetailClient } from "./AdminAlbumDetailClient";
 
 export const dynamic = "force-dynamic";

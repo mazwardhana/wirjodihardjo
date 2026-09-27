@@ -75,6 +75,27 @@ Tidak ada modul kosong. Semua fungsional:
 - Audit fungsionalitas (parent + subagent explore): semua modul berfungsi.
 - User setujui Opsi B (bug fix + UX sekaligus) + multi-agent.
 - Log ini dibuat. Implementasi dimulai.
+- Core components (parent): `FilterBar`, `MobileBottomNav`, `Dialog` (size + scroll lock), layout + sidebar mobile.
+- Agent 1 (artikel): bug fix + `KategoriModal`. Agent 2 (anggota/pengajuan): bug fix + filter. Agent 3 (cabang/pengguna/reuni): modal create + filter.
+- Commit pertama `841bec4`. Code review (subagent) menemukan 2 Critical + 6 Important.
+- Fix pasca-review:
+  - Critical: hapus link `/baru` mati di `PenggunaList`; kembalikan filter `type` di pengajuan.
+  - Important: hapus filter status ganda di pengajuan (pakai tabs); tabs `<a>` jadi `<Link>`; `FilterBar` reset pakai `usePathname`; `router.push` jadi `router.replace` + guard loop debounce; `KategoriModal` `router.refresh()` saat tutup; fallback Batal form ke list route.
+  - Minor: Dialog body scroll lock.
+- Task 4 (galeri/hall-of-fame/audit-log) menghasilkan 0 perubahan; ditugaskan ulang ke agent baru.
+
+---
+
+## Status Verifikasi (isi setelah final)
+
+- `npx tsc --noEmit`: PASS (setelah fix pengajuan serialisasi)
+- `npm run build`: PASS (Next.js 16.3.6, 7.5s compile)
+- ESLint scoped: PASS (0 error)
+- Bug 516787906: PASS (tidak ada `onChange` di Server Component)
+- FilterBar di 6 halaman: PASS (artikel, anggota, pengajuan, cabang, pengguna, reuni)
+- Modal create (cabang/pengguna/reuni) + KategoriModal: PASS (kode)
+- Mobile bottom nav + sidebar hidden <1024px: PASS (kode)
+- Smoke test produksi: PENDING (setelah rebuild)
 
 ---
 

@@ -201,7 +201,7 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
         </button>
         <button
           type="button"
-          onClick={() => (onCancel ? onCancel() : router.back())}
+          onClick={() => (onCancel ? onCancel() : router.push("/admin/cabang"))}
           className="min-h-11 rounded-md border border-wood/30 px-5 py-2.5 text-sm text-muted transition-colors hover:bg-wood/10"
         >
           Batal

@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminArtikelPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; kategori?: string }>;
+  searchParams: Promise<{ status?: string; kategori?: string; q?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -29,12 +29,16 @@ export default async function AdminArtikelPage({
   const sp = await searchParams;
   const statusFilter = sp.status?.trim() ?? "PENDING";
   const categoryFilter = sp.kategori?.trim() ?? "";
+  const q = sp.q?.trim() ?? "";
 
   const where: Prisma.ArticleWhereInput = {};
   if (["PENDING", "APPROVED", "REJECTED"].includes(statusFilter)) {
     where.status = statusFilter as Prisma.ArticleWhereInput["status"];
   }
   if (categoryFilter) where.categoryId = categoryFilter;
+  if (q) {
+    where.title = { contains: q, mode: "insensitive" };
+  }
 
   const [articles, categories, pendingCount] = await Promise.all([
     prisma.article.findMany({
@@ -73,6 +77,7 @@ export default async function AdminArtikelPage({
 
       <FilterBar
         config={{
+          search: { placeholder: "Cari judul artikel...", param: "q" },
           filters: [
             {
               param: "status",
