@@ -35,9 +35,13 @@ const empty: ReunionFormValues = {
 export function ReunionForm({
   initial,
   isEdit = false,
+  onSuccess,
+  onCancel,
 }: {
   initial?: Partial<ReunionFormValues>;
   isEdit?: boolean;
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }) {
   const router = useRouter();
   const [form, setForm] = useState<ReunionFormValues>({ ...empty, ...initial });
@@ -102,14 +106,18 @@ export function ReunionForm({
       if (!res.ok) throw new Error(data.error ?? "Gagal menyimpan");
 
       toast("success", isEdit ? "Reuni berhasil diperbarui" : "Reuni berhasil dibuat");
-      router.push("/admin/reuni");
-      router.refresh();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push("/admin/reuni");
+        router.refresh();
+      }
     } catch (err) {
       toast("error", (err as Error).message);
     } finally {
       setSaving(false);
     }
-  }, [form, isEdit, router]);
+  }, [form, isEdit, onSuccess, router]);
 
   const inputCls =
     "mt-1 block w-full rounded-md border border-wood/30 bg-cream px-4 py-2.5 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30";
@@ -122,6 +130,7 @@ export function ReunionForm({
         <label className={labelCls}>Gambar Hero</label>
         {form.heroImageUrl && (
           <div className="relative mb-2 mt-1 h-40 w-full overflow-hidden rounded-lg border border-wood/15 bg-parchment">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={form.heroImageUrl}
               alt="Hero reuni"
@@ -267,14 +276,14 @@ export function ReunionForm({
         <button
           type="submit"
           disabled={saving}
-          className="rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50"
+          className="min-h-11 rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50"
         >
           {saving ? "Menyimpan..." : isEdit ? "Simpan Perubahan" : "Buat Reuni"}
         </button>
         <button
           type="button"
-          onClick={() => router.back()}
-          className="rounded-md border border-wood/30 px-5 py-2.5 text-sm text-muted transition-colors hover:bg-wood/10"
+          onClick={() => (onCancel ? onCancel() : router.back())}
+          className="min-h-11 rounded-md border border-wood/30 px-5 py-2.5 text-sm text-muted transition-colors hover:bg-wood/10"
         >
           Batal
         </button>

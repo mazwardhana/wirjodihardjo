@@ -6,7 +6,7 @@ import { toast } from "@/components/ui/Toast";
 import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_BYTES } from "@/lib/upload";
 
 type PersonOption = { id: string; fullName: string };
-type UserOption = { id: string; email: string; role: string; person: { fullName: string } };
+type UserOption = { id: string; email: string | null; role: string; person: { fullName: string } };
 
 type BranchDetail = {
   id: string;
@@ -344,7 +344,7 @@ export function CabangDetail({ branch }: { branch: BranchDetail }) {
           <div className="mt-1 flex items-center justify-between gap-3 rounded-md border border-wood/30 bg-parchment/40 px-4 py-2.5">
             <div>
               <span className="text-sm font-medium text-forest">{admin.person.fullName}</span>
-              <span className="ml-2 text-xs text-muted">({admin.email})</span>
+              {admin.email && <span className="ml-2 text-xs text-muted">({admin.email})</span>}
             </div>
             <button
               type="button"
@@ -393,7 +393,7 @@ export function CabangDetail({ branch }: { branch: BranchDetail }) {
                       className="block w-full px-4 py-2.5 text-left text-sm text-forest transition-colors hover:bg-wood/10"
                     >
                       {u.person.fullName}
-                      <span className="ml-2 text-xs text-muted">({u.email} — {u.role})</span>
+                      <span className="ml-2 text-xs text-muted">({u.email ?? "Tidak ada email"} — {u.role})</span>
                     </button>
                   </li>
                 ))}

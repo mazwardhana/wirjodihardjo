@@ -15,13 +15,15 @@ type BranchFormProps = {
     isActive?: boolean;
   };
   mode: "create" | "edit";
+  onSuccess?: () => void;
+  onCancel?: () => void;
 };
 
 const inputCls =
   "mt-1 block w-full rounded-md border border-wood/30 bg-cream px-4 py-2.5 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30";
 const labelCls = "block text-sm font-medium text-forest";
 
-export function CabangForm({ initial, mode }: BranchFormProps) {
+export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormProps) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -87,8 +89,12 @@ export function CabangForm({ initial, mode }: BranchFormProps) {
       if (!res.ok) throw new Error((data as { error?: string }).error ?? "Gagal menyimpan cabang");
 
       toast("success", mode === "create" ? "Cabang berhasil dibuat." : "Cabang berhasil diperbarui.");
-      router.push("/admin/cabang");
-      router.refresh();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push("/admin/cabang");
+        router.refresh();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal menyimpan cabang");
     } finally {
@@ -189,14 +195,14 @@ export function CabangForm({ initial, mode }: BranchFormProps) {
         <button
           type="submit"
           disabled={saving}
-          className="rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50"
+          className="min-h-11 rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50"
         >
           {saving ? "Menyimpan..." : mode === "create" ? "Buat Cabang" : "Simpan Perubahan"}
         </button>
         <button
           type="button"
-          onClick={() => router.back()}
-          className="rounded-md border border-wood/30 px-5 py-2.5 text-sm text-muted transition-colors hover:bg-wood/10"
+          onClick={() => (onCancel ? onCancel() : router.push("/admin/cabang"))}
+          className="min-h-11 rounded-md border border-wood/30 px-5 py-2.5 text-sm text-muted transition-colors hover:bg-wood/10"
         >
           Batal
         </button>

@@ -3,9 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { MobileBottomNav } from "@/components/admin/MobileBottomNav";
 
 /**
- * Layout admin dengan sidebar navigasi.
+ * Layout admin dengan sidebar navigasi (desktop) dan bottom nav (mobile).
  * Halaman /admin/* dibungkus layout ini agar selalu ada pemeriksaan peran
  * di sisi server dan navigasi yang konsisten.
  */
@@ -32,7 +33,8 @@ export default async function AdminLayout({
   return (
     <div className="flex min-h-screen">
       <AdminSidebar role={user.role} fullName={user.person.fullName} />
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <main className="min-w-0 flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
+      <MobileBottomNav />
     </div>
   );
 }

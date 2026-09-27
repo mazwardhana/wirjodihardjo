@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { clearBranchAdminOnDemotion } from "@/lib/branch-admin-validation";
 
 type AdminGuard = { user: { id: string; role: string } };
 type GuardResult = AdminGuard | NextResponse;
@@ -43,6 +44,7 @@ export async function GET(request: Request) {
   const where: Record<string, unknown> = {};
   if (q.trim().length > 0) {
     where.OR = [
+      { username: { contains: q, mode: "insensitive" } },
       { email: { contains: q, mode: "insensitive" } },
       { person: { fullName: { contains: q, mode: "insensitive" } } },
     ];
@@ -105,7 +107,7 @@ export async function POST(request: Request) {
   }
 
   // ── Create user ──
-  const { email, password, role, personId } = body;
+  const { email, password, role, personId, username: providedUsername } = body;
 
   if (!email || !password || !role || !personId) {
     return NextResponse.json({ error: "Email, password, role, dan personId diperlukan" }, { status: 400 });
@@ -126,10 +128,27 @@ export async function POST(request: Request) {
   const person = await prisma.person.findUnique({ where: { id: personId as string } });
   if (!person) return NextResponse.json({ error: "Anggota tidak ditemukan" }, { status: 404 });
 
+  // Generate username: use provided or derive from email
+  let username = providedUsername as string | undefined;
+  if (!username) {
+    const emailLocal = (email as string).split("@")[0];
+    username = emailLocal.toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (username.length < 3) username = `user${username}`;
+  }
+
+  // Ensure username uniqueness
+  let finalUsername = username;
+  let suffix = 1;
+  while (await prisma.user.findUnique({ where: { username: finalUsername } })) {
+    finalUsername = `${username}${suffix}`;
+    suffix++;
+  }
+
   const passwordHash = await bcrypt.hash(password as string, 12);
 
   const user = await prisma.user.create({
     data: {
+      username: finalUsername,
       email: (email as string).toLowerCase(),
       passwordHash,
       role: role as any,
@@ -179,10 +198,17 @@ export async function PUT(request: Request) {
   if (isVerified !== undefined) data.isVerified = Boolean(isVerified);
   if (mustChangePassword !== undefined) data.mustChangePassword = Boolean(mustChangePassword);
 
-  const updated = await prisma.user.update({
-    where: { id: id as string },
-    data: data as any,
-    include: { person: { select: { id: true, fullName: true } } },
+  const updated = await prisma.$transaction(async (tx) => {
+    // Clear branch admin assignment if role changes away from BRANCH_ADMIN
+    if (role !== undefined) {
+      await clearBranchAdminOnDemotion(id as string, role as string, tx);
+    }
+
+    return tx.user.update({
+      where: { id: id as string },
+      data: data as any,
+      include: { person: { select: { id: true, fullName: true } } },
+    });
   });
 
   await logAudit({

@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDateTime } from "@/lib/utils";
 import { AdminReuniActions } from "@/components/admin/AdminReuniActions";
+import { FilterBar } from "@/components/admin/FilterBar";
+import { ReunionCreateModal } from "./ReunionCreateModal";
 
 const statusMeta: Record<string, { label: string; className: string }> = {
   DRAFT: { label: "Draf", className: "bg-muted/10 text-muted" },
@@ -13,7 +16,18 @@ const statusMeta: Record<string, { label: string; className: string }> = {
   COMPLETED: { label: "Selesai", className: "bg-gold/20 text-gold-deep" },
 };
 
-export default async function AdminReuniPage() {
+const statusOptions = [
+  { value: "DRAFT", label: "Draf" },
+  { value: "PUBLISHED", label: "Terbit" },
+  { value: "CANCELLED", label: "Dibatalkan" },
+  { value: "COMPLETED", label: "Selesai" },
+];
+
+export default async function AdminReuniPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; status?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   const user = await prisma.user.findUnique({
@@ -24,12 +38,30 @@ export default async function AdminReuniPage() {
     redirect("/dashboard");
   }
 
+  const sp = await searchParams;
+  const q = sp.q?.trim() ?? "";
+  const status = sp.status?.trim() ?? "";
+
+  const where: Prisma.ReunionWhereInput = {};
+  if (q) {
+    where.OR = [
+      { title: { contains: q, mode: "insensitive" } },
+      { locationName: { contains: q, mode: "insensitive" } },
+    ];
+  }
+  if (statusOptions.some((o) => o.value === status)) {
+    where.status = status as Prisma.ReunionWhereInput["status"];
+  }
+
   const reunions = await prisma.reunion.findMany({
+    where,
     orderBy: { startAt: "desc" },
     include: {
       _count: { select: { registrations: true } },
     },
   });
+
+  const hasFilters = Boolean(q || status);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
@@ -42,19 +74,36 @@ export default async function AdminReuniPage() {
             Buat jadwal reuni, atur status tayang, dan pantau pendaftar.
           </p>
         </div>
-        <Link
-          href="/admin/reuni/baru"
-          className="rounded-md bg-gold px-4 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep"
-        >
-          Reuni Baru
-        </Link>
+        <ReunionCreateModal />
+      </div>
+
+      <div className="mt-6">
+        <FilterBar
+          config={{
+            search: {
+              placeholder: "Cari judul atau lokasi...",
+              param: "q",
+            },
+            filters: [
+              {
+                param: "status",
+                label: "Status",
+                options: statusOptions,
+              },
+            ],
+          }}
+        />
       </div>
 
       {reunions.length === 0 ? (
         <div className="mt-10">
           <EmptyState
-            title="Belum ada reuni"
-            description="Buat acara reuni pertama agar anggota keluarga bisa mulai mendaftar."
+            title={hasFilters ? "Tidak ada reuni" : "Belum ada reuni"}
+            description={
+              hasFilters
+                ? "Tidak ada reuni yang cocok dengan filter. Ubah pencarian atau reset filter."
+                : "Buat acara reuni pertama agar anggota keluarga bisa mulai mendaftar."
+            }
           />
         </div>
       ) : (

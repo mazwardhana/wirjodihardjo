@@ -39,6 +39,25 @@ async function main() {
 
   console.log('✅ GenerationLabels seeded.')
 
+  // Seed article categories
+  console.log('🌱 Seeding ArticleCategories...')
+  const categories = [
+    { name: 'Sejarah Keluarga', slug: 'sejarah-keluarga' },
+    { name: 'Biografi', slug: 'biografi' },
+    { name: 'Kenangan', slug: 'kenangan' },
+    { name: 'Prestasi', slug: 'prestasi' },
+  ]
+
+  for (const cat of categories) {
+    await prisma.articleCategory.upsert({
+      where: { slug: cat.slug },
+      update: { name: cat.name },
+      create: cat,
+    })
+  }
+
+  console.log('✅ ArticleCategories seeded.')
+
   // Cek apakah pasangan pendiri sudah ada
   const existingFounder = await prisma.person.findFirst({
     where: { fullName: 'Tn. Wirjodihardjo' },
@@ -130,6 +149,7 @@ async function main() {
         slug,
         description: `Garis keturunan dari ${childNames[i]}`,
         orderIndex: i,
+        branchNumber: i + 1,
         rootPersonId: child.id,
       },
     })

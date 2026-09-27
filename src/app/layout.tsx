@@ -1,8 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 import { Providers } from "@/components/Providers";
 import { ToastContainer } from "@/components/ui/Toast";
 
@@ -24,6 +26,11 @@ export const metadata: Metadata = {
   },
   description:
     "Rumah digital keluarga besar Wirjodihardjo: silsilah interaktif, galeri kenangan, hall of fame, dan reuni keluarga.",
+  manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1A4D2E",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -46,6 +53,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </main>
           <Footer />
           <ToastContainer />
+          <ServiceWorkerRegistration />
+          <InstallPrompt />
         </Providers>
       </body>
     </html>

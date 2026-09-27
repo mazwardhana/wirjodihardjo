@@ -11,6 +11,8 @@ const menu = [
   { href: "/admin/cabang", label: "Cabang", icon: "⊟" },
   { href: "/admin/galeri", label: "Galeri", icon: "⊠" },
   { href: "/admin/hall-of-fame", label: "Hall of Fame", icon: "★" },
+  { href: "/admin/artikel", label: "Artikel", icon: "▤" },
+  { href: "/admin/impor", label: "Impor Data", icon: "⇧" },
   { href: "/admin/reuni", label: "Reuni", icon: "☰" },
   { href: "/admin/pengguna", label: "Pengguna", icon: "☷" },
   { href: "/admin/audit-log", label: "Audit Log", icon: "☰" },
@@ -20,7 +22,7 @@ export function AdminSidebar({ role, fullName }: { role: string; fullName: strin
   const pathname = usePathname();
 
   return (
-    <aside className="flex w-64 flex-col border-r border-wood/15 bg-cream">
+    <aside className="hidden w-64 flex-col border-r border-wood/15 bg-cream lg:flex">
       {/* Brand */}
       <div className="flex items-center gap-3 border-b border-wood/15 px-5 py-5">
         <div className="grid h-9 w-9 place-items-center rounded-md bg-forest text-sm font-bold text-cream">

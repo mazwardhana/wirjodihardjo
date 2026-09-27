@@ -2,13 +2,23 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { EmptyState } from "@/components/ui/States";
 import { formatDate } from "@/lib/utils";
 import { AdminAlbumActions } from "./AdminAlbumActions";
+import { FilterBar } from "@/components/admin/FilterBar";
+import { AlbumCreateModal } from "./AlbumCreateModal";
+import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminGaleriPage() {
+function first(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+}
+
+export default async function AdminGaleriPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[]; status?: string | string[]; tab?: string | string[] }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -20,7 +30,24 @@ export default async function AdminGaleriPage() {
     redirect("/dashboard");
   }
 
+  const sp = await searchParams;
+  const q = first(sp.q).trim();
+  const status = first(sp.status).trim();
+  const statusFilter = status === "published" || status === "draft" ? status : "";
+
+  const where: Prisma.AlbumWhereInput = {};
+  if (q) {
+    where.OR = [
+      { title: { contains: q, mode: "insensitive" } },
+      { description: { contains: q, mode: "insensitive" } },
+    ];
+  }
+  if (statusFilter === "published") where.isPublished = true;
+  else if (statusFilter === "draft") where.isPublished = false;
+  if (first(sp.tab) === "pending") where.media = { some: { status: "PENDING" } };
+
   const albums = await prisma.album.findMany({
+    where,
     orderBy: { createdAt: "desc" },
     include: {
       _count: { select: { media: true } },
@@ -33,13 +60,16 @@ export default async function AdminGaleriPage() {
     where: { status: "PENDING" },
   });
 
+  const total = await prisma.album.count();
+  const filtering = q !== "" || statusFilter !== "";
+
   return (
     <div className="p-8">
-      <div className="flex items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-semibold text-forest">Galeri</h1>
           <p className="mt-1 text-sm text-muted">
-            Kelola album dan moderasi unggahan media.
+            Kelola album dan moderasi unggahan media. {total} album tercatat
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -51,29 +81,41 @@ export default async function AdminGaleriPage() {
               {pendingCount} menunggu
             </Link>
           )}
-          <Link
-            href="/admin/galeri/baru"
-            className="rounded-md bg-gold px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep"
-          >
-            + Album Baru
-          </Link>
+          <AlbumCreateModal />
         </div>
       </div>
 
+      <div className="mt-6">
+        <FilterBar
+          config={{
+            search: {
+              placeholder: "Cari judul atau deskripsi album...",
+              param: "q",
+            },
+            filters: [
+              {
+                param: "status",
+                label: "Status",
+                options: [
+                  { value: "published", label: "Terbit" },
+                  { value: "draft", label: "Draf" },
+                ],
+              },
+              {
+                param: "tab",
+                label: "Moderasi",
+                options: [{ value: "pending", label: "Media menunggu" }],
+              },
+            ],
+          }}
+        />
+      </div>
+
       {albums.length === 0 ? (
-        <div className="mt-10">
-          <EmptyState
-            title="Belum ada album"
-            description="Buat album pertama untuk mengelola foto keluarga."
-            action={
-              <Link
-                href="/admin/galeri/baru"
-                className="inline-block rounded-md bg-forest px-5 py-2.5 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft"
-              >
-                Buat Album
-              </Link>
-            }
-          />
+        <div className="mt-10 rounded-lg border border-dashed border-wood/25 bg-cream px-4 py-12 text-center text-sm text-muted">
+          {filtering
+            ? "Tidak ada album yang cocok dengan filter."
+            : "Belum ada album. Buat album pertama untuk mengelola foto keluarga."}
         </div>
       ) : (
         <ul className="mt-8 space-y-4">
