@@ -93,9 +93,9 @@ Tidak ada modul kosong. Semua fungsional:
 - ESLint: PASS (FilterBar rewritten, 0 errors)
 - Bug 516787906 (onChange in Server Component): ELIMINATED
 - Unit tests: audit-log query 5/5 PASS
-- Browser regression tests: 18/19 PASS
+- Browser regression tests: 19/19 PASS
   - FilterBar: search resets pagination, URL navigation syncs input, reset preserves status tab
-  - Mobile 390px: 8/9 pages no horizontal scroll (pengguna has 20px overflow from positioned elements, known issue)
+  - Mobile 390px: 9/9 pages no horizontal scroll
   - Modal keyboard: 6/6 PASS (cabang, pengguna, reuni, galeri, hall-of-fame, artikel)
   - Mobile overflow menu: focus + Escape PASS
 
@@ -103,13 +103,27 @@ Commits:
 - `7f63fbd` feat: admin UX rework - fix Server Component crashes + instant filters + mobile nav
 - `9f80aa9` fix(FilterBar): rewrite state sync to fix ESLint + browser regressions
 - `0f960fd` fix(PenggunaList): replace sr-only label with aria-label to prevent overflow
+- `9b4adab` docs: finalize ADMIN-UX-LOG with verification results
 
-Build production: ready for deployment
+Deployment: aplikasi sudah diganti dengan image `sha256:d1dd89feb33b`.
+
+### Bukti dan batas verifikasi
+- Browser production: `/tmp/opencode/ui-prod-final.log` (19 pemeriksaan PASS).
+- Skrip browser: `/tmp/opencode/ui-tests/filter-regression.cjs`; memakai proxy loopback dengan sesi admin sah, tidak mengubah mekanisme auth aplikasi.
+- Pengujian modal mencakup buka dengan Enter, Shift+Tab tetap di modal, Escape menutup, focus kembali, dan body scroll lock dipulihkan.
+- Tes URL memakai `history.pushState`; browser Back/Forward tidak diuji secara terpisah.
+- Submit CRUD/upload setiap modal belum diuji end-to-end. Kontras WCAG seluruh UI belum diaudit secara numerik.
+- Migrasi modal mencakup create cabang/pengguna/reuni/galeri/Hall of Fame serta pengelolaan kategori. Form anggota kompleks dan sebagian edit/detail masih halaman tersendiri; jangan menganggap semua form non-artikel sudah bermigrasi.
+- Koreksi bukti historis: klaim 3/3 PASS di pesan commit `9f7a5b3` ditulis sebelum tes lulus. Versi pengganti `9f80aa9` kemudian diuji; hasil production terbaru yang berlaku adalah 19/19 PASS.
+- Delivery gate parsial: interaksi yang disebut di atas dan layout 390px lulus; audit menyeluruh kontras, semua breakpoint, serta submit form belum lengkap.
 
 ---
 
 ## Catatan
 
 - `develop` sudah push ke origin (`6605b57`).
-- Produksi image `sha256:541e3842` (commit `ee18c0b`), rebuild setelah selesai.
+- Produksi image baru `sha256:d1dd89feb33b` (commit `9b4adab`), deploy via `docker compose up -d --no-deps --force-recreate`.
+- Container `wirjodihardjo-app` berjalan, no runtime error.
+- Smoke test produksi: 9/9 halaman admin HTTP 200.
+- Browser regression test produksi: 19/19 PASS.
 - Tidak ada operasi git destruktif. Commit hanya dari parent.
