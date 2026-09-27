@@ -14,7 +14,7 @@ interface AuditLogEntry {
   afterData: Record<string, unknown> | null;
   actorLabel: string | null;
   ipAddress: string | null;
-  actor: { email: string; person: { fullName: string } } | null;
+  actor: { email: string | null; person: { fullName: string } } | null;
   createdAt: string;
 }
 
@@ -162,7 +162,7 @@ function LogRow({ log, isExpanded, onToggle }: {
         </td>
         <td className="px-4 py-3 text-muted">{log.entityType}</td>
         <td className="px-4 py-3 font-mono text-xs text-muted">{log.entityId ? `${log.entityId.slice(0, 8)}…` : "-"}</td>
-        <td className="px-4 py-3 text-muted">{log.actor?.email ?? log.actorLabel ?? "sistem"}</td>
+        <td className="px-4 py-3 text-muted">{log.actor ? (log.actor.email ?? "Tidak ada email") : log.actorLabel ?? "sistem"}</td>
         <td className="whitespace-nowrap px-4 py-3 text-xs text-muted">{formatDateTime(log.createdAt)}</td>
       </tr>
       {isExpanded && (
@@ -172,7 +172,7 @@ function LogRow({ log, isExpanded, onToggle }: {
               <div><dt className="text-muted">Aksi</dt><dd>{actionLabels[log.action] ?? log.action}</dd></div>
               <div><dt className="text-muted">Entitas</dt><dd>{log.entityType}</dd></div>
               <div><dt className="text-muted">ID Entitas</dt><dd className="break-all">{log.entityId ?? "-"}</dd></div>
-              <div><dt className="text-muted">Aktor</dt><dd>{log.actor ? `${log.actor.person.fullName} (${log.actor.email})` : log.actorLabel ?? "sistem"}</dd></div>
+              <div><dt className="text-muted">Aktor</dt><dd>{log.actor ? `${log.actor.person.fullName}${log.actor.email ? ` (${log.actor.email})` : ""}` : log.actorLabel ?? "sistem"}</dd></div>
               <div><dt className="text-muted">Waktu</dt><dd>{formatDateTime(log.createdAt)}</dd></div>
               {log.ipAddress && <div><dt className="text-muted">IP</dt><dd>{log.ipAddress}</dd></div>}
             </dl>

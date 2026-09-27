@@ -29,6 +29,7 @@ async function main() {
 
   const user = await prisma.user.create({
     data: {
+      username: "admin",
       email,
       passwordHash: hash,
       role: "SUPER_ADMIN",
@@ -39,6 +40,7 @@ async function main() {
   });
 
   console.log("✅ Super Admin dibuat:");
+  console.log(`   Username: ${user.username}`);
   console.log(`   Email   : ${user.email}`);
   console.log(`   Sandi   : ${password}`);
   console.log("   Segera ganti sandi setelah login pertama.");

@@ -8,7 +8,8 @@ import { toast } from "@/components/ui/Toast";
 
 export type PenggunaListUser = {
   id: string;
-  email: string;
+  username: string;
+  email: string | null;
   role: "SUPER_ADMIN" | "BRANCH_ADMIN" | "MEMBER";
   isActive: boolean;
   isVerified: boolean;
@@ -59,10 +60,11 @@ export function PenggunaList({ users }: { users: PenggunaListUser[] }) {
         </div>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-md border border-wood/15">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[860px] text-left text-sm">
             <thead className="bg-parchment/50">
               <tr className="border-b border-wood/15 text-xs font-medium uppercase tracking-wide text-muted">
                 <th className="px-4 py-3 pr-6">Nama</th>
+                <th className="px-4 py-3 pr-6">Username</th>
                 <th className="px-4 py-3 pr-6">Email</th>
                 <th className="px-4 py-3 pr-6">Peran</th>
                 <th className="px-4 py-3 pr-6">Status</th>
@@ -86,7 +88,8 @@ export function PenggunaList({ users }: { users: PenggunaListUser[] }) {
                         {name}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 pr-6 text-muted">{user.email}</td>
+                    <td className="px-4 py-3 pr-6 text-muted">{user.username}</td>
+                    <td className="px-4 py-3 pr-6 text-muted">{user.email ?? "Tidak ada email"}</td>
                     <td className="px-4 py-3 pr-6">
                       <select
                         value={user.role}

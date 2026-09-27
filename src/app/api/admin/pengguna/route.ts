@@ -44,6 +44,7 @@ export async function GET(request: Request) {
   const where: Record<string, unknown> = {};
   if (q.trim().length > 0) {
     where.OR = [
+      { username: { contains: q, mode: "insensitive" } },
       { email: { contains: q, mode: "insensitive" } },
       { person: { fullName: { contains: q, mode: "insensitive" } } },
     ];
@@ -106,7 +107,7 @@ export async function POST(request: Request) {
   }
 
   // ── Create user ──
-  const { email, password, role, personId } = body;
+  const { email, password, role, personId, username: providedUsername } = body;
 
   if (!email || !password || !role || !personId) {
     return NextResponse.json({ error: "Email, password, role, dan personId diperlukan" }, { status: 400 });
@@ -127,10 +128,27 @@ export async function POST(request: Request) {
   const person = await prisma.person.findUnique({ where: { id: personId as string } });
   if (!person) return NextResponse.json({ error: "Anggota tidak ditemukan" }, { status: 404 });
 
+  // Generate username: use provided or derive from email
+  let username = providedUsername as string | undefined;
+  if (!username) {
+    const emailLocal = (email as string).split("@")[0];
+    username = emailLocal.toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (username.length < 3) username = `user${username}`;
+  }
+
+  // Ensure username uniqueness
+  let finalUsername = username;
+  let suffix = 1;
+  while (await prisma.user.findUnique({ where: { username: finalUsername } })) {
+    finalUsername = `${username}${suffix}`;
+    suffix++;
+  }
+
   const passwordHash = await bcrypt.hash(password as string, 12);
 
   const user = await prisma.user.create({
     data: {
+      username: finalUsername,
       email: (email as string).toLowerCase(),
       passwordHash,
       role: role as any,

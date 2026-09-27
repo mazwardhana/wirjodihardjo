@@ -33,6 +33,7 @@ export default async function AdminPenggunaPage({
   const where: Prisma.UserWhereInput = {};
   if (q) {
     where.OR = [
+      { username: { contains: q, mode: "insensitive" } },
       { email: { contains: q, mode: "insensitive" } },
       { person: { fullName: { contains: q, mode: "insensitive" } } },
     ];
@@ -49,6 +50,7 @@ export default async function AdminPenggunaPage({
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
+        username: true,
         email: true,
         role: true,
         isActive: true,
@@ -79,7 +81,7 @@ export default async function AdminPenggunaPage({
         <FilterBar
           config={{
             search: {
-              placeholder: "Cari nama atau email...",
+              placeholder: "Cari nama, username, atau email...",
               param: "q",
             },
             filters: [

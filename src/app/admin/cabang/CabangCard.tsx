@@ -13,7 +13,7 @@ type Branch = {
   orderIndex: number;
   isActive: boolean;
   rootPerson: { id: string; fullName: string } | null;
-  admin: { id: string; email: string; role: string; person: { fullName: string } } | null;
+  admin: { id: string; email: string | null; role: string; person: { fullName: string } } | null;
   _count: { members: number };
 };
 
@@ -84,7 +84,7 @@ export function CabangCard({ branch }: { branch: Branch }) {
           )}
           <p className="text-xs text-muted">
             {branch.admin
-              ? `Admin: ${branch.admin.person.fullName} (${branch.admin.email})`
+              ? `Admin: ${branch.admin.person.fullName}${branch.admin.email ? ` (${branch.admin.email})` : ""}`
               : "Belum ada admin"}{" "}
             &middot; {branch._count.members} anggota
           </p>
