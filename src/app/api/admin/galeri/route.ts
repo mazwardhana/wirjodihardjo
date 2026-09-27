@@ -47,11 +47,20 @@ export async function GET() {
     },
   });
 
-  const scopedAlbums = scope.role === "SUPER_ADMIN"
-    ? albums
-    : albums.filter((album) =>
-        album.media.some((media) => media.uploader?.person?.branchId === scope.branchId),
+  if (scope.role === "SUPER_ADMIN") {
+    return NextResponse.json(albums);
+  }
+
+  const scopedAlbums = albums
+    .filter((album) =>
+      album.media.some((media) => media.uploader?.person?.branchId === scope.branchId),
+    )
+    .map((album) => {
+      const media = album.media.filter(
+        (m) => m.uploader?.person?.branchId === scope.branchId,
       );
+      return { ...album, media, _count: { media: media.length } };
+    });
 
   return NextResponse.json(scopedAlbums);
 }

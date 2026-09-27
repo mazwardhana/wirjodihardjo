@@ -177,4 +177,65 @@ describe("/api/admin/galeri branch scope", () => {
     assert.equal(response.status, 200);
     assert.equal(state.updated.length, 1);
   });
+
+  test("BRANCH_ADMIN _count.media excludes cross-branch media", async () => {
+    const state = fixture();
+    state.session = { user: { id: "admin-A", role: "BRANCH_ADMIN" } };
+    state.adminUser = { id: "admin-A", role: "BRANCH_ADMIN", branchAdminOf: { id: "branch-A" } };
+    state.albums = [
+      {
+        id: "mixed",
+        title: "Mixed Album",
+        slug: "mixed",
+        isPublished: true,
+        media: [
+          { uploader: { person: { branchId: "branch-A" } } },
+          { uploader: { person: { branchId: "branch-A" } } },
+          { uploader: { person: { branchId: "branch-B" } } },
+          { uploader: { person: { branchId: null } } },
+        ],
+        _count: { media: 4 }, // Raw count includes all
+        createdBy: null,
+        publishedBy: null,
+      },
+    ];
+
+    const response = await loadRoute(state).GET();
+    assert.equal(response.status, 200);
+    const albums = await response.json();
+    assert.equal(albums.length, 1);
+    // _count should reflect only branch-A media (2), not all (4)
+    assert.equal(albums[0]._count.media, 2);
+    // Media array should also be filtered — no cross-branch entries
+    assert.equal(albums[0].media.length, 2);
+    assert.ok(albums[0].media.every((m: Row) => m.uploader?.person?.branchId === "branch-A"));
+  });
+
+  test("SUPER_ADMIN _count.media includes all media", async () => {
+    const state = fixture();
+    state.session = { user: { id: "super", role: "SUPER_ADMIN" } };
+    state.adminUser = { id: "super", role: "SUPER_ADMIN", branchAdminOf: null };
+    state.albums = [
+      {
+        id: "mixed",
+        title: "Mixed Album",
+        slug: "mixed",
+        isPublished: true,
+        media: [
+          { uploader: { person: { branchId: "branch-A" } } },
+          { uploader: { person: { branchId: "branch-B" } } },
+          { uploader: { person: { branchId: null } } },
+        ],
+        _count: { media: 3 },
+        createdBy: null,
+        publishedBy: null,
+      },
+    ];
+
+    const response = await loadRoute(state).GET();
+    assert.equal(response.status, 200);
+    const albums = await response.json();
+    assert.equal(albums.length, 1);
+    assert.equal(albums[0]._count.media, 3);
+  });
 });

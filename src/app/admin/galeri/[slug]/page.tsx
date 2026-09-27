@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireAdminScope } from "@/lib/rbac";
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
 import { AdminAlbumDetailClient } from "./AdminAlbumDetailClient";
@@ -15,11 +16,10 @@ export default async function AdminAlbumDetailPage({
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, role: true },
-  });
-  if (!user || (user.role !== "SUPER_ADMIN" && user.role !== "BRANCH_ADMIN")) {
+  let scope;
+  try {
+    scope = await requireAdminScope(session.user.id);
+  } catch {
     redirect("/dashboard");
   }
 
@@ -29,7 +29,11 @@ export default async function AdminAlbumDetailPage({
       media: {
         orderBy: { createdAt: "desc" },
         include: {
-          uploader: { select: { person: { select: { fullName: true } } } },
+          uploader: {
+            select: {
+              person: { select: { fullName: true, branchId: true } },
+            },
+          },
         },
       },
       createdBy: { select: { person: { select: { fullName: true } } } },
@@ -38,6 +42,14 @@ export default async function AdminAlbumDetailPage({
   });
 
   if (!album) notFound();
+
+  // Filter media by branch scope
+  const scopedMedia =
+    scope.role === "SUPER_ADMIN"
+      ? album.media
+      : album.media.filter(
+          (m) => m.uploader?.person?.branchId === scope.branchId,
+        );
 
   return (
     <div className="p-8">
@@ -55,7 +67,7 @@ export default async function AdminAlbumDetailPage({
           publishedByName: album.publishedBy?.person?.fullName ?? null,
           publishedAt: album.publishedAt?.toISOString() ?? null,
         }}
-        media={album.media.map((m) => ({
+        media={scopedMedia.map((m) => ({
           id: m.id,
           url: m.url,
           thumbnailUrl: m.thumbnailUrl,
