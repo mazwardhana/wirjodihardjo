@@ -79,10 +79,7 @@ export async function POST(request: Request) {
   const validation = validateImportData(data);
   const plan = await analyzeImportData(validation.data);
 
-  const totalRows =
-    validation.data.anggota.length +
-    validation.data.relasi.length +
-    validation.data.akun.length;
+  const totalRows = validation.data.anggota.length;
 
   const reportJson = {
     filename: file.name,
@@ -124,8 +121,6 @@ export async function POST(request: Request) {
     credentials: plan.credentials,
     preview: {
       anggota: validation.data.anggota.slice(0, 100),
-      relasi: validation.data.relasi.slice(0, 100),
-      akun: validation.data.akun.slice(0, 100),
     },
   });
 }

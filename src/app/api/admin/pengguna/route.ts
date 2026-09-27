@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { clearBranchAdminOnDemotion } from "@/lib/branch-admin-validation";
 
 type AdminGuard = { user: { id: string; role: string } };
 type GuardResult = AdminGuard | NextResponse;
@@ -179,10 +180,17 @@ export async function PUT(request: Request) {
   if (isVerified !== undefined) data.isVerified = Boolean(isVerified);
   if (mustChangePassword !== undefined) data.mustChangePassword = Boolean(mustChangePassword);
 
-  const updated = await prisma.user.update({
-    where: { id: id as string },
-    data: data as any,
-    include: { person: { select: { id: true, fullName: true } } },
+  const updated = await prisma.$transaction(async (tx) => {
+    // Clear branch admin assignment if role changes away from BRANCH_ADMIN
+    if (role !== undefined) {
+      await clearBranchAdminOnDemotion(id as string, role as string, tx);
+    }
+
+    return tx.user.update({
+      where: { id: id as string },
+      data: data as any,
+      include: { person: { select: { id: true, fullName: true } } },
+    });
   });
 
   await logAudit({

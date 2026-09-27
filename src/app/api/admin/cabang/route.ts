@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { validateBranchAdminAssignment, BranchAdminValidationError } from "@/lib/branch-admin-validation";
 
 async function requireSuperAdmin() {
   const session = await auth();
@@ -189,11 +190,15 @@ export async function PUT(request: Request) {
     if (adminId === null || adminId === "") {
       data.admin = { disconnect: true };
     } else {
-      // Check if user exists
-      const adminUser = await prisma.user.findUnique({ where: { id: adminId as string } });
-      if (!adminUser) {
-        return NextResponse.json({ error: "Pengguna tidak ditemukan" }, { status: 404 });
+      try {
+        await validateBranchAdminAssignment(adminId as string);
+      } catch (error) {
+        if (error instanceof BranchAdminValidationError) {
+          return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        throw error;
       }
+
       // Check if user is already admin of another branch
       const otherBranch = await prisma.branch.findFirst({
         where: { adminId: adminId as string, id: { not: id } },

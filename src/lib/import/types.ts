@@ -4,28 +4,19 @@ export type PartnerStatus = "MARRIED" | "DIVORCED" | "WIDOWED" | "UNKNOWN";
 export type UserRole = "SUPER_ADMIN" | "BRANCH_ADMIN" | "MEMBER";
 export type RelationKind = "ORANG_TUA" | "PASANGAN";
 
+/** Simplified import row: branch number + basic identity, no relations or accounts. */
 export type ImportRowAnggota = {
   _row?: number;
-  ref: string;
+  cabangKe: number;
   namaLengkap: string;
-  namaPanggilan?: string;
   jenisKelamin: Gender;
-  tanggalLahir?: string;
+  namaPanggilan?: string;
   tempatLahir?: string;
-  meninggal?: string;
-  tanggalMeninggal?: string;
-  bio?: string;
-  cabang?: string;
-  levelGenerasi?: string;
-  telepon?: string;
-  whatsapp?: string;
-  email?: string;
-  alamat?: string;
-  kota?: string;
-  provinsi?: string;
-  kodePos?: string;
-  statusPernikahan?: string;
-  catatanKeluarga?: string;
+  tanggalLahir?: string;
+  kotaDomisili?: string;
+  nomorTelepon?: string;
+  catatan?: string;
+  ref?: string;
 };
 
 export type ImportRowRelasi = {
@@ -50,7 +41,7 @@ export type ImportRowAkun = {
 };
 
 export type ValidationError = {
-  sheet: "Anggota" | "Relasi" | "Akun";
+  sheet: "Anggota" | "Relasi" | "Akun" | "Data";
   row: number;
   field: string;
   message: string;
@@ -58,8 +49,8 @@ export type ValidationError = {
 
 export type ParsedData = {
   anggota: ImportRowAnggota[];
-  relasi: ImportRowRelasi[];
-  akun: ImportRowAkun[];
+  relasi?: ImportRowRelasi[];
+  akun?: ImportRowAkun[];
 };
 
 export type ValidationResult = {
