@@ -10,11 +10,6 @@ export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  // Enforce onboarding for users with temporary credentials
-  if (session.user.mustChangeCredentials) {
-    redirect("/onboarding");
-  }
-
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     include: {
