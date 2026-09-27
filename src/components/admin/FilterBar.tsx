@@ -16,6 +16,12 @@ export type FilterConfig = {
 };
 
 export function FilterBar({ config }: { config: FilterConfig }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  return <FilterControls key={`${pathname}?${searchParams}`} config={config} />;
+}
+
+function FilterControls({ config }: { config: FilterConfig }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -24,7 +30,13 @@ export function FilterBar({ config }: { config: FilterConfig }) {
   const urlValue = searchParam ? (searchParams.get(searchParam) ?? "") : "";
   const [localSearch, setLocalSearch] = useState(urlValue);
 
-  // Skip navigation when the URL already matches to avoid repeated requests.
+  // Sync input when the URL changes externally (back/forward, links, reset).
+  useEffect(() => {
+    setLocalSearch(urlValue);
+  }, [urlValue]);
+
+  // Debounced search (500ms). Skip navigation when the URL already matches
+  // to avoid repeated requests and re-adding a just-reset value.
   useEffect(() => {
     if (!searchParam || localSearch.trim() === urlValue) return;
     const timer = setTimeout(() => {
@@ -59,10 +71,14 @@ export function FilterBar({ config }: { config: FilterConfig }) {
   const hasActiveFilters =
     activeFilters.length > 0 || (config.search && localSearch.trim());
 
+  // Reset clears only the params this bar owns, preserving unrelated params
+  // (e.g. the status tabs on the pengajuan page).
   const handleReset = () => {
-    setLocalSearch("");
+    const params = new URLSearchParams(searchParams.toString());
+    if (searchParam) params.delete(searchParam);
+    for (const f of config.filters ?? []) params.delete(f.param);
     startTransition(() => {
-      router.replace(pathname, { scroll: false });
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     });
   };
 
