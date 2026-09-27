@@ -27,17 +27,19 @@ type MediaRow = {
   status: "PENDING" | "APPROVED" | "REJECTED";
   uploadedByUserId: string | null;
   album: { isPublished: boolean };
+  uploader: { person: { branchId: string | null } } | null;
 };
 
 type State = {
   session: { user: { id: string; role: string } } | null;
+  adminUser: { branchAdminOf: { id: string } | null } | null;
   media: MediaRow | null;
   queries: Record<string, unknown>[];
   fileMissing: boolean;
 };
 
 function fixture(): State {
-  return { session: null, media: null, queries: [], fileMissing: false };
+  return { session: null, adminUser: null, media: null, queries: [], fileMissing: false };
 }
 
 type RouteExports = {
@@ -81,6 +83,9 @@ function loadRoute(state: State): RouteExports {
                   return state.media;
                 },
               },
+              user: {
+                findUnique: async () => state.adminUser,
+              },
             },
           };
         }
@@ -111,6 +116,7 @@ const mediaRow = (overrides: Partial<MediaRow> = {}): MediaRow => ({
   status: "PENDING",
   uploadedByUserId: "user-1",
   album: { isPublished: true },
+  uploader: { person: { branchId: "branch-A" } },
   ...overrides,
 });
 
@@ -169,8 +175,53 @@ describe("Secure media serving", () => {
   test("BRANCH_ADMIN requesting PENDING media is served", async () => {
     const state = fixture();
     state.session = { user: { id: "admin-2", role: "BRANCH_ADMIN" } };
-    state.media = mediaRow({ status: "PENDING", uploadedByUserId: "user-1" });
+    state.adminUser = { branchAdminOf: { id: "branch-A" } };
+    state.media = mediaRow({ status: "PENDING", uploadedByUserId: "user-1", uploader: { person: { branchId: "branch-A" } } });
     assert.equal((await get(loadRoute(state), "pending.jpg")).status, 200);
+  });
+
+  test("BRANCH_ADMIN from branch A cannot access PENDING media from branch B", async () => {
+    const state = fixture();
+    state.session = { user: { id: "admin-A", role: "BRANCH_ADMIN" } };
+    state.adminUser = { branchAdminOf: { id: "branch-A" } };
+    state.media = mediaRow({ status: "PENDING", uploadedByUserId: "user-B", uploader: { person: { branchId: "branch-B" } } });
+    assert.equal((await get(loadRoute(state), "pending.jpg")).status, 403);
+  });
+
+  test("BRANCH_ADMIN can still access published APPROVED media from another branch publicly", async () => {
+    const state = fixture();
+    state.session = { user: { id: "admin-A", role: "BRANCH_ADMIN" } };
+    state.adminUser = { branchAdminOf: { id: "branch-A" } };
+    state.media = mediaRow({ status: "APPROVED", album: { isPublished: true }, uploader: { person: { branchId: "branch-B" } } });
+    const response = await get(loadRoute(state), "approved.jpg");
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("Cache-Control"), "public, max-age=86400");
+  });
+
+  test("BRANCH_ADMIN cannot access PENDING media without uploader branch", async () => {
+    const state = fixture();
+    state.session = { user: { id: "admin-A", role: "BRANCH_ADMIN" } };
+    state.adminUser = { branchAdminOf: { id: "branch-A" } };
+    state.media = mediaRow({ status: "PENDING", uploadedByUserId: "legacy-user", uploader: { person: { branchId: null } } });
+    assert.equal((await get(loadRoute(state), "pending.jpg")).status, 403);
+  });
+
+  test("BRANCH_ADMIN from branch A can access REJECTED media from their branch", async () => {
+    const state = fixture();
+    state.session = { user: { id: "admin-A", role: "BRANCH_ADMIN" } };
+    state.adminUser = { branchAdminOf: { id: "branch-A" } };
+    state.media = mediaRow({ status: "REJECTED", uploadedByUserId: "user-1", uploader: { person: { branchId: "branch-A" } } });
+    const response = await get(loadRoute(state), "rejected.jpg");
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("Cache-Control"), "private, max-age=3600");
+  });
+
+  test("BRANCH_ADMIN from branch A cannot access REJECTED media from branch B", async () => {
+    const state = fixture();
+    state.session = { user: { id: "admin-A", role: "BRANCH_ADMIN" } };
+    state.adminUser = { branchAdminOf: { id: "branch-A" } };
+    state.media = mediaRow({ status: "REJECTED", uploadedByUserId: "user-B", uploader: { person: { branchId: "branch-B" } } });
+    assert.equal((await get(loadRoute(state), "rejected.jpg")).status, 403);
   });
 
   test("member requesting REJECTED media is forbidden even when they uploaded it", async () => {
@@ -218,7 +269,10 @@ describe("Secure media serving", () => {
     );
     assert.equal(
       JSON.stringify(state.queries[0].include),
-      JSON.stringify({ album: { select: { isPublished: true } } }),
+      JSON.stringify({
+        album: { select: { isPublished: true } },
+        uploader: { select: { person: { select: { branchId: true } } } },
+      }),
     );
   });
 

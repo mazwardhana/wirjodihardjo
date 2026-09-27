@@ -11,8 +11,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
+  let scope;
   try {
-    await requireAdminScope(session.user.id);
+    scope = await requireAdminScope(session.user.id);
   } catch {
     return NextResponse.json({ error: "Akses admin diperlukan" }, { status: 403 });
   }
@@ -22,6 +23,13 @@ export async function GET(request: Request) {
 
   if (!branchId) {
     return NextResponse.json({ error: "branchId diperlukan" }, { status: 400 });
+  }
+
+  // BRANCH_ADMIN can only query their own branch representatives
+  try {
+    assertBranchAccess(scope, branchId);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Akses ditolak" }, { status: error.status || 403 });
   }
 
   const representatives = await prisma.branchRepresentative.findMany({

@@ -85,33 +85,41 @@ export async function POST(request: Request) {
   await mkdir(UPLOAD_DIR, { recursive: true });
 
   const mediaIds: string[] = [];
-  for (const { file, ext } of validated) {
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const filename = `${randomUUID()}${ext}`;
-    const url = `${UPLOAD_URL_PREFIX}/${filename}`;
-    await writeFile(join(/* turbopackIgnore: true */ UPLOAD_DIR, filename), bytes);
+  try {
+    for (const { file, ext } of validated) {
+      const bytes = Buffer.from(await file.arrayBuffer());
+      const filename = `${randomUUID()}${ext}`;
+      const url = `${UPLOAD_URL_PREFIX}/${filename}`;
+      await writeFile(join(/* turbopackIgnore: true */ UPLOAD_DIR, filename), bytes);
 
-    // Unggahan anggota selalu menunggu moderasi admin.
-    const media = await prisma.galleryMedia.create({
-      data: {
-        url,
-        thumbnailUrl: url,
-        caption: normalizedCaption,
-        mediaType: "IMAGE",
-        status: "PENDING",
-        albumId,
-        uploadedByUserId: session.user.id,
-      },
-    });
-    mediaIds.push(media.id);
+      // Unggahan anggota selalu menunggu moderasi admin.
+      const media = await prisma.galleryMedia.create({
+        data: {
+          url,
+          thumbnailUrl: url,
+          caption: normalizedCaption,
+          mediaType: "IMAGE",
+          status: "PENDING",
+          albumId,
+          uploadedByUserId: session.user.id,
+        },
+      });
+      mediaIds.push(media.id);
 
-    await logAudit({
-      action: "MEDIA_UPLOAD",
-      entityType: "GalleryMedia",
-      entityId: media.id,
-      afterData: { albumId, url, status: "PENDING" },
-      actorUserId: session.user.id,
-    });
+      await logAudit({
+        action: "MEDIA_UPLOAD",
+        entityType: "GalleryMedia",
+        entityId: media.id,
+        afterData: { albumId, url, status: "PENDING" },
+        actorUserId: session.user.id,
+      });
+    }
+  } catch (error) {
+    // Rollback: delete any files already written
+    for (const id of mediaIds) {
+      await prisma.galleryMedia.delete({ where: { id } }).catch(() => {});
+    }
+    return NextResponse.json({ error: "Gagal menyimpan media" }, { status: 500 });
   }
 
   await notifyAdminsOfPendingMedia(album.title, album.slug);

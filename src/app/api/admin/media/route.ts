@@ -8,15 +8,32 @@ import { logAudit } from "@/lib/audit";
 import { notifyMediaModeration } from "@/lib/notifications";
 import { UPLOAD_DIR, UPLOAD_URL_PREFIX, MAX_UPLOAD_BYTES, ACCEPTED_IMAGE_TYPES } from "@/lib/upload";
 
-async function requireAdmin() {
+type AdminScope = {
+  id: string;
+  role: "SUPER_ADMIN" | "BRANCH_ADMIN";
+  branchId: string | null;
+};
+
+async function requireAdmin(): Promise<AdminScope | null> {
   const session = await auth();
   if (!session?.user) return null;
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, role: true },
+    select: { id: true, role: true, branchAdminOf: { select: { id: true } } },
   });
   if (!user || (user.role !== "SUPER_ADMIN" && user.role !== "BRANCH_ADMIN")) return null;
-  return user;
+  return {
+    id: user.id,
+    role: user.role,
+    branchId: user.role === "SUPER_ADMIN" ? null : user.branchAdminOf?.id ?? null,
+  };
+}
+
+function assertMediaAccess(scope: AdminScope, uploaderBranchId: string | null): void {
+  if (scope.role === "SUPER_ADMIN") return;
+  if (scope.branchId === null || uploaderBranchId === null || scope.branchId !== uploaderBranchId) {
+    throw new Error("FORBIDDEN");
+  }
 }
 
 /** Hapus berkas dari folder unggahan; gagal diam-diam bila file sudah hilang. */
@@ -133,10 +150,21 @@ export async function PUT(request: Request) {
 
   const existing = await prisma.galleryMedia.findUnique({
     where: { id },
-    include: { album: { select: { title: true } } },
+    include: {
+      album: { select: { title: true } },
+      uploader: { select: { person: { select: { branchId: true } } } },
+    },
   });
   if (!existing) {
     return NextResponse.json({ error: "Media tidak ditemukan" }, { status: 404 });
+  }
+
+  // Branch scope: BRANCH_ADMIN can only moderate media from their own branch
+  try {
+    const uploaderBranchId = existing.uploader?.person?.branchId ?? null;
+    assertMediaAccess(user, uploaderBranchId);
+  } catch (err) {
+    return NextResponse.json({ error: "Di luar cabang Anda" }, { status: 403 });
   }
 
   const media = await prisma.galleryMedia.update({
@@ -185,9 +213,19 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "ID media diperlukan" }, { status: 400 });
   }
 
-  const existing = await prisma.galleryMedia.findUnique({ where: { id } });
+  const existing = await prisma.galleryMedia.findUnique({
+    where: { id },
+    include: { uploader: { select: { person: { select: { branchId: true } } } } },
+  });
   if (!existing) {
     return NextResponse.json({ error: "Media tidak ditemukan" }, { status: 404 });
+  }
+
+  try {
+    const uploaderBranchId = existing.uploader?.person?.branchId ?? null;
+    assertMediaAccess(user, uploaderBranchId);
+  } catch {
+    return NextResponse.json({ error: "Di luar cabang Anda" }, { status: 403 });
   }
 
   await prisma.galleryMedia.delete({ where: { id } });

@@ -16,7 +16,8 @@ export function BranchGrid({ children, className }: BranchGridProps) {
     const node = ref.current;
     if (!node) return;
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion) {
       setVisible(true);
       return;
     }
@@ -44,7 +45,6 @@ export function BranchGrid({ children, className }: BranchGridProps) {
           animation: branch-card-enter 400ms var(--ease-warm) forwards;
           animation-play-state: paused;
         }
-        
         .branch-grid.is-visible > li {
           animation-play-state: running;
         }

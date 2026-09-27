@@ -26,14 +26,17 @@ type MediaAccess = { cacheControl: string } | { forbidden: true };
  * Berkas tanpa baris GalleryMedia (avatar, sampul cabang, gambar artikel)
  * tetap publik demi kompatibilitas. Sebaliknya, status moderasi dan status
  * terbit album ditegakkan agar media PENDING/REJECTED tidak bocor lewat URL.
+ * 
+ * Branch scope: BRANCH_ADMIN can only access moderated media from their own branch.
  */
 function resolveMediaAccess(
   media: {
     status: string;
     uploadedByUserId: string | null;
     album: { isPublished: boolean };
+    uploader: { person: { branchId: string | null } } | null;
   } | null,
-  session: { user: { id: string; role: string } } | null,
+  session: { user: { id: string; role: string; branchId: string | null } } | null,
 ): MediaAccess {
   if (!media) {
     return { cacheControl: LEGACY_PUBLIC_CACHE };
@@ -44,15 +47,37 @@ function resolveMediaAccess(
   }
 
   const isOwner = session?.user.id === media.uploadedByUserId;
-  const isAdmin = session != null && ADMIN_ROLES.includes(session.user.role);
-
-  if (media.status === "PENDING" && (isOwner || isAdmin)) {
-    return { cacheControl: PRIVATE_CACHE };
+  const isSuperAdmin = session?.user.role === "SUPER_ADMIN";
+  const isBranchAdmin = session?.user.role === "BRANCH_ADMIN";
+  
+  // For PENDING media: owner or admin with proper branch scope
+  if (media.status === "PENDING") {
+    if (isOwner || isSuperAdmin) {
+      return { cacheControl: PRIVATE_CACHE };
+    }
+    if (isBranchAdmin) {
+      const uploaderBranchId = media.uploader?.person?.branchId ?? null;
+      const adminBranchId = session?.user.branchId ?? null;
+      if (adminBranchId !== null && uploaderBranchId === adminBranchId) {
+        return { cacheControl: PRIVATE_CACHE };
+      }
+    }
+    return { forbidden: true };
   }
 
-  // Hanya admin yang boleh melihat media ditolak atau album yang belum terbit.
-  if ((media.status === "REJECTED" || media.status === "APPROVED") && isAdmin) {
-    return { cacheControl: PRIVATE_CACHE };
+  // For REJECTED or APPROVED in unpublished album: admin with proper branch scope only
+  if (media.status === "REJECTED" || (media.status === "APPROVED" && !media.album.isPublished)) {
+    if (isSuperAdmin) {
+      return { cacheControl: PRIVATE_CACHE };
+    }
+    if (isBranchAdmin) {
+      const uploaderBranchId = media.uploader?.person?.branchId ?? null;
+      const adminBranchId = session?.user.branchId ?? null;
+      if (adminBranchId !== null && uploaderBranchId === adminBranchId) {
+        return { cacheControl: PRIVATE_CACHE };
+      }
+    }
+    return { forbidden: true };
   }
 
   return { forbidden: true };
@@ -102,11 +127,41 @@ export async function GET(
   // mencegah `abc.jpg` cocok dengan `xyzabc.jpg`.
   const media = await prisma.galleryMedia.findFirst({
     where: { url: { endsWith: `/${safe}` } },
-    include: { album: { select: { isPublished: true } } },
+    include: {
+      album: { select: { isPublished: true } },
+      uploader: { select: { person: { select: { branchId: true } } } },
+    },
   });
 
   const session = await auth();
-  const access = resolveMediaAccess(media, session);
+  
+  // Resolve branch scope for BRANCH_ADMIN
+  let sessionWithBranch = null;
+  if (session?.user) {
+    if (session.user.role === "BRANCH_ADMIN") {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { branchAdminOf: { select: { id: true } } },
+      });
+      sessionWithBranch = {
+        user: {
+          id: session.user.id,
+          role: session.user.role,
+          branchId: user?.branchAdminOf?.id ?? null,
+        },
+      };
+    } else {
+      sessionWithBranch = {
+        user: {
+          id: session.user.id,
+          role: session.user.role,
+          branchId: null,
+        },
+      };
+    }
+  }
+
+  const access = resolveMediaAccess(media, sessionWithBranch);
 
   if ("forbidden" in access) {
     return new Response("Akses ditolak", { status: 403 });
