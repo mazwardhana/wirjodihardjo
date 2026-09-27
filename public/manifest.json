@@ -1,6 +1,7 @@
 {
   "name": "Keluarga Besar Wirjodihardjo",
   "short_name": "KB Wirjodihardjo",
+  "description": "Platform silsilah keluarga besar Wirjodihardjo",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFBF5",

@@ -8,7 +8,7 @@ const USERNAME_REGEX = /^[a-zA-Z0-9_-]{3,30}$/;
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -79,6 +79,8 @@ export default function OnboardingPage() {
         return;
       }
 
+      // Refresh session to clear mustChangeCredentials flag from JWT
+      await update();
       router.push("/dashboard");
     } catch {
       setServerError("Terjadi kesalahan. Coba lagi.");

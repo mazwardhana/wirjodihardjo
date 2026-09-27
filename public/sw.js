@@ -44,6 +44,10 @@ self.addEventListener('fetch', (event) => {
   if (shouldNeverCache(url)) return;
 
   if (request.mode === 'navigate') {
+    // Never cache authenticated pages (dashboard, admin, etc)
+    if (url.pathname.startsWith('/dashboard') || url.pathname.startsWith('/admin')) {
+      return;
+    }
     event.respondWith(
       fetch(request)
         .then((response) => {
@@ -62,7 +66,8 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok) {
+          const cacheControl = response.headers.get('cache-control');
+          if (response.ok && !cacheControl?.includes('private')) {
             const copy = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           }

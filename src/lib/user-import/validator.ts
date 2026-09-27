@@ -31,7 +31,7 @@ export type UserImportDb = {
   };
   user: {
     findMany(args: {
-      where: { OR: Array<{ username?: { in: string[] }; email?: { in: string[] }; personId?: { in: string[] } }> };
+      where: { OR: Array<{ username?: { in: string[]; mode?: string }; email?: { in: string[]; mode?: string }; personId?: { in: string[] } }> };
     }): Promise<Array<{ username: string; email: string | null; personId: string }>>;
   };
 };
@@ -150,8 +150,8 @@ export async function validateUserImport(
   const existingUsers = await db.user.findMany({
     where: {
       OR: [
-        { username: { in: usernames } },
-        ...(emails.length > 0 ? [{ email: { in: emails } }] : []),
+        { username: { in: usernames, mode: "insensitive" } },
+        ...(emails.length > 0 ? [{ email: { in: emails, mode: "insensitive" } }] : []),
         ...(personIds.length > 0 ? [{ personId: { in: personIds } }] : []),
       ],
     },
