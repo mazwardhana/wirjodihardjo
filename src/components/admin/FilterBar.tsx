@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 export type FilterConfig = {
-  search?: {
-    placeholder: string;
-    param: string;
-  };
+  search?: { placeholder: string; param: string };
   filters?: Array<{
     param: string;
     label: string;
@@ -16,120 +13,109 @@ export type FilterConfig = {
 };
 
 export function FilterBar({ config }: { config: FilterConfig }) {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  return <FilterControls key={`${pathname}?${searchParams}`} config={config} />;
-}
-
-function FilterControls({ config }: { config: FilterConfig }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+  const query = searchParams.toString();
   const searchParam = config.search?.param;
-  const urlValue = searchParam ? (searchParams.get(searchParam) ?? "") : "";
-  const [localSearch, setLocalSearch] = useState(urlValue);
+  const urlValue = searchParam ? searchParams.get(searchParam) ?? "" : "";
+  const location = `${pathname}?${query}`;
+  const [draft, setDraft] = useState({ location, value: urlValue });
+  const [isPending, startTransition] = useTransition();
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync input when the URL changes externally (back/forward, links, reset).
-  useEffect(() => {
-    setLocalSearch(urlValue);
-  }, [urlValue]);
+  // Reconcile URL navigation without remounting the input and losing focus.
+  if (draft.location !== location) {
+    setDraft({ location, value: urlValue });
+  }
+  const localSearch = draft.location === location ? draft.value : urlValue;
 
-  // Debounced search (500ms). Skip navigation when the URL already matches
-  // to avoid repeated requests and re-adding a just-reset value.
-  useEffect(() => {
-    if (!searchParam || localSearch.trim() === urlValue) return;
-    const timer = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (localSearch.trim()) {
-        params.set(searchParam, localSearch.trim());
-      } else {
-        params.delete(searchParam);
-      }
-      startTransition(() => {
-        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-      });
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, [location]);
+
+  function cancelSearch() {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  }
+
+  function navigate(params: URLSearchParams) {
+    params.delete("page");
+    const next = params.toString();
+    if (next === query) return;
+    startTransition(() => router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false }));
+  }
+
+  function setSearch(value: string) {
+    setDraft({ location, value });
+    cancelSearch();
+    if (!searchParam || value.trim() === urlValue) return;
+    timer.current = setTimeout(() => {
+      const params = new URLSearchParams(query);
+      if (value.trim()) params.set(searchParam, value.trim());
+      else params.delete(searchParam);
+      navigate(params);
     }, 500);
-    return () => clearTimeout(timer);
-  }, [localSearch, urlValue, searchParam, router, pathname, searchParams]);
+  }
 
-  const handleFilterChange = (param: string, value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) {
-      params.set(param, value);
-    } else {
-      params.delete(param);
+  function handleFilterChange(param: string, value: string) {
+    cancelSearch();
+    const params = new URLSearchParams(query);
+    if (searchParam) {
+      if (localSearch.trim()) params.set(searchParam, localSearch.trim());
+      else params.delete(searchParam);
     }
-    startTransition(() => {
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    });
-  };
+    if (value) params.set(param, value);
+    else params.delete(param);
+    navigate(params);
+  }
 
-  const activeFilters = (config.filters ?? []).filter(
-    (f) => searchParams.get(f.param)
-  );
-  const hasActiveFilters =
-    activeFilters.length > 0 || (config.search && localSearch.trim());
-
-  // Reset clears only the params this bar owns, preserving unrelated params
-  // (e.g. the status tabs on the pengajuan page).
-  const handleReset = () => {
-    const params = new URLSearchParams(searchParams.toString());
+  function handleReset() {
+    cancelSearch();
+    setDraft({ location, value: "" });
+    const params = new URLSearchParams(query);
     if (searchParam) params.delete(searchParam);
-    for (const f of config.filters ?? []) params.delete(f.param);
-    startTransition(() => {
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    });
-  };
+    for (const filter of config.filters ?? []) params.delete(filter.param);
+    navigate(params);
+  }
+
+  const hasActiveFilters = Boolean(localSearch.trim()) ||
+    (config.filters ?? []).some((filter) => searchParams.has(filter.param));
 
   return (
-    <div className="flex flex-wrap items-center gap-3" role="search">
+    <div className="flex flex-wrap items-center gap-3" role="search" aria-busy={isPending}>
       {config.search && (
-        <div className="relative">
+        <div className="relative w-full min-w-0 sm:w-72">
           <input
             type="search"
             value={localSearch}
-            onChange={(e) => setLocalSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder={config.search.placeholder}
             aria-label={config.search.placeholder}
-            className="block w-full min-w-[240px] rounded-md border border-wood/30 bg-cream px-4 py-2 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30 sm:min-w-[280px]"
+            className="block min-h-11 w-full rounded-md border border-wood/30 bg-cream px-4 py-2 text-sm text-forest placeholder:text-muted focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/30"
           />
-          {isPending && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-forest" />
-            </div>
-          )}
         </div>
       )}
-
       {config.filters?.map((filter) => (
-        <label key={filter.param} className="flex items-center gap-2 text-sm text-muted">
+        <label key={filter.param} className="flex max-w-full items-center gap-2 text-sm text-muted">
           <span className="sr-only sm:not-sr-only">{filter.label}:</span>
           <select
             value={searchParams.get(filter.param) ?? ""}
-            onChange={(e) => handleFilterChange(filter.param, e.target.value)}
+            onChange={(event) => handleFilterChange(filter.param, event.target.value)}
             aria-label={filter.label}
-            className="rounded-md border border-wood/30 bg-cream px-3 py-2 text-sm text-forest focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
+            className="min-h-11 min-w-0 max-w-full rounded-md border border-wood/30 bg-cream px-3 py-2 text-sm text-forest focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/30"
           >
             <option value="">Semua</option>
-            {filter.options.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
+            {filter.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
       ))}
-
       {hasActiveFilters && (
-        <button
-          type="button"
-          onClick={handleReset}
-          className="text-sm text-muted underline hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
-        >
+        <button type="button" onClick={handleReset} className="min-h-11 px-2 text-sm text-muted underline hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
           Reset filter
         </button>
       )}
+      <span role="status" className="text-sm text-muted">{isPending ? "Memuat hasil..." : ""}</span>
     </div>
   );
 }
