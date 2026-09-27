@@ -101,6 +101,7 @@ model Branch {
   description   String?
   coverImageUrl String?
   orderIndex    Int      @default(0)
+  branchNumber  Int      @unique
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -111,7 +112,9 @@ model Branch {
   adminId String? @unique
   admin   User?   @relation("BranchAdmin", fields: [adminId], references: [id])
 
-  members Person[] @relation("PersonBranch")
+  members               Person[]               @relation("PersonBranch")
+  governanceAssignments GovernanceAssignment[]
+  branchRepresentatives BranchRepresentative[]
 }
 
 model Person {
@@ -128,6 +131,8 @@ model Person {
   isDeceased         Boolean   @default(false)
   isMarriedInto      Boolean   @default(false)
   bio                String?
+  occupation         String?
+  status             String?
   photoUrl           String?
   generationLevel    Int?
   isPublicProfile    Boolean   @default(true)
@@ -148,12 +153,16 @@ model Person {
   partnershipsA PersonPartner[] @relation("PartnerA")
   partnershipsB PersonPartner[] @relation("PartnerB")
 
-  submissions       Submission[]      @relation("SubmissionApplied")
-  hallOfFameEntries HallOfFameEntry[]
-  galleryMedia      GalleryMedia[]
-  adminNotes        AdminNote[]
-  targetOf          Submission[]      @relation("SubmissionTarget")
-  articles          Article[]
+  submissions               Submission[]           @relation("SubmissionApplied")
+  hallOfFameEntries         HallOfFameEntry[]
+  galleryMedia              GalleryMedia[]
+  adminNotes                AdminNote[]
+  targetOf                  Submission[]           @relation("SubmissionTarget")
+  articles                  Article[]
+  education                 Education[]
+  socialLinks               SocialLink[]
+  governanceAssignments     GovernanceAssignment[] @relation("PersonGovernanceAssignments")
+  branchRepresentativeSlots BranchRepresentative[] @relation("PersonBranchRepresentatives")
 
   @@index([fullName])
   @@index([slug])
@@ -257,9 +266,11 @@ model User {
   auditLogs            AuditLog[]
   adminNotes           AdminNote[]
 
-  importBatches    ImportBatch[] @relation("ImportCreator")
-  articles         Article[]     @relation("ArticleAuthor")
-  reviewedArticles Article[]     @relation("ArticleReviewer")
+  importBatches                   ImportBatch[]          @relation("ImportCreator")
+  articles                        Article[]              @relation("ArticleAuthor")
+  reviewedArticles                Article[]              @relation("ArticleReviewer")
+  governanceAssignments           GovernanceAssignment[] @relation("AssignmentCreator")
+  branchRepresentativeAssignments BranchRepresentative[] @relation("BranchRepresentativeCreator")
 
   @@index([email])
   @@index([role])
@@ -550,4 +561,148 @@ model Article {
   @@index([slug])
   @@index([authorUserId])
   @@index([categoryId])
+}
+
+// ──────────────────────────────────────
+// Profiles & social
+// ──────────────────────────────────────
+
+model Education {
+  id           String   @id @default(uuid())
+  institution  String
+  degree       String?
+  fieldOfStudy String?
+  startYear    Int?
+  endYear      Int?
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+}
+
+model SocialPlatform {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  baseUrl   String?
+  iconName  String?
+  createdAt DateTime @default(now())
+
+  links SocialLink[]
+}
+
+model SocialLink {
+  id        String   @id @default(uuid())
+  url       String
+  username  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  platformId String
+  platform   SocialPlatform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+  @@index([platformId])
+}
+
+// ──────────────────────────────────────
+// Governance
+// ──────────────────────────────────────
+
+model GovernanceStructure {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  isActive    Boolean   @default(true)
+  startDate   DateTime
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  positions GovernancePosition[]
+
+  @@index([isActive])
+  @@index([startDate])
+}
+
+model GovernancePosition {
+  id                     String   @id @default(uuid())
+  name                   String
+  description            String?
+  level                  Int      @default(0)
+  capacity               Int?
+  isBranchRepresentative Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  structureId String
+  structure   GovernanceStructure @relation(fields: [structureId], references: [id], onDelete: Cascade)
+
+  parentPositionId String?
+  parentPosition   GovernancePosition?  @relation("PositionHierarchy", fields: [parentPositionId], references: [id])
+  childPositions   GovernancePosition[] @relation("PositionHierarchy")
+
+  assignments GovernanceAssignment[]
+
+  @@index([structureId])
+  @@index([parentPositionId])
+  @@index([isBranchRepresentative])
+}
+
+model GovernanceAssignment {
+  id        String    @id @default(uuid())
+  startDate DateTime
+  endDate   DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  positionId String
+  position   GovernancePosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  personId String
+  person   Person @relation("PersonGovernanceAssignments", fields: [personId], references: [id], onDelete: Cascade)
+
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  assignedByUserId String
+  assignedBy       User   @relation("AssignmentCreator", fields: [assignedByUserId], references: [id])
+
+  @@index([positionId])
+  @@index([personId])
+  @@index([branchId])
+  @@index([assignedByUserId])
+  @@index([startDate])
+}
+
+model BranchRepresentative {
+  id        String    @id @default(uuid())
+  slot      Int
+  startDate DateTime
+  endDate   DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  personId String
+  person   Person @relation("PersonBranchRepresentatives", fields: [personId], references: [id], onDelete: Cascade)
+
+  assignedByUserId String
+  assignedBy       User   @relation("BranchRepresentativeCreator", fields: [assignedByUserId], references: [id])
+
+  @@unique([branchId, slot])
+  @@index([branchId])
+  @@index([personId])
+  @@index([assignedByUserId])
+  @@index([startDate])
 }

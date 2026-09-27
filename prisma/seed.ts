@@ -149,6 +149,7 @@ async function main() {
         slug,
         description: `Garis keturunan dari ${childNames[i]}`,
         orderIndex: i,
+        branchNumber: i + 1,
         rootPersonId: child.id,
       },
     })

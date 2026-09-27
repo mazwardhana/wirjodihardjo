@@ -21,6 +21,14 @@ function slugify(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+async function nextBranchNumber(): Promise<number> {
+  const maxBranch = await prisma.branch.findFirst({
+    orderBy: { branchNumber: 'desc' },
+    select: { branchNumber: true },
+  });
+  return maxBranch ? maxBranch.branchNumber + 1 : 1;
+}
+
 // GET: list branches with rootPerson, admin, member count
 export async function GET() {
   const user = await requireSuperAdmin();
@@ -75,6 +83,7 @@ export async function POST(request: Request) {
       description: typeof description === "string" && description.trim() ? description.trim() : null,
       coverImageUrl: typeof coverImageUrl === "string" && coverImageUrl.trim() ? coverImageUrl.trim() : null,
       orderIndex: typeof orderIndex === "number" ? orderIndex : 0,
+      branchNumber: await nextBranchNumber(),
     },
     include: {
       rootPerson: { select: { id: true, fullName: true } },
