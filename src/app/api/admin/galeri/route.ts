@@ -12,15 +12,31 @@ function slugify(text: string): string {
     .slice(0, 80) || "album";
 }
 
-async function requireAdmin() {
+type AdminScope = {
+  id: string;
+  role: "SUPER_ADMIN" | "BRANCH_ADMIN";
+  branchId: string | null;
+};
+
+async function requireAdmin(): Promise<AdminScope | null> {
   const session = await auth();
   if (!session?.user) return null;
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, role: true },
+    select: { id: true, role: true, branchAdminOf: { select: { id: true } } },
   });
   if (!user || (user.role !== "SUPER_ADMIN" && user.role !== "BRANCH_ADMIN")) return null;
-  return user;
+  return {
+    id: user.id,
+    role: user.role,
+    branchId: user.role === "SUPER_ADMIN" ? null : user.branchAdminOf?.id ?? null,
+  };
+}
+
+function assertAlbumAccess(scope: AdminScope, branchIds: (string | null | undefined)[]): void {
+  if (scope.role === "SUPER_ADMIN") return;
+  if (scope.branchId === null) throw new Error("FORBIDDEN");
+  if (!branchIds.some((bid) => bid === scope.branchId)) throw new Error("FORBIDDEN");
 }
 
 // GET: list albums (with counts)
@@ -34,12 +50,23 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
     include: {
       _count: { select: { media: true } },
+      media: {
+        select: {
+          uploader: { select: { person: { select: { branchId: true } } } },
+        },
+      },
       createdBy: { select: { person: { select: { fullName: true } } } },
       publishedBy: { select: { person: { select: { fullName: true } } } },
     },
   });
 
-  return NextResponse.json(albums);
+  const scopedAlbums = user.role === "SUPER_ADMIN"
+    ? albums
+    : albums.filter((album) =>
+        album.media.some((media) => media.uploader?.person?.branchId === user.branchId),
+      );
+
+  return NextResponse.json(scopedAlbums);
 }
 
 // POST: create album
@@ -108,9 +135,24 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "ID album diperlukan" }, { status: 400 });
   }
 
-  const existing = await prisma.album.findUnique({ where: { id } });
+  const existing = await prisma.album.findUnique({
+    where: { id },
+    include: {
+      media: {
+        select: { uploader: { select: { person: { select: { branchId: true } } } } },
+      },
+    },
+  });
   if (!existing) {
     return NextResponse.json({ error: "Album tidak ditemukan" }, { status: 404 });
+  }
+
+  // Branch scope: BRANCH_ADMIN can only update albums with media from their branch
+  const branchIds = existing.media.map((m) => m.uploader?.person?.branchId);
+  try {
+    assertAlbumAccess(user, branchIds);
+  } catch {
+    return NextResponse.json({ error: "Di luar cabang Anda" }, { status: 403 });
   }
 
   const updateData: Record<string, unknown> = {};
@@ -191,9 +233,24 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "ID album diperlukan" }, { status: 400 });
   }
 
-  const existing = await prisma.album.findUnique({ where: { id } });
+  const existing = await prisma.album.findUnique({
+    where: { id },
+    include: {
+      media: {
+        select: { uploader: { select: { person: { select: { branchId: true } } } } },
+      },
+    },
+  });
   if (!existing) {
     return NextResponse.json({ error: "Album tidak ditemukan" }, { status: 404 });
+  }
+
+  // Branch scope: BRANCH_ADMIN can only delete albums with media from their branch
+  const branchIds = existing.media.map((m) => m.uploader?.person?.branchId);
+  try {
+    assertAlbumAccess(user, branchIds);
+  } catch {
+    return NextResponse.json({ error: "Di luar cabang Anda" }, { status: 403 });
   }
 
   // Cascade delete: GalleryMedia onDelete: Cascade is set in schema
