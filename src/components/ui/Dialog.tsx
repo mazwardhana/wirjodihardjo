@@ -2,15 +2,28 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
+const SIZES = {
+  sm: "max-w-sm",
+  md: "max-w-lg",
+  lg: "max-w-2xl",
+  xl: "max-w-4xl",
+} as const;
+
+export type DialogSize = keyof typeof SIZES;
+
 export function Dialog({
   open,
   onClose,
   title,
+  description,
+  size = "md",
   children,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
+  description?: string;
+  size?: DialogSize;
   children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -53,7 +66,7 @@ export function Dialog({
 
   return (
     <div
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-ink/40 p-4"
+      className="fixed inset-0 z-[300] flex items-end justify-center bg-ink/40 p-0 sm:items-center sm:p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -62,23 +75,26 @@ export function Dialog({
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className="w-full max-w-lg rounded-lg border border-wood/20 bg-cream shadow-xl"
+        className={`flex max-h-[92dvh] w-full flex-col rounded-t-xl border border-wood/20 bg-cream shadow-xl sm:max-h-[90vh] sm:rounded-lg ${SIZES[size]}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-wood/15 px-5 py-4">
-          <h2 className="font-display text-lg font-semibold text-forest">{title}</h2>
+        <div className="flex items-start justify-between gap-4 border-b border-wood/15 px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="font-display text-lg font-semibold text-forest">{title}</h2>
+            {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+          </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Tutup"
-            className="grid h-9 w-9 place-items-center rounded-md text-muted hover:bg-wood/10"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-muted hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
+        <div className="overflow-y-auto px-5 py-4">{children}</div>
       </div>
     </div>
   );

@@ -1,15 +1,17 @@
 import { auth } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AdminPengajuanList } from "@/components/admin/PengajuanList";
+import { FilterBar } from "@/components/admin/FilterBar";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPengajuanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; type?: string; sejak?: string }>;
+  searchParams: Promise<{ status?: string; tab?: string; type?: string; sejak?: string; q?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -22,21 +24,35 @@ export default async function AdminPengajuanPage({
     redirect("/dashboard");
   }
 
-  const { tab, type, sejak } = await searchParams;
-  const statusFilter = tab === "all" ? undefined : tab === "approved" ? "APPROVED" as const : tab === "rejected" ? "REJECTED" as const : "PENDING" as const;
+  const { status, tab, type, sejak, q } = await searchParams;
+  const statusParam = status ?? tab;
+  const statusFilter =
+    statusParam === "ALL" || statusParam === "all"
+      ? undefined
+      : statusParam === "APPROVED" || statusParam === "approved"
+        ? "APPROVED" as const
+        : statusParam === "REJECTED" || statusParam === "rejected"
+          ? "REJECTED" as const
+          : "PENDING" as const;
 
   const branchId = user.branchAdminOf?.id;
-  const query: Record<string, unknown> = {};
+  const query: Prisma.SubmissionWhereInput = {};
   if (statusFilter) query.status = statusFilter;
-  if (type) query.type = type;
+  if (type) query.type = type as Prisma.SubmissionWhereInput["type"];
   if (sejak) query.createdAt = { gte: new Date(sejak) };
   if (user.role === "BRANCH_ADMIN" && branchId) {
     query.targetPerson = { branchId };
   }
+  if (q?.trim()) {
+    query.OR = [
+      { submitter: { person: { fullName: { contains: q.trim(), mode: "insensitive" } } } },
+      { targetPerson: { fullName: { contains: q.trim(), mode: "insensitive" } } },
+    ];
+  }
 
   const [submissions, pendingCount] = await Promise.all([
     prisma.submission.findMany({
-      where: query as any,
+      where: query,
       orderBy: { createdAt: "desc" },
       include: {
         submitter: { select: { person: { select: { fullName: true } } } },
@@ -45,16 +61,31 @@ export default async function AdminPengajuanPage({
       },
     }),
     prisma.submission.count({
-      where: { status: "PENDING", ...(user.role === "BRANCH_ADMIN" && branchId ? { targetPerson: { branchId } } : {}) } as any,
+      where: { status: "PENDING", ...(user.role === "BRANCH_ADMIN" && branchId ? { targetPerson: { branchId } } : {}) },
     }),
   ]);
 
+  const serializedSubmissions = submissions.map(s => ({
+    ...s,
+    createdAt: s.createdAt.toISOString(),
+    reviewedAt: s.reviewedAt?.toISOString() ?? null,
+  }));
+
   const tabs = [
-    { key: undefined, label: "Tertunda", count: pendingCount },
-    { key: "approved", label: "Disetujui" },
-    { key: "rejected", label: "Ditolak" },
-    { key: "all", label: "Semua" },
+    { key: "PENDING", label: "Tertunda", count: pendingCount },
+    { key: "APPROVED", label: "Disetujui" },
+    { key: "REJECTED", label: "Ditolak" },
+    { key: "ALL", label: "Semua" },
   ];
+
+  const tabHref = (tabStatus: string) => {
+    const params = new URLSearchParams();
+    params.set("status", tabStatus);
+    if (type) params.set("type", type);
+    if (sejak) params.set("sejak", sejak);
+    if (q) params.set("q", q);
+    return `/admin/pengajuan?${params.toString()}`;
+  };
 
   return (
     <div className="p-8">
@@ -68,10 +99,10 @@ export default async function AdminPengajuanPage({
         <div className="flex gap-1 rounded-lg border border-wood/15 bg-cream p-1">
           {tabs.map((t) => (
             <a
-              key={t.key ?? "pending"}
-              href={`/admin/pengajuan${t.key ? `?tab=${t.key}` : ""}${type ? `&type=${type}` : ""}${sejak ? `&sejak=${sejak}` : ""}`}
+              key={t.key}
+              href={tabHref(t.key)}
               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                (t.key ?? undefined) === statusFilter || (!statusFilter && !t.key)
+                (t.key === "ALL" && !statusFilter) || t.key === statusFilter
                   ? "bg-forest text-cream"
                   : "text-muted hover:bg-wood/10"
               }`}
@@ -85,27 +116,29 @@ export default async function AdminPengajuanPage({
             </a>
           ))}
         </div>
+      </div>
 
-        {/* Filter tipe */}
-        <form method="GET" action="/admin/pengajuan" className="flex items-center gap-2">
-          <input type="hidden" name="tab" value={tab ?? "pending"} />
-          <label htmlFor="filter-type" className="sr-only">Jenis pengajuan</label>
-          <select
-            id="filter-type"
-            name="type"
-            value={type ?? ""}
-            onChange={(e) => { if (e.target.form) e.target.form.submit(); }}
-            className="rounded-md border border-wood/25 bg-cream px-2.5 py-1.5 text-xs text-forest focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30"
-          >
-            <option value="">Semua jenis</option>
-            <option value="ADD_CHILD">Tambah Anak</option>
-            <option value="ADD_SPOUSE">Tambah Pasangan</option>
-            <option value="ADD_PERSON">Tambah Anggota</option>
-            <option value="EDIT_PERSON">Edit Anggota</option>
-            <option value="EDIT_RELATION">Edit Relasi</option>
-          </select>
-          <button type="submit" className="sr-only">Filter</button>
-        </form>
+      {/* Search & filters */}
+      <div className="mt-4">
+        <FilterBar
+          config={{
+            search: {
+              placeholder: "Cari anggota atau jenis pengajuan...",
+              param: "q",
+            },
+            filters: [
+              {
+                param: "status",
+                label: "Status",
+                options: [
+                  { value: "PENDING", label: "Tertunda" },
+                  { value: "APPROVED", label: "Disetujui" },
+                  { value: "REJECTED", label: "Ditolak" },
+                ],
+              },
+            ],
+          }}
+        />
       </div>
 
       {submissions.length === 0 ? (
@@ -113,7 +146,7 @@ export default async function AdminPengajuanPage({
           <EmptyState title="Tidak ada pengajuan" description="Semua pengajuan sudah diproses." />
         </div>
       ) : (
-        <AdminPengajuanList submissions={submissions as any} />
+        <AdminPengajuanList submissions={serializedSubmissions} />
       )}
     </div>
   );

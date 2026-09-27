@@ -1,9 +1,11 @@
 import { auth } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/Avatar";
 import { getGenerationLabel } from "@/lib/generations";
+import { FilterBar } from "@/components/admin/FilterBar";
 
 export default async function AdminAnggotaPage({
   searchParams,
@@ -30,7 +32,7 @@ export default async function AdminAnggotaPage({
   const isBranchAdmin = user.role === "BRANCH_ADMIN" && !!branchId;
   const showDeleted = sp.deleted === "true";
 
-  const where: Record<string, unknown> = {};
+  const where: Prisma.PersonWhereInput = {};
   if (isBranchAdmin) where.branchId = branchId;
   if (!showDeleted) where.deletedAt = null;
   if (q) {
@@ -41,9 +43,9 @@ export default async function AdminAnggotaPage({
   }
 
   const [total, persons] = await Promise.all([
-    prisma.person.count({ where: where as any }),
+    prisma.person.count({ where }),
     prisma.person.findMany({
-      where: where as any,
+      where,
       orderBy: { fullName: "asc" },
       skip: (page - 1) * perPage,
       take: perPage,
@@ -72,40 +74,23 @@ export default async function AdminAnggotaPage({
       </div>
 
       {/* Search & filters */}
-      <form method="GET" action="/admin/anggota" className="mt-6 flex flex-wrap gap-3">
-        <input
-          type="search"
-          name="q"
-          defaultValue={q}
-          placeholder="Cari nama atau panggilan…"
-          className="block w-72 rounded-md border border-wood/30 bg-cream px-4 py-2 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
+      <div className="mt-6">
+        <FilterBar
+          config={{
+            search: {
+              placeholder: "Cari nama atau panggilan...",
+              param: "q",
+            },
+            filters: [
+              {
+                param: "deleted",
+                label: "Status",
+                options: [{ value: "true", label: "Termasuk yang dihapus" }],
+              },
+            ],
+          }}
         />
-        <button
-          type="submit"
-          className="rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft"
-        >
-          Cari
-        </button>
-        {(q || showDeleted) && (
-          <Link
-            href="/admin/anggota"
-            className="rounded-md border border-wood/30 px-4 py-2 text-sm text-muted transition-colors hover:bg-wood/10"
-          >
-            Reset
-          </Link>
-        )}
-        <label className="flex items-center gap-2 text-sm text-muted">
-          <input
-            type="checkbox"
-            name="deleted"
-            value="true"
-            defaultChecked={showDeleted}
-            onChange={() => {}}
-            className="h-4 w-4 accent-forest"
-          />
-          Tampilkan yang dihapus
-        </label>
-      </form>
+      </div>
 
       {/* Table */}
       <div className="mt-6 overflow-x-auto rounded-lg border border-wood/15">

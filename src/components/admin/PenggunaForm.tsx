@@ -4,7 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/Toast";
 
-export function PenggunaForm({ persons }: { persons: { id: string; fullName: string }[] }) {
+export function PenggunaForm({ persons, onSuccess, onCancel }: {
+  persons: { id: string; fullName: string }[];
+  onSuccess?: () => void;
+  onCancel?: () => void;
+}) {
   const router = useRouter();
   const [personId, setPersonId] = useState("");
   const [email, setEmail] = useState("");
@@ -23,9 +27,14 @@ export function PenggunaForm({ persons }: { persons: { id: string; fullName: str
       });
       const d = await res.json();
       if (!res.ok) throw new Error((d as { error?: string }).error ?? "Gagal");
-      toast("success", `Akun untuk ${(d as any).person?.fullName ?? email} berhasil dibuat.`);
-      router.push("/admin/pengguna");
-      router.refresh();
+      const person = (d as { person?: { fullName?: string } }).person;
+      toast("success", `Akun untuk ${person?.fullName ?? email} berhasil dibuat.`);
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push("/admin/pengguna");
+        router.refresh();
+      }
     } catch (e) {
       toast("error", (e as Error).message);
     } finally {
@@ -68,13 +77,22 @@ export function PenggunaForm({ persons }: { persons: { id: string; fullName: str
         </select>
       </div>
 
-      <button
-        type="submit"
-        disabled={busy}
-        className="rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50"
-      >
-        {busy ? "Menyimpan..." : "Buat Akun"}
-      </button>
+      <div className="flex gap-3">
+        <button
+          type="submit"
+          disabled={busy}
+          className="min-h-11 rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50"
+        >
+          {busy ? "Menyimpan..." : "Buat Akun"}
+        </button>
+        <button
+          type="button"
+          onClick={() => (onCancel ? onCancel() : router.back())}
+          className="min-h-11 rounded-md border border-wood/30 px-5 py-2.5 text-sm text-muted transition-colors hover:bg-wood/10"
+        >
+          Batal
+        </button>
+      </div>
     </form>
   );
 }

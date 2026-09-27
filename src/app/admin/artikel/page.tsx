@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate } from "@/lib/utils";
+import { FilterBar } from "@/components/admin/FilterBar";
+import { KategoriModal } from "@/components/admin/KategoriModal";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +47,12 @@ export default async function AdminArtikelPage({
     }),
     prisma.articleCategory.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        _count: { select: { articles: true } },
+      },
     }),
     prisma.article.count({ where: { status: "PENDING" } }),
   ]);
@@ -61,57 +68,29 @@ export default async function AdminArtikelPage({
             {pendingCount} artikel menunggu review
           </p>
         </div>
-        <Link
-          href="/admin/artikel/kategori"
-          className="rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-wood/10"
-        >
-          Kelola Kategori
-        </Link>
+        <KategoriModal initial={categories} />
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <form method="GET" action="/admin/artikel" className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-muted">
-            <span>Status</span>
-            <select
-              name="status"
-              defaultValue={statusFilter}
-              className="rounded-md border border-wood/30 bg-cream px-3 py-2 text-sm text-forest focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
-              onChange={(e) => e.currentTarget.form?.requestSubmit()}
-            >
-              <option value="PENDING">Menunggu</option>
-              <option value="APPROVED">Disetujui</option>
-              <option value="REJECTED">Ditolak</option>
-            </select>
-          </label>
-
-          <label className="flex items-center gap-2 text-sm text-muted">
-            <span>Kategori</span>
-            <select
-              name="kategori"
-              defaultValue={categoryFilter}
-              className="rounded-md border border-wood/30 bg-cream px-3 py-2 text-sm text-forest focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
-              onChange={(e) => e.currentTarget.form?.requestSubmit()}
-            >
-              <option value="">Semua</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </form>
-
-        {(statusFilter !== "PENDING" || categoryFilter) && (
-          <Link
-            href="/admin/artikel"
-            className="rounded-md border border-wood/30 px-4 py-2 text-sm text-muted transition-colors hover:bg-wood/10"
-          >
-            Reset
-          </Link>
-        )}
-      </div>
+      <FilterBar
+        config={{
+          filters: [
+            {
+              param: "status",
+              label: "Status",
+              options: [
+                { value: "PENDING", label: "Menunggu" },
+                { value: "APPROVED", label: "Disetujui" },
+                { value: "REJECTED", label: "Ditolak" },
+              ],
+            },
+            {
+              param: "kategori",
+              label: "Kategori",
+              options: categories.map((c) => ({ value: c.id, label: c.name })),
+            },
+          ],
+        }}
+      />
 
       {articles.length === 0 ? (
         <div className="mt-10">
