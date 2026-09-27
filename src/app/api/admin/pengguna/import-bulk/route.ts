@@ -82,6 +82,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Field csv wajib diisi" }, { status: 400 });
     }
 
+    if (b.csv.length > MAX_IMPORT_BYTES) {
+      return NextResponse.json({ error: "Ukuran CSV maksimal 10MB" }, { status: 400 });
+    }
+
     csv = b.csv;
     action = typeof b.action === "string" ? b.action : "preview";
   }
