@@ -180,15 +180,30 @@ export async function POST(request: Request) {
 
         if (relationType === "parent" || relationType === "child") {
           const edge = await prisma.personChild.findUnique({ where: { id: edgeId as string } });
-          if (edge) {
-            await prisma.personChild.delete({ where: { id: edgeId as string } });
-            try {
-              await recalculateGenerationLevel(
-                relationType === "child" ? edge.childId : edge.parentId,
-              );
-            } catch {}
+          if (!edge) {
+            return NextResponse.json({ error: "Relasi tidak ditemukan" }, { status: 404 });
           }
+
+          // Validate access to both endpoints of the relation
+          await assertPersonAccess(scope, edge.parentId);
+          await assertPersonAccess(scope, edge.childId);
+
+          await prisma.personChild.delete({ where: { id: edgeId as string } });
+          try {
+            await recalculateGenerationLevel(
+              relationType === "child" ? edge.childId : edge.parentId,
+            );
+          } catch {}
         } else if (relationType === "partner") {
+          const edge = await prisma.personPartner.findUnique({ where: { id: edgeId as string } });
+          if (!edge) {
+            return NextResponse.json({ error: "Relasi tidak ditemukan" }, { status: 404 });
+          }
+
+          // Validate access to both partners
+          await assertPersonAccess(scope, edge.partnerAId);
+          await assertPersonAccess(scope, edge.partnerBId);
+
           await prisma.personPartner.delete({ where: { id: edgeId as string } });
         }
 
