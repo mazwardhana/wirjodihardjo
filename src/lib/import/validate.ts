@@ -4,6 +4,7 @@ import type {
   ValidationResult,
   Gender,
 } from "./types";
+import { prisma } from "@/lib/prisma";
 
 const GENDERS: Gender[] = ["MALE", "FEMALE", "OTHER"];
 const MIN_BRANCH = 1;
@@ -37,7 +38,7 @@ function normalizeGender(value: string | undefined): Gender | null {
 }
 
 /** Tanggal kalender yang ketat: tidak ada rollover, tidak ada fallback longgar. */
-function parseStrictDate(value: string | undefined): string | null | "invalid" {
+export function parseStrictDate(value: string | undefined): string | null | "invalid" {
   if (!value || !value.trim()) return null;
   const trimmed = value.trim();
   let year: number, month: number, day: number;
@@ -69,7 +70,12 @@ function parseStrictDate(value: string | undefined): string | null | "invalid" {
   return date.toISOString().slice(0, 10);
 }
 
-export function validateImportData(data: ParsedData): ValidationResult {
+/** Convert parsed date string to Date object for DB storage. */
+export function toDateObject(dateString: string): Date {
+  return new Date(`${dateString}T00:00:00Z`);
+}
+
+export async function validateImportData(data: ParsedData): Promise<ValidationResult> {
   const errors: ValidationError[] = [];
   const warnings: string[] = [];
 
@@ -85,6 +91,10 @@ export function validateImportData(data: ParsedData): ValidationResult {
 
   const refs = new Set<string>();
 
+  // Collect unique branch numbers and refs for batch queries
+  const branchNumbers = new Set<number>();
+  const refsToCheck = new Set<string>();
+
   const anggota = data.anggota.map((row, index) => {
     const rowNo = row._row ?? index + 2;
     const cabangKe = row.cabangKe;
@@ -99,6 +109,8 @@ export function validateImportData(data: ParsedData): ValidationResult {
         field: "cabang_ke",
         message: `Cabang ke harus angka antara ${MIN_BRANCH} sampai ${MAX_BRANCH}.`,
       });
+    } else {
+      branchNumbers.add(cabangKe);
     }
 
     if (!namaLengkap) {
@@ -148,6 +160,7 @@ export function validateImportData(data: ParsedData): ValidationResult {
         });
       } else {
         refs.add(ref);
+        refsToCheck.add(ref);
       }
     }
 
@@ -166,6 +179,48 @@ export function validateImportData(data: ParsedData): ValidationResult {
       ref: row.ref?.trim() || undefined,
     };
   });
+
+  // H1: Check branch existence at validation time (preview), not commit time
+  if (branchNumbers.size > 0) {
+    const branches = await prisma.branch.findMany({
+      where: { branchNumber: { in: Array.from(branchNumbers) }, isActive: true },
+      select: { branchNumber: true },
+    });
+    const foundBranches = new Set(branches.map(b => b.branchNumber));
+    
+    // Report missing branches per row
+    for (const row of anggota) {
+      if (row.cabangKe && !foundBranches.has(row.cabangKe)) {
+        errors.push({
+          sheet: "Data",
+          row: row._row ?? 0,
+          field: "cabang_ke",
+          message: `Cabang ke-${row.cabangKe} tidak ditemukan atau tidak aktif.`,
+        });
+      }
+    }
+  }
+
+  // M2: Check externalRef collision with database (P2002 prevention)
+  if (refsToCheck.size > 0) {
+    const existingPersons = await prisma.person.findMany({
+      where: { externalRef: { in: Array.from(refsToCheck) } },
+      select: { externalRef: true },
+    });
+    const existingRefs = new Set(existingPersons.map(p => p.externalRef));
+
+    // Report ref collisions as row errors
+    for (const row of anggota) {
+      if (row.ref && existingRefs.has(row.ref)) {
+        errors.push({
+          sheet: "Data",
+          row: row._row ?? 0,
+          field: "ref",
+          message: `Ref "${row.ref}" sudah digunakan di database.`,
+        });
+      }
+    }
+  }
 
   return {
     valid: errors.length === 0,

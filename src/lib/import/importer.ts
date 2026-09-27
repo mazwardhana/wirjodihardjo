@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { validateImportData } from "./validate";
+import { validateImportData, parseStrictDate, toDateObject } from "./validate";
 import type { ParsedData, ImportCounts, ImportBatchPayload, ValidationError } from "./types";
 
 export class ImportError extends Error {
@@ -46,12 +46,12 @@ function rowError(sheet: ValidationError["sheet"], row: number, field: string, m
   throw new ImportError(message, 400, [{ sheet, row, field, message }]);
 }
 
-function date(value?: string) {
+// M1: Use unified date parser from validate.ts
+function date(value?: string): Date | undefined {
   if (!value) return undefined;
-  const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  return new Date(
-    match ? `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}T00:00:00Z` : `${value}T00:00:00Z`
-  );
+  const parsed = parseStrictDate(value);
+  if (!parsed || parsed === "invalid") return undefined;
+  return toDateObject(parsed);
 }
 
 async function applyData(tx: Prisma.TransactionClient, data: ParsedData, actorId: string) {
@@ -60,10 +60,11 @@ async function applyData(tx: Prisma.TransactionClient, data: ParsedData, actorId
   for (const [index, row] of data.anggota.entries()) {
     const rowNo = row._row ?? index + 2;
     
-    // Resolve branch by branchNumber.
+    // Resolve branch by branchNumber (validation already checked existence).
     const branch = await tx.branch.findUnique({
       where: { branchNumber: row.cabangKe, isActive: true },
     });
+    // This should never fail if validation passed, but defensive check
     if (!branch) {
       rowError("Data", rowNo, "cabang_ke", `Cabang ke-${row.cabangKe} tidak ditemukan atau tidak aktif.`);
     }
@@ -134,7 +135,7 @@ export async function commitImportData(batchId: string, actorId: string) {
         const payload = batch.reportJson as ImportBatchPayload | null;
         if (!payload?.data) throw new ImportError("Data batch tidak lengkap.");
 
-        const validation = validateImportData(payload.data);
+        const validation = await validateImportData(payload.data);
         if (payload.errors?.length || !validation.valid) {
           throw new ImportError(
             "Perbaiki file dan unggah ulang.",

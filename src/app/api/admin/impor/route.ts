@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `File tidak dapat dibaca: ${message}` }, { status: 400 });
   }
 
-  const validation = validateImportData(data);
+  const validation = await validateImportData(data);
   const plan = await analyzeImportData(validation.data);
 
   const totalRows = validation.data.anggota.length;
