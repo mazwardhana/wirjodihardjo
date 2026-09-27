@@ -7,6 +7,8 @@ import {
 } from "@/lib/data";
 import { getGenerationLabel } from "@/lib/generations";
 import { Scrollytelling } from "@/components/landing/Scrollytelling";
+import { BranchCard } from "@/components/landing/BranchCard";
+import { BranchGrid } from "@/components/landing/BranchGrid";
 import { SectionReveal } from "@/components/ui/SectionReveal";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -14,12 +16,14 @@ import { EmptyState } from "@/components/ui/EmptyState";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [founders, branches, breakdown, total] = await Promise.all([
+  const [founders, allBranches, breakdown, total] = await Promise.all([
     getFounders(),
     getBranches(),
     getGenerationBreakdown(),
     getPersonCount(),
   ]);
+
+  const branches = allBranches;
 
   const deepest = breakdown.filter((b) => b.level !== null).map((b) => b.level!);
   const maxGen = deepest.length ? Math.max(...deepest) : 0;
@@ -166,36 +170,13 @@ export default async function HomePage() {
             Setiap cabang berakar pada salah satu anak pasangan pendiri.
           </p>
 
-          {/* Kartu dengan hierarki bervariasi (bukan grid seragam) */}
-          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {branches.map((b, i) => (
-              <li
-                key={b.id}
-                className={
-                  i === 0
-                    ? "sm:col-span-2 lg:col-span-1"
-                    : "border-wood/15 lg:border-l lg:pl-4"
-                }
-              >
-                <div className="group h-full rounded-lg border border-wood/20 bg-cream p-5 transition-colors hover:border-gold/60">
-                  <span className="font-display text-2xl font-semibold text-gold-deep">
-                    {String(b.orderIndex + 1).padStart(2, "0")}
-                  </span>
-                  <h3 className="mt-1 font-display text-lg font-semibold text-forest">
-                    {b.name}
-                  </h3>
-                  {b.rootPerson && (
-                    <p className="mt-1 text-sm text-muted">
-                      Berakar dari {b.rootPerson.fullName}
-                    </p>
-                  )}
-                  <p className="mt-3 text-sm leading-relaxed text-muted">
-                    {b._count.members} anggota tercatat
-                  </p>
-                </div>
+          <BranchGrid>
+            {branches.map((b) => (
+              <li key={b.id}>
+                <BranchCard branch={b} />
               </li>
             ))}
-          </ul>
+          </BranchGrid>
         </SectionReveal>
       )}
 

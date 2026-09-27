@@ -44,14 +44,16 @@ export async function getFounders() {
 
 export async function getBranches() {
   return prisma.branch.findMany({
-    orderBy: { orderIndex: "asc" },
+    where: { isActive: true },
+    orderBy: { branchNumber: "asc" },
+    take: 10,
     select: {
       id: true,
       name: true,
       slug: true,
       description: true,
       coverImageUrl: true,
-      orderIndex: true,
+      branchNumber: true,
       rootPerson: {
         select: { id: true, fullName: true, photoUrl: true, gender: true },
       },
