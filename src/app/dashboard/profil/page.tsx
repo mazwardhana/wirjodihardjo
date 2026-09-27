@@ -22,6 +22,9 @@ export default async function DashboardProfilPage() {
   if (!user) redirect("/login");
 
   const { person } = user;
+  const platforms = await prisma.socialPlatform.findMany({
+    orderBy: { name: "asc" },
+  });
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8">
@@ -40,6 +43,8 @@ export default async function DashboardProfilPage() {
           fullName: person.fullName,
           nickname: person.nickname ?? "",
           bio: person.bio ?? "",
+          occupation: person.occupation ?? "",
+          status: person.status ?? "",
           photoUrl: person.photoUrl,
           phone: person.private?.phone ?? "",
           whatsapp: person.private?.whatsapp ?? "",
@@ -47,6 +52,7 @@ export default async function DashboardProfilPage() {
           city: person.private?.city ?? "",
           visibleToMembers: person.private?.visibleToMembers ?? true,
         }}
+        platforms={platforms.map((p) => ({ id: p.id, name: p.name }))}
       />
     </div>
   );

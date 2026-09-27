@@ -1,183 +1,55 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getGenerationLabel } from "@/lib/generations";
-import { Avatar } from "@/components/ui/Avatar";
 import { auth } from "@/lib/auth";
 import { getImmediateFamily, getClassifiedSiblings } from "@/lib/genealogy";
 import { FamilyPanel } from "@/components/profil/FamilyPanel";
+import { ProfileCard } from "@/components/profile/ProfileCard";
+import { projectPublicProfile, projectMemberProfile } from "@/lib/profile";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const person = await prisma.person.findUnique({
-    where: { id },
-    select: { fullName: true },
-  });
-  if (!person) return { title: "Anggota tidak ditemukan" };
-  return { title: person.fullName };
+  const person = await prisma.person.findFirst({ where: { id, deletedAt: null, isPublicProfile: true }, select: { fullName: true } });
+  return { title: person?.fullName ?? "Anggota tidak ditemukan" };
 }
 
-export default async function ProfilPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function ProfilPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();
-
-  const person = await prisma.person.findUnique({
-    where: { id },
-    include: {
+  const viewer = session?.user ? await prisma.user.findUnique({ where: { id: session.user.id }, select: { role: true, personId: true } }) : null;
+  const isMember = viewer !== null && ["MEMBER", "BRANCH_ADMIN", "SUPER_ADMIN"].includes(viewer.role);
+  const person = await prisma.person.findFirst({
+    where: { id, deletedAt: null, ...(isMember ? {} : { isPublicProfile: true }) },
+    select: {
+      id: true, fullName: true, nickname: true, gender: true, birthDate: true,
+      occupation: true, status: true, bio: true, photoUrl: true, generationLevel: true, isDeceased: true,
       branch: { select: { name: true, slug: true } },
-      user: { select: { id: true, email: true, role: true } },
+      education: { orderBy: { startYear: "desc" }, select: { id: true, institution: true, degree: true, fieldOfStudy: true, startYear: true, endYear: true } },
+      socialLinks: { include: { platform: { select: { name: true } } }, orderBy: { createdAt: "desc" } },
     },
   });
   if (!person) notFound();
 
-  // Data privat hanya untuk yang login
-  let privateData: {
-    addressLine: string | null;
-    city: string | null;
-    phone: string | null;
-    whatsapp: string | null;
-    email: string | null;
-  } | null = null;
+  // City is public by product policy; never fetch other private fields for guests.
+  const cityData = await prisma.personPrivate.findUnique({ where: { personId: id }, select: { city: true } });
+  const profile = projectPublicProfile({ ...person, city: cityData?.city ?? null });
+  const privateData = isMember ? await prisma.personPrivate.findUnique({
+    where: { personId: id }, select: { phone: true, whatsapp: true, addressLine: true, email: true, visibleToMembers: true },
+  }) : null;
+  const member = projectMemberProfile({ ...person, city: cityData?.city ?? null, private: privateData }, viewer?.role);
+  const contacts = isMember && privateData?.visibleToMembers ? {
+    phone: member.phone, whatsapp: member.whatsapp, addressLine: member.addressLine, email: member.email,
+  } : null;
 
-  if (session?.user) {
-    const priv = await prisma.personPrivate.findUnique({
-      where: { personId: id },
-    });
-    if (priv && priv.visibleToMembers) {
-      privateData = {
-        addressLine: priv.addressLine,
-        city: priv.city,
-        phone: priv.phone,
-        whatsapp: priv.whatsapp,
-        email: priv.email,
-      };
-    }
-  }
+  const [immediateFamily, siblings] = await Promise.all([getImmediateFamily(id), getClassifiedSiblings(id)]);
+  const familyData = immediateFamily ? {
+    ...immediateFamily, siblings,
+    partners: immediateFamily.partners.map(p => ({ ...p, marriageDate: p.marriageDate?.toISOString() ?? null, divorceDate: p.divorceDate?.toISOString() ?? null })),
+  } : null;
 
-  // Konteks keluarga — via FamilyPanel, serialize Date ke string untuk client component
-  const [immediateFamily, siblings] = await Promise.all([
-    getImmediateFamily(id),
-    getClassifiedSiblings(id),
-  ]);
-
-  const familyData = immediateFamily
-    ? {
-        ...immediateFamily,
-        siblings,
-        partners: immediateFamily.partners.map((p) => ({
-          ...p,
-          marriageDate: p.marriageDate?.toISOString() ?? null,
-          divorceDate: p.divorceDate?.toISOString() ?? null,
-        })),
-      }
-    : null;
-
-  return (
-    <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
-      <div className="flex items-start gap-6">
-        <Avatar name={person.fullName} photoUrl={person.photoUrl} size="xl" />
-        <div>
-          <h1 className="font-display text-3xl font-semibold text-forest">
-            {person.fullName}
-          </h1>
-          {person.nickname && (
-            <p className="text-sm text-muted">{person.nickname}</p>
-          )}
-          <p className="mt-1 text-sm font-medium text-wood">
-            {getGenerationLabel(person.generationLevel)}
-          </p>
-          {person.branch && (
-            <p className="text-sm text-muted">
-              Cabang: {person.branch.name}
-            </p>
-          )}
-          <p className="text-sm text-muted">
-            {person.isDeceased ? "Almarhum/Almarhumah" : "Masih hidup"}
-          </p>
-        </div>
-      </div>
-
-      {person.bio && (
-        <div className="mt-8 rounded-lg border border-wood/15 bg-cream p-5">
-          <h2 className="font-display text-lg font-semibold text-forest">
-            Bio
-          </h2>
-          <p className="mt-2 leading-relaxed text-muted">{person.bio}</p>
-        </div>
-      )}
-
-      {/* Data privat — tali akses berlapis */}
-      <div className="mt-8 rounded-lg border border-wood/15 bg-cream p-5">
-        <h2 className="font-display text-lg font-semibold text-forest">
-          Informasi Kontak
-        </h2>
-        {privateData ? (
-          <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-            {privateData.addressLine && (
-              <>
-                <dt className="text-xs font-medium uppercase tracking-wide text-muted">
-                  Alamat
-                </dt>
-                <dd className="text-sm text-forest">
-                  {privateData.addressLine}
-                  {privateData.city && `, ${privateData.city}`}
-                </dd>
-              </>
-            )}
-            {privateData.phone && (
-              <>
-                <dt className="text-xs font-medium uppercase tracking-wide text-muted">
-                  Telepon
-                </dt>
-                <dd className="text-sm text-forest">{privateData.phone}</dd>
-              </>
-            )}
-            {privateData.whatsapp && (
-              <>
-                <dt className="text-xs font-medium uppercase tracking-wide text-muted">
-                  WhatsApp
-                </dt>
-                <dd className="text-sm text-forest">
-                  <a
-                    href={`https://wa.me/${privateData.whatsapp.replace(/[^0-9]/g, "")}`}
-                    className="text-gold-deep underline hover:text-forest"
-                  >
-                    {privateData.whatsapp}
-                  </a>
-                </dd>
-              </>
-            )}
-            {privateData.email && (
-              <>
-                <dt className="text-xs font-medium uppercase tracking-wide text-muted">
-                  Email
-                </dt>
-                <dd className="text-sm text-forest">{privateData.email}</dd>
-              </>
-            )}
-          </dl>
-        ) : (
-          <p className="mt-3 text-sm text-muted">
-            {session?.user
-              ? "Anggota ini memilih menyembunyikan data kontaknya."
-              : "Masuk sebagai anggota untuk melihat data kontak."}
-          </p>
-        )}
-      </div>
-
-      {/* Keluarga terdekat — FamilyPanel */}
-      {familyData && (
-        <div className="mt-8">
-          <FamilyPanel data={familyData} />
-        </div>
-      )}
-    </div>
-  );
+  return <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+    {viewer?.personId === id && <Link href="/dashboard/profil" className="mb-6 inline-flex min-h-11 items-center rounded-md border border-wood/30 px-4 text-sm text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">Kelola profil saya</Link>}
+    <ProfileCard profile={profile} contacts={contacts} isMember={isMember} />
+    {familyData && <div className="mt-8"><FamilyPanel data={familyData} /></div>}
+  </div>;
 }
