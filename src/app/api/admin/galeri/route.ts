@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { requireAdminScope, type AdminScope } from "@/lib/rbac";
 
 function slugify(text: string): string {
   return text
@@ -12,27 +13,6 @@ function slugify(text: string): string {
     .slice(0, 80) || "album";
 }
 
-type AdminScope = {
-  id: string;
-  role: "SUPER_ADMIN" | "BRANCH_ADMIN";
-  branchId: string | null;
-};
-
-async function requireAdmin(): Promise<AdminScope | null> {
-  const session = await auth();
-  if (!session?.user) return null;
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, role: true, branchAdminOf: { select: { id: true } } },
-  });
-  if (!user || (user.role !== "SUPER_ADMIN" && user.role !== "BRANCH_ADMIN")) return null;
-  return {
-    id: user.id,
-    role: user.role,
-    branchId: user.role === "SUPER_ADMIN" ? null : user.branchAdminOf?.id ?? null,
-  };
-}
-
 function assertAlbumAccess(scope: AdminScope, branchIds: (string | null | undefined)[]): void {
   if (scope.role === "SUPER_ADMIN") return;
   if (scope.branchId === null) throw new Error("FORBIDDEN");
@@ -41,9 +21,16 @@ function assertAlbumAccess(scope: AdminScope, branchIds: (string | null | undefi
 
 // GET: list albums (with counts)
 export async function GET() {
-  const user = await requireAdmin();
-  if (!user) {
+  const session = await auth();
+  if (!session?.user) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
+  }
+
+  let scope: AdminScope;
+  try {
+    scope = await requireAdminScope(session.user.id);
+  } catch (err) {
+    return NextResponse.json({ error: "Akses admin ditolak" }, { status: 403 });
   }
 
   const albums = await prisma.album.findMany({
@@ -60,10 +47,10 @@ export async function GET() {
     },
   });
 
-  const scopedAlbums = user.role === "SUPER_ADMIN"
+  const scopedAlbums = scope.role === "SUPER_ADMIN"
     ? albums
     : albums.filter((album) =>
-        album.media.some((media) => media.uploader?.person?.branchId === user.branchId),
+        album.media.some((media) => media.uploader?.person?.branchId === scope.branchId),
       );
 
   return NextResponse.json(scopedAlbums);
@@ -71,9 +58,16 @@ export async function GET() {
 
 // POST: create album
 export async function POST(request: Request) {
-  const user = await requireAdmin();
-  if (!user) {
+  const session = await auth();
+  if (!session?.user) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
+  }
+
+  let scope: AdminScope;
+  try {
+    scope = await requireAdminScope(session.user.id);
+  } catch (err) {
+    return NextResponse.json({ error: "Akses admin ditolak" }, { status: 403 });
   }
 
   let body: Record<string, unknown>;
@@ -103,7 +97,7 @@ export async function POST(request: Request) {
       description: description ? (description as string).trim() : null,
       eventDate: eventDate ? new Date(eventDate as string) : null,
       coverImageUrl: coverImageUrl ? (coverImageUrl as string) : null,
-      createdByUserId: user.id,
+      createdByUserId: session.user.id,
     },
   });
 
@@ -112,7 +106,7 @@ export async function POST(request: Request) {
     entityType: "Album",
     entityId: album.id,
     afterData: { title: album.title, slug: album.slug } as any,
-    actorUserId: user.id,
+    actorUserId: session.user.id,
   });
 
   return NextResponse.json(album, { status: 201 });
@@ -120,9 +114,16 @@ export async function POST(request: Request) {
 
 // PUT: update album
 export async function PUT(request: Request) {
-  const user = await requireAdmin();
-  if (!user) {
+  const session = await auth();
+  if (!session?.user) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
+  }
+
+  let scope: AdminScope;
+  try {
+    scope = await requireAdminScope(session.user.id);
+  } catch (err) {
+    return NextResponse.json({ error: "Akses admin ditolak" }, { status: 403 });
   }
 
   let body: Record<string, unknown>;
@@ -150,7 +151,7 @@ export async function PUT(request: Request) {
   // Branch scope: BRANCH_ADMIN can only update albums with media from their branch
   const branchIds = existing.media.map((m) => m.uploader?.person?.branchId);
   try {
-    assertAlbumAccess(user, branchIds);
+    assertAlbumAccess(scope, branchIds);
   } catch {
     return NextResponse.json({ error: "Di luar cabang Anda" }, { status: 403 });
   }
@@ -191,7 +192,7 @@ export async function PUT(request: Request) {
     if (publish && !existing.isPublished) {
       // Publishing now
       updateData.isPublished = true;
-      updateData.publishedByUserId = user.id;
+      updateData.publishedByUserId = session.user.id;
       updateData.publishedAt = new Date();
     } else if (!publish && existing.isPublished) {
       // Unpublishing
@@ -214,7 +215,7 @@ export async function PUT(request: Request) {
     entityId: album.id,
     beforeData: { title: existing.title, isPublished: existing.isPublished } as any,
     afterData: { title: album.title, isPublished: album.isPublished } as any,
-    actorUserId: user.id,
+    actorUserId: session.user.id,
   });
 
   return NextResponse.json(album);
@@ -222,9 +223,16 @@ export async function PUT(request: Request) {
 
 // DELETE: delete album (cascade media via schema)
 export async function DELETE(request: Request) {
-  const user = await requireAdmin();
-  if (!user) {
+  const session = await auth();
+  if (!session?.user) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
+  }
+
+  let scope: AdminScope;
+  try {
+    scope = await requireAdminScope(session.user.id);
+  } catch (err) {
+    return NextResponse.json({ error: "Akses admin ditolak" }, { status: 403 });
   }
 
   const url = new URL(request.url);
@@ -248,7 +256,7 @@ export async function DELETE(request: Request) {
   // Branch scope: BRANCH_ADMIN can only delete albums with media from their branch
   const branchIds = existing.media.map((m) => m.uploader?.person?.branchId);
   try {
-    assertAlbumAccess(user, branchIds);
+    assertAlbumAccess(scope, branchIds);
   } catch {
     return NextResponse.json({ error: "Di luar cabang Anda" }, { status: 403 });
   }
@@ -261,7 +269,7 @@ export async function DELETE(request: Request) {
     entityType: "Album",
     entityId: id,
     beforeData: { title: existing.title } as any,
-    actorUserId: user.id,
+    actorUserId: session.user.id,
   });
 
   return NextResponse.json({ ok: true });

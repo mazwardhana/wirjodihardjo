@@ -56,6 +56,27 @@ function loadRoute(state: State): RouteExports {
       URL,
       require: (id: string) => {
         if (id === "@/lib/auth") return { auth: async () => state.session };
+        if (id === "@/lib/rbac") {
+          return {
+            requireAdminScope: async (userId: string) => {
+              if (!state.session || state.session.user.id !== userId) {
+                throw new Error("Unauthorized");
+              }
+              const user = state.adminUser ?? {
+                id: state.session.user.id,
+                role: state.session.user.role,
+                branchAdminOf: state.session.user.role === "BRANCH_ADMIN" ? { id: "branch-A" } : null,
+              };
+              if (user.role !== "SUPER_ADMIN" && user.role !== "BRANCH_ADMIN") {
+                throw new Error("Akses admin ditolak");
+              }
+              return {
+                role: user.role,
+                branchId: user.role === "SUPER_ADMIN" ? null : (user.branchAdminOf?.id ?? null),
+              };
+            },
+          };
+        }
         if (id === "@/lib/audit") return { logAudit: async () => undefined };
         if (id === "@/lib/prisma") {
           return {

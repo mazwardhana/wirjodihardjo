@@ -7,33 +7,14 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { notifyMediaModeration } from "@/lib/notifications";
 import { UPLOAD_DIR, UPLOAD_URL_PREFIX, MAX_UPLOAD_BYTES, ACCEPTED_IMAGE_TYPES } from "@/lib/upload";
-
-type AdminScope = {
-  id: string;
-  role: "SUPER_ADMIN" | "BRANCH_ADMIN";
-  branchId: string | null;
-};
-
-async function requireAdmin(): Promise<AdminScope | null> {
-  const session = await auth();
-  if (!session?.user) return null;
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, role: true, branchAdminOf: { select: { id: true } } },
-  });
-  if (!user || (user.role !== "SUPER_ADMIN" && user.role !== "BRANCH_ADMIN")) return null;
-  return {
-    id: user.id,
-    role: user.role,
-    branchId: user.role === "SUPER_ADMIN" ? null : user.branchAdminOf?.id ?? null,
-  };
-}
+import { requireAdminScope, assertBranchAccess, type AdminScope } from "@/lib/rbac";
 
 function assertMediaAccess(scope: AdminScope, uploaderBranchId: string | null): void {
   if (scope.role === "SUPER_ADMIN") return;
-  if (scope.branchId === null || uploaderBranchId === null || scope.branchId !== uploaderBranchId) {
+  if (uploaderBranchId === null) {
     throw new Error("FORBIDDEN");
   }
+  assertBranchAccess(scope, uploaderBranchId);
 }
 
 /** Hapus berkas dari folder unggahan; gagal diam-diam bila file sudah hilang. */
@@ -50,9 +31,16 @@ async function removeStoredFile(url: string | null | undefined) {
 
 // POST: upload media into an album (multipart/form-data)
 export async function POST(request: Request) {
-  const user = await requireAdmin();
-  if (!user) {
+  const session = await auth();
+  if (!session?.user) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
+  }
+
+  let scope: AdminScope;
+  try {
+    scope = await requireAdminScope(session.user.id);
+  } catch (err) {
+    return NextResponse.json({ error: "Akses admin ditolak" }, { status: 403 });
   }
 
   let formData: FormData;
@@ -110,7 +98,7 @@ export async function POST(request: Request) {
       mediaType: "IMAGE",
       status: "PENDING",
       albumId,
-      uploadedByUserId: user.id,
+      uploadedByUserId: session.user.id,
     },
   });
 
@@ -119,7 +107,7 @@ export async function POST(request: Request) {
     entityType: "GalleryMedia",
     entityId: media.id,
     afterData: { albumId, url } as any,
-    actorUserId: user.id,
+    actorUserId: session.user.id,
   });
 
   return NextResponse.json(media, { status: 201 });
@@ -127,9 +115,16 @@ export async function POST(request: Request) {
 
 // PUT: moderate media (approve / reject)
 export async function PUT(request: Request) {
-  const user = await requireAdmin();
-  if (!user) {
+  const session = await auth();
+  if (!session?.user) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
+  }
+
+  let scope: AdminScope;
+  try {
+    scope = await requireAdminScope(session.user.id);
+  } catch (err) {
+    return NextResponse.json({ error: "Akses admin ditolak" }, { status: 403 });
   }
 
   let body: Record<string, unknown>;
@@ -162,7 +157,7 @@ export async function PUT(request: Request) {
   // Branch scope: BRANCH_ADMIN can only moderate media from their own branch
   try {
     const uploaderBranchId = existing.uploader?.person?.branchId ?? null;
-    assertMediaAccess(user, uploaderBranchId);
+    assertMediaAccess(scope, uploaderBranchId);
   } catch (err) {
     return NextResponse.json({ error: "Di luar cabang Anda" }, { status: 403 });
   }
@@ -171,7 +166,7 @@ export async function PUT(request: Request) {
     where: { id },
     data: {
       status,
-      moderatedByUserId: user.id,
+      moderatedByUserId: session.user.id,
       moderatedAt: new Date(),
       rejectionReason:
         status === "REJECTED" ? (rejectionReason as string).trim() : null,
@@ -184,7 +179,7 @@ export async function PUT(request: Request) {
     entityId: media.id,
     beforeData: { status: existing.status } as any,
     afterData: { status: media.status, rejectionReason: media.rejectionReason } as any,
-    actorUserId: user.id,
+    actorUserId: session.user.id,
   });
 
   if (status === "APPROVED" || status === "REJECTED") {
@@ -202,9 +197,16 @@ export async function PUT(request: Request) {
 
 // DELETE: remove media and its stored file
 export async function DELETE(request: Request) {
-  const user = await requireAdmin();
-  if (!user) {
+  const session = await auth();
+  if (!session?.user) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
+  }
+
+  let scope: AdminScope;
+  try {
+    scope = await requireAdminScope(session.user.id);
+  } catch (err) {
+    return NextResponse.json({ error: "Akses admin ditolak" }, { status: 403 });
   }
 
   const url = new URL(request.url);
@@ -223,7 +225,7 @@ export async function DELETE(request: Request) {
 
   try {
     const uploaderBranchId = existing.uploader?.person?.branchId ?? null;
-    assertMediaAccess(user, uploaderBranchId);
+    assertMediaAccess(scope, uploaderBranchId);
   } catch {
     return NextResponse.json({ error: "Di luar cabang Anda" }, { status: 403 });
   }
@@ -236,7 +238,7 @@ export async function DELETE(request: Request) {
     entityType: "GalleryMedia",
     entityId: id,
     beforeData: { albumId: existing.albumId, url: existing.url } as any,
-    actorUserId: user.id,
+    actorUserId: session.user.id,
   });
 
   return NextResponse.json({ ok: true });

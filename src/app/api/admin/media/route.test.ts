@@ -67,6 +67,34 @@ function loadRoute(state: State): RouteExports {
       Response,
       require: (id: string) => {
         if (id === "@/lib/auth") return { auth: async () => state.session };
+        if (id === "@/lib/rbac") {
+          return {
+            requireAdminScope: async (userId: string) => {
+              if (!state.session || state.session.user.id !== userId) {
+                throw new Error("Unauthorized");
+              }
+              const user = {
+                id: state.session.user.id,
+                role: state.session.user.role,
+                branchAdminOf: state.session.user.role === "BRANCH_ADMIN" ? { id: "branch-A" } : null,
+                ...state.adminUser,
+              } as { id: string; role: string; branchAdminOf: { id: string } | null };
+              if (user.role !== "SUPER_ADMIN" && user.role !== "BRANCH_ADMIN") {
+                throw new Error("Akses admin ditolak");
+              }
+              return {
+                role: user.role,
+                branchId: user.role === "SUPER_ADMIN" ? null : (user.branchAdminOf?.id ?? null),
+              };
+            },
+            assertBranchAccess: (scope: any, branchId: string) => {
+              if (scope.role === "SUPER_ADMIN") return;
+              if (scope.branchId !== branchId) {
+                throw new Error("Di luar cabang Anda");
+              }
+            },
+          };
+        }
         if (id === "@/lib/prisma") {
           return {
             prisma: {

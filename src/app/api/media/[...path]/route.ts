@@ -3,6 +3,7 @@ import { basename, join } from "path";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UPLOAD_DIR } from "@/lib/upload";
+import { getActorScope, type ActorScope } from "@/lib/rbac";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -16,8 +17,6 @@ const CONTENT_TYPES: Record<string, string> = {
 const PUBLIC_CACHE = "public, max-age=86400";
 const PRIVATE_CACHE = "private, max-age=3600";
 const LEGACY_PUBLIC_CACHE = "public, max-age=31536000, immutable";
-
-const ADMIN_ROLES = ["SUPER_ADMIN", "BRANCH_ADMIN"];
 
 type MediaAccess = { cacheControl: string } | { forbidden: true };
 
@@ -36,7 +35,8 @@ function resolveMediaAccess(
     album: { isPublished: boolean };
     uploader: { person: { branchId: string | null } } | null;
   } | null,
-  session: { user: { id: string; role: string; branchId: string | null } } | null,
+  userId: string | null,
+  scope: ActorScope | null,
 ): MediaAccess {
   if (!media) {
     return { cacheControl: LEGACY_PUBLIC_CACHE };
@@ -46,9 +46,9 @@ function resolveMediaAccess(
     return { cacheControl: PUBLIC_CACHE };
   }
 
-  const isOwner = session?.user.id === media.uploadedByUserId;
-  const isSuperAdmin = session?.user.role === "SUPER_ADMIN";
-  const isBranchAdmin = session?.user.role === "BRANCH_ADMIN";
+  const isOwner = userId === media.uploadedByUserId;
+  const isSuperAdmin = scope?.role === "SUPER_ADMIN";
+  const isBranchAdmin = scope?.role === "BRANCH_ADMIN";
   
   // For PENDING media: owner or admin with proper branch scope
   if (media.status === "PENDING") {
@@ -57,7 +57,7 @@ function resolveMediaAccess(
     }
     if (isBranchAdmin) {
       const uploaderBranchId = media.uploader?.person?.branchId ?? null;
-      const adminBranchId = session?.user.branchId ?? null;
+      const adminBranchId = scope?.branchId ?? null;
       if (adminBranchId !== null && uploaderBranchId === adminBranchId) {
         return { cacheControl: PRIVATE_CACHE };
       }
@@ -72,7 +72,7 @@ function resolveMediaAccess(
     }
     if (isBranchAdmin) {
       const uploaderBranchId = media.uploader?.person?.branchId ?? null;
-      const adminBranchId = session?.user.branchId ?? null;
+      const adminBranchId = scope?.branchId ?? null;
       if (adminBranchId !== null && uploaderBranchId === adminBranchId) {
         return { cacheControl: PRIVATE_CACHE };
       }
@@ -135,33 +135,15 @@ export async function GET(
 
   const session = await auth();
   
-  // Resolve branch scope for BRANCH_ADMIN
-  let sessionWithBranch = null;
+  // Resolve actor scope for branch-scoped access
+  let userId: string | null = null;
+  let scope: ActorScope | null = null;
   if (session?.user) {
-    if (session.user.role === "BRANCH_ADMIN") {
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { branchAdminOf: { select: { id: true } } },
-      });
-      sessionWithBranch = {
-        user: {
-          id: session.user.id,
-          role: session.user.role,
-          branchId: user?.branchAdminOf?.id ?? null,
-        },
-      };
-    } else {
-      sessionWithBranch = {
-        user: {
-          id: session.user.id,
-          role: session.user.role,
-          branchId: null,
-        },
-      };
-    }
+    userId = session.user.id;
+    scope = await getActorScope(session.user.id, prisma);
   }
 
-  const access = resolveMediaAccess(media, sessionWithBranch);
+  const access = resolveMediaAccess(media, userId, scope);
 
   if ("forbidden" in access) {
     return new Response("Akses ditolak", { status: 403 });

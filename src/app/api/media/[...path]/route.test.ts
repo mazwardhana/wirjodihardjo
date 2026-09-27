@@ -74,6 +74,25 @@ function loadRoute(state: State): RouteExports {
       Buffer,
       require: (id: string) => {
         if (id === "@/lib/auth") return { auth: async () => state.session };
+        if (id === "@/lib/rbac") {
+          return {
+            getActorScope: async (userId: string) => {
+              if (!state.session || state.session.user.id !== userId) {
+                throw new Error("User tidak ditemukan");
+              }
+              const role = state.session.user.role;
+              const user = {
+                role,
+                branchAdminOf: role === "BRANCH_ADMIN" ? { id: "branch-A" } : null,
+                ...state.adminUser,
+              } as { role: string; branchAdminOf: { id: string } | null };
+              return {
+                role: user.role,
+                branchId: user.role === "SUPER_ADMIN" ? null : (user.branchAdminOf?.id ?? null),
+              };
+            },
+          };
+        }
         if (id === "@/lib/prisma") {
           return {
             prisma: {
