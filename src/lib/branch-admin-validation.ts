@@ -1,3 +1,4 @@
+import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export class BranchAdminValidationError extends Error {
@@ -11,8 +12,8 @@ type UserBoundary = {
   user: {
     findUnique(args: {
       where: { id: string };
-      select: { role: string; isActive: boolean };
-    }): Promise<{ role: string; isActive: boolean } | null>;
+      select: { role: true; isActive: true };
+    }): Promise<{ role: Role; isActive: boolean } | null>;
   };
 };
 
