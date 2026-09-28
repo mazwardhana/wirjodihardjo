@@ -33,6 +33,11 @@ export function fixture() {
     socialPlatform: { findUnique: async () => state.platform },
     auditLog: { create: async (args: Row) => { state.writes.push(args); return args; } },
   };
+  // Rute memanggil `prisma.$transaction(async (tx) => ...)`. Mock mengeksekusi
+  // callback dengan objek prisma yang sama sehingga semua tulisan tetap terekam.
+  Object.assign(prisma, {
+    $transaction: async (fn: (tx: typeof prisma) => Promise<unknown>) => fn(prisma),
+  });
   return { state, prisma };
 }
 
