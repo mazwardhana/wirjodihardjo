@@ -33,6 +33,7 @@ type ReviewState = {
   targetBranchId: string | null;
   parent: { id: string; branchId: string | null } | null;
   submitterGender: string | null;
+  transactionCalls: number;
   partners: Array<{ partnerAId: string; partnerBId: string }>;
   childEdges: Array<{ parentId: string; childId: string }>;
   personCreate: Array<Record<string, any>>;
@@ -52,6 +53,7 @@ function reviewFixture(type: string, payload: Record<string, unknown>): ReviewSt
     targetBranchId: "cabang-1",
     parent: { id: "orang-tua", branchId: "cabang-1" },
     submitterGender: "MALE",
+    transactionCalls: 0,
     partners: [],
     childEdges: [],
     personCreate: [],
@@ -142,6 +144,11 @@ function loadReviewRoute(state: ReviewState): { POST?: Handler } {
         },
       },
     },
+  };
+  const prismaClient = prismaModule.prisma as Record<string, any>;
+  prismaClient.$transaction = async (fn: (tx: Record<string, any>) => Promise<unknown>) => {
+    state.transactionCalls += 1;
+    return fn(prismaClient);
   };
   const authModule = { auth: async () => ({ user: { id: "admin-1" } }) };
   const auditModule = { logAudit: async () => undefined };
@@ -326,4 +333,26 @@ test("APPROVE menyimpan reviewNote bila dikirim (200)", async () => {
   assert.equal(response.status, 200);
   assert.equal(state.submissionUpdate.length, 1);
   assert.equal(state.submissionUpdate[0].reviewNote, "Sudah diperiksa.");
+});
+
+test("ADD_CHILD dan ADD_SPOUSE menulis lewat satu transaksi (200)", async () => {
+  const childState = reviewFixture("ADD_CHILD", {
+    parentId: "orang-tua",
+    fullName: "Anak Baru",
+    gender: "MALE",
+  });
+  const childRoute = loadReviewRoute(childState);
+  const childResponse = await childRoute.POST!(approveRequest());
+  assert.equal(childResponse.status, 200);
+  assert.equal(childState.transactionCalls, 1);
+
+  const spouseState = reviewFixture("ADD_SPOUSE", {
+    personId: "orang-tua",
+    fullName: "Pasangan Baru",
+    gender: "FEMALE",
+  });
+  const spouseRoute = loadReviewRoute(spouseState);
+  const spouseResponse = await spouseRoute.POST!(approveRequest());
+  assert.equal(spouseResponse.status, 200);
+  assert.equal(spouseState.transactionCalls, 1);
 });

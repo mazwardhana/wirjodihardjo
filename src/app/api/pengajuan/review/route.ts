@@ -377,57 +377,61 @@ async function applySubmission(
       });
       if (!parent) throw new Error("Orang tua tidak ditemukan");
 
-      const child = await prisma.person.create({
-        data: {
-          fullName: payload.fullName as string,
-          gender: payload.gender as any,
-          birthDate: payload.birthDate ? new Date(payload.birthDate as string) : null,
-          birthPlace: (payload.birthPlace as string) || null,
-          branchId: parent.branchId ?? undefined,
-        },
-      });
-
       const parentRole =
         (payload.parentRole as string) ??
         (submitterGender === "MALE" ? "FATHER" : submitterGender === "FEMALE" ? "MOTHER" : "UNKNOWN");
 
-      await prisma.personChild.create({
-        data: {
-          parentId,
-          childId: child.id,
-          parentRole: parentRole as any,
-          isStep: (payload.isStep as boolean) ?? false,
-          isAdopted: (payload.isAdopted as boolean) ?? false,
-          ...(submissionId ? { sourceSubmissionId: submissionId } : {}),
-        },
-      });
-
-      // Bila orang tua punya tepat satu pasangan, lengkapi orang tua kedua.
-      const partners = await prisma.personPartner.findMany({
-        where: { OR: [{ partnerAId: parentId }, { partnerBId: parentId }] },
-        select: { partnerAId: true, partnerBId: true },
-      });
-      if (partners.length === 1) {
-        const otherParentId =
-          partners[0].partnerAId === parentId ? partners[0].partnerBId : partners[0].partnerAId;
-        const otherRole =
-          parentRole === "FATHER" ? "MOTHER" : parentRole === "MOTHER" ? "FATHER" : "UNKNOWN";
-        const duplicate = await prisma.personChild.findFirst({
-          where: { parentId: otherParentId, childId: child.id },
+      // Anak dan seluruh edge-nya ditulis dalam satu transaksi, supaya
+      // kegagalan di tengah tidak menyisakan anak tanpa orang tua.
+      return await prisma.$transaction(async (tx) => {
+        const child = await tx.person.create({
+          data: {
+            fullName: payload.fullName as string,
+            gender: payload.gender as any,
+            birthDate: payload.birthDate ? new Date(payload.birthDate as string) : null,
+            birthPlace: (payload.birthPlace as string) || null,
+            branchId: parent.branchId ?? undefined,
+          },
         });
-        if (!duplicate) {
-          await prisma.personChild.create({
-            data: {
-              parentId: otherParentId,
-              childId: child.id,
-              parentRole: otherRole as any,
-              ...(submissionId ? { sourceSubmissionId: submissionId } : {}),
-            },
-          });
-        }
-      }
 
-      return child.id;
+        await tx.personChild.create({
+          data: {
+            parentId,
+            childId: child.id,
+            parentRole: parentRole as any,
+            isStep: (payload.isStep as boolean) ?? false,
+            isAdopted: (payload.isAdopted as boolean) ?? false,
+            ...(submissionId ? { sourceSubmissionId: submissionId } : {}),
+          },
+        });
+
+        // Bila orang tua punya tepat satu pasangan, lengkapi orang tua kedua.
+        const partners = await tx.personPartner.findMany({
+          where: { OR: [{ partnerAId: parentId }, { partnerBId: parentId }] },
+          select: { partnerAId: true, partnerBId: true },
+        });
+        if (partners.length === 1) {
+          const otherParentId =
+            partners[0].partnerAId === parentId ? partners[0].partnerBId : partners[0].partnerAId;
+          const otherRole =
+            parentRole === "FATHER" ? "MOTHER" : parentRole === "MOTHER" ? "FATHER" : "UNKNOWN";
+          const duplicate = await tx.personChild.findFirst({
+            where: { parentId: otherParentId, childId: child.id },
+          });
+          if (!duplicate) {
+            await tx.personChild.create({
+              data: {
+                parentId: otherParentId,
+                childId: child.id,
+                parentRole: otherRole as any,
+                ...(submissionId ? { sourceSubmissionId: submissionId } : {}),
+              },
+            });
+          }
+        }
+
+        return child.id;
+      });
     }
 
     case "ADD_SPOUSE": {
@@ -438,24 +442,26 @@ async function applySubmission(
       });
       if (!person) throw new Error("Anggota tidak ditemukan");
 
-      const spouse = await prisma.person.create({
-        data: {
-          fullName: payload.fullName as string,
-          gender: payload.gender as any,
-          isMarriedInto: true,
-          branchId: person.branchId ?? undefined,
-        },
+      return await prisma.$transaction(async (tx) => {
+        const spouse = await tx.person.create({
+          data: {
+            fullName: payload.fullName as string,
+            gender: payload.gender as any,
+            isMarriedInto: true,
+            branchId: person.branchId ?? undefined,
+          },
+        });
+        await tx.personPartner.create({
+          data: {
+            partnerAId: personId,
+            partnerBId: spouse.id,
+            status: (payload.status as any) ?? "MARRIED",
+            marriageDate: payload.marriageDate ? new Date(payload.marriageDate as string) : null,
+            orderIndex: (payload.orderIndex as number) ?? 0,
+          },
+        });
+        return spouse.id;
       });
-      await prisma.personPartner.create({
-        data: {
-          partnerAId: personId,
-          partnerBId: spouse.id,
-          status: (payload.status as any) ?? "MARRIED",
-          marriageDate: payload.marriageDate ? new Date(payload.marriageDate as string) : null,
-          orderIndex: (payload.orderIndex as number) ?? 0,
-        },
-      });
-      return spouse.id;
     }
 
     case "EDIT_PERSON": {
