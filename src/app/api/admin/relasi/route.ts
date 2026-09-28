@@ -174,6 +174,117 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true });
       }
 
+      case "add-new": {
+        const relationType = body.relationType as string;
+        const personId = body.personId as string;
+        const role = body.role as string | undefined;
+        const fullName = typeof body.fullName === "string" ? body.fullName.trim() : "";
+        const gender = body.gender as string;
+        const birthDate = typeof body.birthDate === "string" ? body.birthDate.trim() : "";
+        const birthPlace = typeof body.birthPlace === "string" ? body.birthPlace.trim() : "";
+
+        if (!personId) {
+          return NextResponse.json({ error: "personId diperlukan" }, { status: 400 });
+        }
+        if (!fullName) {
+          return NextResponse.json({ error: "Nama lengkap wajib diisi" }, { status: 400 });
+        }
+        if (!["MALE", "FEMALE", "OTHER"].includes(gender)) {
+          return NextResponse.json({ error: "Jenis kelamin tidak valid" }, { status: 400 });
+        }
+        if (relationType !== "parent" && relationType !== "child" && relationType !== "partner") {
+          return NextResponse.json({ error: "Tipe relasi tidak dikenal" }, { status: 400 });
+        }
+
+        await assertPersonAccess(scope, personId);
+        const person = await prisma.person.findUnique({ where: { id: personId } });
+        if (!person) {
+          return NextResponse.json({ error: "Anggota tidak ditemukan" }, { status: 404 });
+        }
+
+        // Orang baru belum punya relasi apa pun, jadi anti-siklus tidak relevan;
+        // yang perlu dijaga hanya batas dua orang tua pada orang fokus.
+        if (relationType === "parent") {
+          const parentCount = await prisma.personChild.count({ where: { childId: personId } });
+          if (parentCount >= MAX_PARENTS) {
+            return NextResponse.json(
+              {
+                error: `Anggota ini sudah memiliki ${MAX_PARENTS} orang tua. Hapus salah satu relasi terlebih dahulu.`,
+              },
+              { status: 409 },
+            );
+          }
+        }
+
+        const parentRole =
+          relationType === "child"
+            ? ((role as string) ??
+              (person.gender === "MALE"
+                ? "FATHER"
+                : person.gender === "FEMALE"
+                  ? "MOTHER"
+                  : "UNKNOWN"))
+            : relationType === "parent"
+              ? ((role as string) ?? "UNKNOWN")
+              : "UNKNOWN";
+
+        const partnerCount =
+          relationType === "partner"
+            ? await prisma.personPartner.count({
+                where: { OR: [{ partnerAId: personId }, { partnerBId: personId }] },
+              })
+            : 0;
+
+        const createdId = await prisma.$transaction(async (tx) => {
+          const created = await tx.person.create({
+            data: {
+              fullName,
+              gender: gender as any,
+              birthDate: birthDate ? new Date(birthDate) : null,
+              birthPlace: birthPlace || null,
+              branchId: person.branchId ?? undefined,
+              isMarriedInto: relationType === "partner",
+            },
+          });
+
+          if (relationType === "parent") {
+            await tx.personChild.create({
+              data: { parentId: created.id, childId: personId, parentRole: parentRole as any },
+            });
+          } else if (relationType === "child") {
+            await tx.personChild.create({
+              data: { parentId: personId, childId: created.id, parentRole: parentRole as any },
+            });
+          } else {
+            await tx.personPartner.create({
+              data: {
+                partnerAId: personId,
+                partnerBId: created.id,
+                status: "MARRIED",
+                orderIndex: partnerCount,
+              },
+            });
+          }
+
+          return created.id;
+        });
+
+        if (relationType !== "partner") {
+          // Satu panggilan cukup: rekalkulasi menghitung seluruh komponen.
+          try { await recalculateGenerationLevel(personId); } catch {}
+        }
+
+        await logAudit({
+          action: `RELATION_ADD_${relationType.toUpperCase()}_NEW`,
+          entityType: "Person",
+          entityId: personId,
+          afterData: { relationType, fullName } as any,
+          actorUserId: session.user.id,
+        });
+
+        return NextResponse.json({ ok: true, personId: createdId }, { status: 201 });
+      }
+
       case "remove": {
         const { edgeId, relationType } = body;
         if (!edgeId) {

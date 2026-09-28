@@ -35,11 +35,13 @@ export type SiblingSection = {
   members: TreeMember[];
 };
 export type ParentEntry = TreeMember & {
+  edgeId: string;
   role: string;
   isStep: boolean;
   isAdopted: boolean;
 };
-export type ChildEntry = TreeMember & { isStep: boolean; isAdopted: boolean };
+export type ChildEntry = TreeMember & { edgeId: string; isStep: boolean; isAdopted: boolean };
+export type PartnerEntry = { edgeId: string; status: string; member: TreeMember };
 
 export type PrivateContact = {
   visibleToMembers: boolean;
@@ -91,6 +93,7 @@ export type FamilyTreeData = {
   descendants: DescendantLevel[];
   parents: ParentEntry[];
   children: ChildEntry[];
+  partners: PartnerEntry[];
 };
 
 type PersonRow = {
@@ -118,16 +121,20 @@ type PersonDetailRow = PersonRow & {
   education?: EducationRow[];
   socialLinks?: SocialLinkRow[];
   parents?: Array<{
+    id: string;
     parentRole: string;
     isStep: boolean;
     isAdopted: boolean;
     parent: PersonRow;
   }>;
   children?: Array<{
+    id: string;
     isStep: boolean;
     isAdopted: boolean;
     child: PersonRow;
   }>;
+  partnershipsA?: Array<{ id: string; status: string; partnerB: PersonRow }>;
+  partnershipsB?: Array<{ id: string; status: string; partnerA: PersonRow }>;
 };
 
 type Edge = {
@@ -367,6 +374,20 @@ export type FamilyTreeOptions = {
   siblingProvider?: (personId: string) => Promise<SiblingGroup[]>;
 };
 
+function buildPartners(person: PersonDetailRow): PartnerEntry[] {
+  const fromA = (person.partnershipsA ?? []).map((row) => ({
+    edgeId: row.id,
+    status: row.status,
+    member: toMember(row.partnerB),
+  }));
+  const fromB = (person.partnershipsB ?? []).map((row) => ({
+    edgeId: row.id,
+    status: row.status,
+    member: toMember(row.partnerA),
+  }));
+  return [...fromA, ...fromB];
+}
+
 /**
  * Susun seluruh konteks pohon keluarga satu anggota.
  * RBAC gagal tertutup: cabang di luar cakupan admin ditolak 403.
@@ -380,7 +401,22 @@ export async function getFamilyTreeData(
   const siblingProvider =
     options.siblingProvider ?? ((id: string) => getClassifiedSiblings(id));
 
-  const person = await db.person.findUnique({ where: { id: personId } });
+  // Tanpa `include` Prisma hanya mengembalikan kolom scalarnya, sehingga
+  // `branch`, `parents`, `children`, dan `partnerships*` selalu `undefined`
+  // dan payload diam-diam menjadi kosong.
+  const person = await db.person.findUnique({
+    where: { id: personId },
+    include: {
+      branch: true,
+      private: true,
+      education: true,
+      socialLinks: { include: { platform: true } },
+      parents: { include: { parent: true } },
+      children: { include: { child: true } },
+      partnershipsA: { include: { partnerB: true } },
+      partnershipsB: { include: { partnerA: true } },
+    },
+  });
   if (!person) {
     throw new AuthorizationError("Anggota tidak ditemukan", 404);
   }
@@ -409,14 +445,17 @@ export async function getFamilyTreeData(
     descendants: buildDescendantLevels(personId, childrenOf, members),
     parents: (person.parents ?? []).map((edge) => ({
       ...toMember(edge.parent),
+      edgeId: edge.id,
       role: edge.parentRole,
       isStep: edge.isStep === true,
       isAdopted: edge.isAdopted === true,
     })),
     children: (person.children ?? []).map((edge) => ({
       ...toMember(edge.child),
+      edgeId: edge.id,
       isStep: edge.isStep === true,
       isAdopted: edge.isAdopted === true,
     })),
+    partners: buildPartners(person),
   };
 }

@@ -455,17 +455,24 @@ export function KeluargaDashboard({
                       <td className="px-4 py-3 text-muted">{usiaText(member)}</td>
                       <td className="px-4 py-3 text-muted">{member.city || "-"}</td>
                       <td className="px-4 py-3">
-                        {member.generationLevel === null ? (
+                        <div className="flex flex-col items-start gap-1">
                           <button
                             type="button"
                             onClick={() => setFamilyTreeMember(member)}
                             className="min-h-11 rounded-md border border-gold/50 px-3 py-2 text-xs font-semibold text-gold-deep transition-colors hover:bg-gold/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
                           >
-                            Assign to Family Tree
+                            Pohon Keluarga
                           </button>
-                        ) : (
-                          <span className="text-muted">Generasi {member.generationLevel}</span>
-                        )}
+                          {member.generationLevel === null ? (
+                            <span className="text-xs font-medium text-gold-deep">
+                              Belum di-assign
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted">
+                              Generasi {member.generationLevel}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">

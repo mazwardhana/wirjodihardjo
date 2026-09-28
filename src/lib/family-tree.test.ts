@@ -161,13 +161,16 @@ test("toSiblingSections memakai label saudara dari genealogy", () => {
 
 // ── getFamilyTreeData ────────────────────────────────────────────────────
 
-function makeFixtureDb(personBranch: Record<string, string> = {}): TreeDb {
+function makeFixtureDb(
+  personBranch: Record<string, string> = {},
+  recorded?: { args?: unknown },
+): TreeDb {
   const edges = [
-    { parentId: "K", childId: "A" },
-    { parentId: "N", childId: "A" },
-    { parentId: "A", childId: "C" },
-    { parentId: "A", childId: "S1" },
-    { parentId: "A", childId: "S2" },
+    { id: "edge-p-1", parentId: "K", childId: "A" },
+    { id: "edge-p-2", parentId: "N", childId: "A" },
+    { id: "edge-c-1", parentId: "A", childId: "C" },
+    { id: "edge-c-2", parentId: "A", childId: "S1" },
+    { id: "edge-c-3", parentId: "A", childId: "S2" },
   ];
 
   const detail = (id: string) => {
@@ -201,16 +204,25 @@ function makeFixtureDb(personBranch: Record<string, string> = {}): TreeDb {
       socialLinks: [{ id: "l1", url: "https://x.id", username: "cahya", platform: { name: "X" } }],
       parents: edges
         .filter((e) => e.childId === id)
-        .map((e) => ({ parentRole: "FATHER", isStep: false, isAdopted: false, parent: MEMBERS[e.parentId] })),
+        .map((e) => ({
+          id: e.id,
+          parentRole: "FATHER",
+          isStep: false,
+          isAdopted: false,
+          parent: MEMBERS[e.parentId],
+        })),
       children: edges
         .filter((e) => e.parentId === id)
-        .map((e) => ({ isStep: false, isAdopted: false, child: MEMBERS[e.childId] })),
+        .map((e) => ({ id: e.id, isStep: false, isAdopted: false, child: MEMBERS[e.childId] })),
+      partnershipsA: [{ id: "pp-1", status: "MARRIED", partnerB: MEMBERS.S1 }],
+      partnershipsB: [{ id: "pp-2", status: "MARRIED", partnerA: MEMBERS.S2 }],
     };
   };
 
   return {
     person: {
       findUnique: async (args: { where: { id: string } }) => {
+        if (recorded) recorded.args = args;
         const id = args.where.id;
         if (!MEMBERS[id]) return null;
         return detail(id) as never;
@@ -308,4 +320,46 @@ test("getFamilyTreeData mengembalikan 404 bila anggota tidak ada", async () => {
       }),
     (err: unknown) => err instanceof AuthorizationError && err.status === 404,
   );
+});
+
+// ── payload relasi: edgeId, pasangan, dan include ────────────────────────
+
+test("getFamilyTreeData menyertakan edgeId pada setiap relasi", async () => {
+  const data = await getFamilyTreeData("A", SUPER_SCOPE, {
+    db: makeFixtureDb(),
+    siblingProvider: siblingsProvider,
+  });
+
+  assert.equal(data.parents.length, 2);
+  assert.equal(data.parents[0].edgeId, "edge-p-1");
+  assert.equal(data.children.length, 3);
+  assert.equal(data.children[0].edgeId, "edge-c-1");
+});
+
+test("getFamilyTreeData menyertakan pasangan dari kedua sisi partnership", async () => {
+  const data = await getFamilyTreeData("A", SUPER_SCOPE, {
+    db: makeFixtureDb(),
+    siblingProvider: siblingsProvider,
+  });
+
+  assert.equal(data.partners.length, 2);
+  assert.equal(data.partners[0].edgeId, "pp-1");
+  assert.equal(data.partners[0].member.id, MEMBERS.S1.id);
+  assert.equal(data.partners[1].edgeId, "pp-2");
+  assert.equal(data.partners[1].member.id, MEMBERS.S2.id);
+});
+
+test("getFamilyTreeData memanggil findUnique dengan include relasi", async () => {
+  const recorded: { args?: unknown } = {};
+
+  await getFamilyTreeData("A", SUPER_SCOPE, {
+    db: makeFixtureDb({}, recorded),
+    siblingProvider: siblingsProvider,
+  });
+
+  assert.ok((recorded.args as { include?: Record<string, unknown> }).include);
+  const include = (recorded.args as { include: Record<string, unknown> }).include;
+  for (const key of ["parents", "children", "branch", "partnershipsA", "partnershipsB"]) {
+    assert.ok(key in include, `field ${key} wajib di-include`);
+  }
 });
