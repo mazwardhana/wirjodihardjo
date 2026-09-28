@@ -391,8 +391,14 @@ test("commit reuses the username planned at preview", async () => {
 
   // Rencana ikut tercatat saat reportJson ditulis ulang oleh commit.
   const saved = state.importBatch.find((row) => row.id === batchId);
-  const savedPayload = saved?.reportJson as { plannedUsernames?: Record<string, string> };
+  const savedPayload = saved?.reportJson as {
+    plannedUsernames?: Record<string, string>;
+    credentials?: Array<{ rowKey?: string; username?: string }>;
+  };
+  // plannedUsernames berisi username yang benar-benar dibuat, bukan sekadar rencana.
   assert.equal(savedPayload?.plannedUsernames?.["branch-1::budi santoso"], "budi_keluarga");
+  assert.equal(savedPayload?.credentials?.[0]?.rowKey, "branch-1::budi santoso");
+  assert.equal(savedPayload?.credentials?.[0]?.username, "budi_keluarga");
 });
 
 test("planned username that became taken falls back to a unique one", async () => {
@@ -417,6 +423,11 @@ test("planned username that became taken falls back to a unique one", async () =
   assert.notEqual(created?.username, "budi_keluarga");
   assert.equal(created?.username, "budi");
   assert.equal(result.credentials[0].username, "budi");
+
+  // reportJson mencatat hasil nyata: username terpaksa berganti, laporan ikut berubah.
+  const saved = state.importBatch.find((row) => row.id === batchId);
+  const savedPayload = saved?.reportJson as { plannedUsernames?: Record<string, string> };
+  assert.equal(savedPayload?.plannedUsernames?.["branch-1::budi santoso"], "budi");
 });
 
 test("nonexistent branch code is caught at validation time", async () => {

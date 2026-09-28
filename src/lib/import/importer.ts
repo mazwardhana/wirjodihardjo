@@ -276,6 +276,7 @@ async function applyData(
       role: "MEMBER",
       isNew: true,
       status: "dibuat",
+      rowKey: key,
     });
   }
 
@@ -318,13 +319,19 @@ export async function commitImportData(batchId: string, actorId: string) {
         Object.assign(planned, payload.plannedUsernames ?? {});
 
         const result = await applyData(tx, validation.data, actorId, planned);
+        // Field `plannedUsernames` menyimpan username yang benar-benar dibuat saat
+        // commit, bukan rencana pratinjau, supaya laporan hasil bisa dipakai apa adanya.
+        const actualUsernames: Record<string, string> = {};
+        for (const credential of result.credentials) {
+          if (credential.rowKey) actualUsernames[credential.rowKey] = credential.username;
+        }
         await tx.importBatch.update({
           where: { id: batchId },
           data: {
             status: "COMMITTED",
             successRows: result.counts.personsCreated,
             errorRows: 0,
-            reportJson: { ...payload, ...result, plannedUsernames: planned, errors: [] },
+            reportJson: { ...payload, ...result, plannedUsernames: actualUsernames, errors: [] },
           },
         });
 

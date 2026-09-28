@@ -37,7 +37,7 @@ Log sesi ini untuk branch `develop`. Kronologi memuat bukti tes dan integrasi.
 **Keamanan:**
 - Password `WD26` tidak muncul di response preview; hanya di CSV kredensial setelah COMMITTED
 - CSV formula-escaped via `csv-stringify` `escape_formulas: true`
-- Guard: SUPER_ADMIN aktif + `mustChangePassword=false`
+- Guard: SUPER_ADMIN aktif + sudah ganti kredensial (`mustChangeCredentials=false`)
 - Transaksi: SELECT FOR UPDATE + SERIALIZABLE mencegah double-commit
 
 **Limitasi:**

@@ -29,7 +29,7 @@ export type KeluargaMember = {
 const MAX_MEMBER_LIMIT = 50;
 
 function resolveLimit(value: number | null | undefined): number | undefined {
-  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  if (typeof value !== "number" || Number.isNaN(value)) return undefined;
   const floored = Math.floor(value);
   if (floored < 1) return undefined;
   return Math.min(floored, MAX_MEMBER_LIMIT);

@@ -109,6 +109,12 @@ test("limit above the cap is clamped to 50", async () => {
   assert.equal(db.findManyCalls[0].take, 50);
 });
 
+test("limit tak hingga tetap di-clamp ke 50", async () => {
+  const db = makeDb({ role: "SUPER_ADMIN", branchAdminOf: null });
+  await getKeluargaMembers("u1", "b1", { limit: Number.POSITIVE_INFINITY }, db);
+  assert.equal(db.findManyCalls[0].take, 50);
+});
+
 test("missing, null, non-numeric and zero limits omit take", async () => {
   for (const limit of [undefined, null, Number.NaN, 0]) {
     const db = makeDb({ role: "SUPER_ADMIN", branchAdminOf: null });

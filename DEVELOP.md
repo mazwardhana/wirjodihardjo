@@ -70,7 +70,7 @@
 ### Backend Library (BELUM)
 - [ ] `src/lib/import/parser.ts` — parse XLSX (3 sheet: Anggota/Relasi/Akun) + fallback CSV
 - [ ] `src/lib/import/validate.ts` — validasi field wajib, ref, tanggal, enum, duplikat ref, ref relasi tak dikenal, batas orang tua, anti-siklus
-- [ ] `src/lib/import/importer.ts` — transaksi DB: upsert Person (`externalRef`), PersonPrivate, PersonChild, PersonPartner, User (password `WD26` + `mustChangePassword`)
+- [ ] `src/lib/import/importer.ts` — transaksi DB: upsert Person (`externalRef`), PersonPrivate, PersonChild, PersonPartner, User (password `WD26` + `mustChangeCredentials`)
 - [ ] `src/lib/import/template.ts` — generate template XLSX (sheet Petunjuk + dropdown + baris contoh `CONTOH`)
 - [ ] `src/lib/import/report.ts` — laporan kredensial + error per baris
 - [ ] `src/lib/import/index.ts` — barrel export
@@ -92,7 +92,7 @@
 - Hanya `SUPER_ADMIN`
 - Maksimal file 10 MB
 - Idempotensi via `Person.externalRef` dan `User.email`
-- Password default `WD26`, `mustChangePassword = true`, bcrypt cost 10
+- Password default `WD26`, `mustChangeCredentials = true` (wajib ganti kredensial saat login pertama), bcrypt cost 10
 - Tidak ada data yang masuk jika validasi gagal (transaksi all-or-nothing)
 - Password tidak boleh bocor di response umum (hanya di laporan kredensial khusus admin)
 

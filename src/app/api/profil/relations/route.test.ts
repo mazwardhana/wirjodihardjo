@@ -245,7 +245,7 @@ describe("Profile Relations API", () => {
     const { f, people, partner } = relationsFixture();
     partner.edges.push(
       { id: "pp1", partnerAId: "p1", partnerBId: "p7", orderIndex: 0, status: "MARRIED", marriageDate: null, notes: null, partnerA: people.p1, partnerB: people.p7 },
-      { id: "pp2", partnerAId: "p7", partnerBId: "p1", orderIndex: 1, status: "MARRIED", marriageDate: null, notes: null, partnerA: people.p1, partnerB: people.p7 },
+      { id: "pp2", partnerAId: "p7", partnerBId: "p1", orderIndex: 1, status: "MARRIED", marriageDate: null, notes: null, partnerA: people.p7, partnerB: people.p1 },
     );
     const route = loadRoute("src/app/api/profil/relations/route.ts", f);
     const response = await route.GET(new Request("http://localhost/api/profil/relations"));

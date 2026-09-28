@@ -77,7 +77,7 @@
 
 # Phase 13: User CRUD
 - [x] List + create account + change role + activate/deactivate + verify
-- [x] Password reset (mustChangePassword) + delete account (User only)
+- [x] Password reset (set `mustChangeCredentials`) + delete account (User only)
 - [x] Admin: /admin/pengguna (belum integrasi full client component, tunggu page rewrite)
 
 # Phase 14: Audit Log
