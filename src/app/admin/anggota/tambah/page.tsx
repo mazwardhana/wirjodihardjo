@@ -3,7 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { AnggotaForm } from "@/components/admin/AnggotaForm";
 
-export default async function AdminAnggotaTambahPage() {
+export default async function AdminAnggotaTambahPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ branchId?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -22,6 +26,17 @@ export default async function AdminAnggotaTambahPage() {
     orderBy: { name: "asc" },
   });
 
+  const params = await searchParams;
+  const requestedBranchId = params.branchId?.trim() ?? "";
+  const allowedBranchId = branches.some((branch) => branch.id === requestedBranchId)
+    ? requestedBranchId
+    : "";
+
+  const defaultBranchId =
+    user.role === "BRANCH_ADMIN"
+      ? user.branchAdminOf?.id
+      : allowedBranchId || undefined;
+
   return (
     <div className="p-8">
       <h1 className="font-display text-2xl font-semibold text-forest">Tambah Anggota</h1>
@@ -32,7 +47,7 @@ export default async function AdminAnggotaTambahPage() {
       <div className="mt-8 max-w-xl">
         <AnggotaForm
           branches={branches.map((b) => ({ id: b.id, name: b.name }))}
-          defaultBranchId={user.role === "BRANCH_ADMIN" ? user.branchAdminOf?.id : undefined}
+          defaultBranchId={defaultBranchId}
           lockBranch={user.role === "BRANCH_ADMIN"}
         />
       </div>

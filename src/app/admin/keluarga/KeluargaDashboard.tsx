@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { calculateAge, normalizeWhatsApp } from "@/lib/profile";
 import { FamilyTreeModal } from "@/components/keluarga/FamilyTreeModal";
 import { MemberDetailModal } from "@/components/keluarga/MemberDetailModal";
@@ -263,6 +264,21 @@ export function KeluargaDashboard({
           <div>
             <dt className="text-xs uppercase tracking-wide text-muted">Root Person</dt>
             <dd className="mt-1 text-sm font-medium text-forest">{branch?.rootPersonName ?? "-"}</dd>
+            {branch && !branch.rootPersonName && (
+              <p className="mt-1 text-xs text-wood">
+                Belum ada akar cabang.{" "}
+                {isSuperAdmin ? (
+                  <Link
+                    href={`/admin/cabang/${branch.id}`}
+                    className="underline hover:text-forest"
+                  >
+                    Tetapkan lewat edit cabang
+                  </Link>
+                ) : (
+                  "Hubungi Super Admin untuk menetapkan akar cabang."
+                )}
+              </p>
+            )}
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-muted">Jumlah Anggota</dt>
@@ -387,11 +403,18 @@ export function KeluargaDashboard({
             </button>
           )}
 
+          <Link
+            href={`/admin/anggota/tambah?branchId=${branchId}`}
+            className="ml-auto min-h-11 rounded-md border border-forest px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-forest/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          >
+            Tambah Anggota
+          </Link>
+
           <button
             type="button"
             onClick={exportCsv}
             disabled={!members || members.length === 0}
-            className="ml-auto min-h-11 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft disabled:opacity-50"
+            className="min-h-11 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft disabled:opacity-50"
           >
             Unduh CSV
           </button>

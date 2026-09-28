@@ -34,6 +34,14 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rootMode, setRootMode] = useState<"new" | "existing">("new");
+  const [rootName, setRootName] = useState("");
+  const [rootGender, setRootGender] = useState<"MALE" | "FEMALE" | "OTHER">("MALE");
+  const [rootBirthDate, setRootBirthDate] = useState("");
+  const [rootQuery, setRootQuery] = useState("");
+  const [rootResults, setRootResults] = useState<{ id: string; fullName: string }[]>([]);
+  const [rootSelected, setRootSelected] = useState<{ id: string; fullName: string } | null>(null);
+  const [rootSearching, setRootSearching] = useState(false);
 
   async function uploadCover(file: File | null) {
     if (!file) return;
@@ -63,6 +71,27 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
     }
   }
 
+  async function searchRootCandidates() {
+    const q = rootQuery.trim();
+    if (q.length < 2) {
+      setError("Ketik minimal 2 karakter untuk mencari anggota.");
+      return;
+    }
+    setRootSearching(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/cari-orang?q=${encodeURIComponent(q)}`);
+      if (!res.ok) throw new Error("Gagal mencari anggota");
+      const data = (await res.json()) as { id: string; fullName: string }[];
+      setRootResults(data);
+      if (data.length === 0) setError("Anggota tidak ditemukan.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal mencari anggota");
+    } finally {
+      setRootSearching(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -83,6 +112,18 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
           description: description.trim() || null,
           coverImageUrl: coverImageUrl || null,
           orderIndex,
+          ...(mode === "create" && rootMode === "new" && rootName.trim()
+            ? {
+                rootPerson: {
+                  fullName: rootName.trim(),
+                  gender: rootGender,
+                  birthDate: rootBirthDate || undefined,
+                },
+              }
+            : {}),
+          ...(mode === "create" && rootMode === "existing" && rootSelected
+            ? { rootPersonId: rootSelected.id }
+            : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -184,6 +225,144 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
           className={`${inputCls} w-32`}
         />
       </div>
+
+      {mode === "create" && (
+        <fieldset className="space-y-3">
+          <legend className={labelCls}>Akar cabang (generasi 1)</legend>
+          <p className="text-xs text-muted">
+            Kosongkan bila belum tahu. Anggota inilah yang memulai garis keturunan cabang ini.
+          </p>
+
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm text-forest">
+              <input
+                type="radio"
+                name="rootMode"
+                value="new"
+                checked={rootMode === "new"}
+                onChange={() => {
+                  setRootMode("new");
+                  setRootSelected(null);
+                }}
+                className="h-4 w-4 accent-forest"
+              />
+              Buat anggota baru
+            </label>
+            <label className="flex items-center gap-2 text-sm text-forest">
+              <input
+                type="radio"
+                name="rootMode"
+                value="existing"
+                checked={rootMode === "existing"}
+                onChange={() => {
+                  setRootMode("existing");
+                  setRootName("");
+                }}
+                className="h-4 w-4 accent-forest"
+              />
+              Pilih anggota yang sudah ada
+            </label>
+          </div>
+
+          {rootMode === "new" ? (
+            <div className="space-y-3 rounded-md border border-wood/20 p-3">
+              <div>
+                <label htmlFor="rootName" className={labelCls}>Nama Lengkap</label>
+                <input
+                  id="rootName"
+                  value={rootName}
+                  onChange={(event) => setRootName(event.target.value)}
+                  className={inputCls}
+                  placeholder="Nama anggota akar"
+                />
+              </div>
+              <div>
+                <label htmlFor="rootGender" className={labelCls}>Jenis Kelamin</label>
+                <select
+                  id="rootGender"
+                  value={rootGender}
+                  onChange={(event) => setRootGender(event.target.value as typeof rootGender)}
+                  className={inputCls}
+                >
+                  <option value="MALE">Laki-laki</option>
+                  <option value="FEMALE">Perempuan</option>
+                  <option value="OTHER">Lainnya</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="rootBirthDate" className={labelCls}>Tanggal Lahir</label>
+                <input
+                  id="rootBirthDate"
+                  type="date"
+                  value={rootBirthDate}
+                  onChange={(event) => setRootBirthDate(event.target.value)}
+                  className={inputCls}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 rounded-md border border-wood/20 p-3">
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="min-w-52 flex-1">
+                  <label htmlFor="rootQuery" className={labelCls}>Cari anggota</label>
+                  <input
+                    id="rootQuery"
+                    value={rootQuery}
+                    onChange={(event) => setRootQuery(event.target.value)}
+                    className={inputCls}
+                    placeholder="Ketik minimal 2 karakter"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={searchRootCandidates}
+                  disabled={rootSearching}
+                  className="min-h-11 rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-wood/10 disabled:opacity-50"
+                >
+                  {rootSearching ? "Mencari..." : "Cari"}
+                </button>
+              </div>
+
+              {rootResults.length > 0 && (
+                <ul className="space-y-1">
+                  {rootResults.map((candidate) => (
+                    <li key={candidate.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRootSelected(candidate);
+                          setRootResults([]);
+                          setRootQuery("");
+                          setError(null);
+                        }}
+                        className="min-h-11 w-full rounded-md border border-wood/20 px-3 py-2 text-left text-sm text-forest transition-colors hover:bg-cream"
+                      >
+                        {candidate.fullName}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {rootSelected && (
+                <div className="flex items-center justify-between gap-3 rounded-md bg-gold/10 px-3 py-2">
+                  <p className="text-sm text-forest">
+                    Akar terpilih:{" "}
+                    <span className="font-semibold">{rootSelected.fullName}</span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setRootSelected(null)}
+                    className="min-h-11 px-2 text-sm text-muted underline hover:text-forest"
+                  >
+                    Ganti
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </fieldset>
+      )}
 
       {error && (
         <p role="alert" className="rounded-md bg-wood/10 p-3 text-sm text-wood">
