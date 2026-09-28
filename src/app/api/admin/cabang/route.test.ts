@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { resolve } from "node:path";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
 
 /**
  * Branch Admin Assignment Rules - Integration Test Documentation
@@ -91,3 +96,201 @@ describe("Branch Admin Assignment Rules", () => {
  * logic is tested in src/lib/branch-admin-validation.test.ts with 8 passing
  * unit tests that cover all scenarios using mocked database boundaries.
  */
+
+type Handler = (request: Request) => Promise<Response>;
+type RequireMap = (id: string) => unknown;
+
+const BRANCH_BARU = "branch-baru";
+const PERSON_BARU = "person-baru";
+const POST_URL = "http://localhost/api/admin/cabang";
+
+// Salin pola harness dari src/app/api/admin/anggota/route.test.ts:
+// transpile modul route ke CommonJS lalu jalankan di konteks baru dengan
+// require yang diarahkan ke modul palsu.
+function loadModule(filename: string, requireMap: RequireMap) {
+  const abs = resolve(filename);
+  const output = ts.transpileModule(readFileSync(abs, "utf8"), {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      esModuleInterop: true,
+    },
+  }).outputText;
+  const exports: Record<string, unknown> = {};
+  runInNewContext(
+    output,
+    { exports, URL, Request, Response, console, require: requireMap },
+    { filename: abs },
+  );
+  return exports;
+}
+
+function cabangFixture() {
+  const state = {
+    personResult: null as { id: string; branchId: string | null } | null,
+    branchFindFirstResult: null as { id: string } | null,
+    branchCreateCalls: [] as { data: Record<string, unknown> }[],
+    personCreateCalls: [] as { data: Record<string, unknown> }[],
+    branchUpdateCalls: [] as { where: Record<string, unknown>; data: Record<string, unknown> }[],
+    personUpdateCalls: [] as { where: Record<string, unknown>; data: Record<string, unknown> }[],
+  };
+
+  const prisma = {
+    user: {
+      findUnique: async () => ({ id: "super-1", role: "SUPER_ADMIN" }),
+    },
+    branch: {
+      findUnique: async (args: { where: Record<string, unknown>; include?: unknown }) => {
+        if ("slug" in args.where) return null;
+        if (args.include) {
+          return {
+            id: args.where.id,
+            name: "Cabang Baru",
+            slug: "cabang-baru",
+            rootPerson: null,
+            admin: null,
+            _count: { members: 0 },
+          };
+        }
+        return null;
+      },
+      findFirst: async () => state.branchFindFirstResult,
+      create: async (args: { data: Record<string, unknown> }) => {
+        state.branchCreateCalls.push(args);
+        return {
+          id: BRANCH_BARU,
+          name: String(args.data.name ?? ""),
+          slug: String(args.data.slug ?? ""),
+        };
+      },
+      update: async (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+        state.branchUpdateCalls.push(args);
+        return { id: args.where.id };
+      },
+    },
+    person: {
+      findUnique: async () => state.personResult,
+      create: async (args: { data: Record<string, unknown> }) => {
+        state.personCreateCalls.push(args);
+        return { id: PERSON_BARU, fullName: args.data.fullName };
+      },
+      update: async (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+        state.personUpdateCalls.push(args);
+        return { id: args.where.id };
+      },
+    },
+    $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
+  };
+
+  return { state, prisma };
+}
+
+function loadCabangRoute(fixture: ReturnType<typeof cabangFixture>) {
+  const abs = resolve("src/app/api/admin/cabang/route.ts");
+  const nodeRequire = createRequire(abs);
+
+  const prismaModule = { prisma: fixture.prisma };
+  const authModule = { auth: async () => ({ user: { id: "super-1" } }) };
+
+  return loadModule("src/app/api/admin/cabang/route.ts", (id) => {
+    if (id === "@/lib/auth") return authModule;
+    if (id === "@/lib/prisma") return prismaModule;
+    if (id === "@/lib/audit") return { logAudit: async () => undefined };
+    if (id === "@/lib/branch-admin-validation") {
+      return {
+        validateBranchAdminAssignment: async () => undefined,
+        BranchAdminValidationError: class extends Error {},
+      };
+    }
+    if (id === "@/lib/genealogy") return { recalculateGenerationLevel: async () => null };
+    return nodeRequire(id);
+  }) as { POST?: Handler };
+}
+
+function postRequest(body: Record<string, unknown>) {
+  return new Request(POST_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+test("POST tanpa akar membuat cabang tanpa person baru", async () => {
+  const f = cabangFixture();
+  const route = loadCabangRoute(f);
+  const response = await route.POST!(postRequest({ name: "Cabang Baru" }));
+
+  assert.equal(response.status, 201);
+  assert.equal(f.state.branchCreateCalls.length, 1);
+  assert.equal(f.state.personCreateCalls.length, 0);
+  assert.equal(f.state.branchUpdateCalls.length, 0);
+});
+
+test("POST dengan rootPerson dan rootPersonId sekaligus ditolak", async () => {
+  const f = cabangFixture();
+  const route = loadCabangRoute(f);
+  const response = await route.POST!(
+    postRequest({
+      name: "Cabang",
+      rootPerson: { fullName: "Budi", gender: "MALE" },
+      rootPersonId: "p-1",
+    }),
+  );
+
+  assert.equal(response.status, 400);
+  const data = (await response.json()) as { error?: string };
+  assert.equal(data.error, "Pilih salah satu: anggota baru atau anggota yang sudah ada.");
+  assert.equal(f.state.branchCreateCalls.length, 0);
+});
+
+test("POST dengan rootPerson membuat anggota baru sebagai akar", async () => {
+  const f = cabangFixture();
+  const route = loadCabangRoute(f);
+  const response = await route.POST!(
+    postRequest({ name: "Cabang", rootPerson: { fullName: "Budi", gender: "MALE" } }),
+  );
+
+  assert.equal(response.status, 201);
+  assert.equal(f.state.personCreateCalls.length, 1);
+  const personData = f.state.personCreateCalls[0].data;
+  assert.equal(personData.fullName, "Budi");
+  assert.equal(personData.gender, "MALE");
+  assert.equal(personData.generationLevel, 1);
+  assert.equal(personData.branchId, BRANCH_BARU);
+  assert.equal(f.state.branchUpdateCalls[0].data.rootPersonId, PERSON_BARU);
+});
+
+test("POST dengan rootPersonId yang tidak ditemukan ditolak", async () => {
+  const f = cabangFixture();
+  f.state.personResult = null;
+  const route = loadCabangRoute(f);
+  const response = await route.POST!(postRequest({ name: "Cabang", rootPersonId: "p-1" }));
+
+  assert.equal(response.status, 404);
+  assert.equal(f.state.branchCreateCalls.length, 0);
+});
+
+test("POST dengan rootPersonId yang sudah punya cabang ditolak", async () => {
+  const f = cabangFixture();
+  f.state.personResult = { id: "p-1", branchId: "branch-lain" };
+  const route = loadCabangRoute(f);
+  const response = await route.POST!(postRequest({ name: "Cabang", rootPersonId: "p-1" }));
+
+  assert.equal(response.status, 409);
+  const data = (await response.json()) as { error?: string };
+  assert.equal(data.error, "Anggota ini sudah terdaftar di cabang lain.");
+  assert.equal(f.state.branchCreateCalls.length, 0);
+});
+
+test("POST dengan rootPersonId yang sudah jadi akar cabang lain ditolak", async () => {
+  const f = cabangFixture();
+  f.state.personResult = { id: "p-1", branchId: null };
+  f.state.branchFindFirstResult = { id: "branch-lain" };
+  const route = loadCabangRoute(f);
+  const response = await route.POST!(postRequest({ name: "Cabang", rootPersonId: "p-1" }));
+
+  assert.equal(response.status, 409);
+  const data = (await response.json()) as { error?: string };
+  assert.equal(data.error, "Anggota ini sudah menjadi akar dari cabang lain");
+  assert.equal(f.state.branchCreateCalls.length, 0);
+});
