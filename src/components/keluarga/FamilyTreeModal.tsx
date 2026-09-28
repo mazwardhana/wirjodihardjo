@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 import { toast } from "@/components/ui/Toast";
+import {
+  PARENT_SEARCH_MIN_LENGTH,
+  createParentSearch,
+  type ParentSearchState,
+} from "./parent-search";
 
 export type FamilyTreeModalProps = {
   personId: string;
@@ -103,45 +108,35 @@ function ParentPicker({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [options, setOptions] = useState<BranchMember[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const latestQueryRef = useRef("");
+  const [searchState, setSearchState] = useState<ParentSearchState<BranchMember>>({
+    options: [],
+    searching: false,
+    error: null,
+  });
 
+  // Prop onSearch bisa berubah tiap render, jadi simpan di ref dan isi ulang lewat efek.
+  const onSearchRef = useRef(onSearch);
   useEffect(() => {
-    const q = query.trim();
-    latestQueryRef.current = q;
-    if (q.length < 2) return;
+    onSearchRef.current = onSearch;
+  }, [onSearch]);
 
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      setSearching(true);
-      setSearchError(null);
-
-      onSearch(q, controller.signal)
-        .then((results) => {
-          if (latestQueryRef.current !== q) return;
-          setOptions(results);
-          setSearching(false);
-        })
-        .catch((err: unknown) => {
-          if (latestQueryRef.current !== q) return;
-          if (err instanceof DOMException && err.name === "AbortError") return;
-          if (controller.signal.aborted) return;
-          setOptions([]);
-          setSearching(false);
-          setSearchError(err instanceof Error ? err.message : "Gagal mencari anggota cabang");
-        });
-    }, 250);
-
+  // Mesin pencarian dibuat sekali setelah komponen terpasang, bukan saat render.
+  const searchRef = useRef<ReturnType<typeof createParentSearch<BranchMember>> | null>(null);
+  useEffect(() => {
+    const searcher = createParentSearch<BranchMember>({
+      fetchMembers: (q, signal) => onSearchRef.current(q, signal),
+      onChange: setSearchState,
+    });
+    searchRef.current = searcher;
     return () => {
-      window.clearTimeout(timer);
-      controller.abort();
+      searcher.cancel();
+      searchRef.current = null;
     };
-  }, [query, onSearch]);
+  }, []);
 
+  const { options, searching, error: searchError } = searchState;
   const results = options.filter((member) => member.id !== currentValue?.id);
-  const showResults = query.trim().length >= 2;
+  const showResults = query.trim().length >= PARENT_SEARCH_MIN_LENGTH;
   const fieldId = `parent-search-${role}`;
 
   return (
@@ -169,17 +164,13 @@ function ParentPicker({
             const value = event.target.value;
             setQuery(value);
             setOpen(true);
-            if (value.trim().length < 2) {
-              setOptions([]);
-              setSearching(false);
-              setSearchError(null);
-            }
+            searchRef.current?.search(value);
           }}
           onFocus={() => setOpen(true)}
           placeholder="Ketik nama anggota cabang ini..."
           className={inputCls}
         />
-        {open && showResults && (searching || results.length > 0) && (
+        {open && showResults && (searching || searchError === null) && (
           <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-wood/20 bg-cream py-1 shadow-lg">
             {searching ? (
               <p role="status" className="px-3 py-2 text-sm text-muted">
@@ -193,6 +184,7 @@ function ParentPicker({
                       type="button"
                       onClick={() => {
                         onPick(role, member);
+                        searchRef.current?.cancel();
                         setQuery("");
                         setOpen(false);
                       }}
@@ -209,6 +201,9 @@ function ParentPicker({
                     </button>
                   </li>
                 ))}
+                {searchError === null && results.length === 0 && (
+                  <li className="px-3 py-2 text-sm text-muted">Anggota tidak ditemukan</li>
+                )}
               </ul>
             )}
           </div>
