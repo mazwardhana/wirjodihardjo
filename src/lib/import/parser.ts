@@ -15,19 +15,32 @@ function normalizeHeader(value: string): string {
 }
 
 const HEADER_MAP: Record<string, string> = {
+  kode_cabang_keluarga: "cabangKe",
   cabang_ke: "cabangKe",
-  nama_lengkap: "namaLengkap",
-  jenis_kelamin: "jenisKelamin",
+  nickname: "namaPanggilan",
   nama_panggilan: "namaPanggilan",
+  password: "password",
+  nama_lengkap: "namaLengkap",
+  gender: "jenisKelamin",
+  jenis_kelamin: "jenisKelamin",
   tempat_lahir: "tempatLahir",
+  tempat_kelahiran: "tempatLahir",
   tanggal_lahir: "tanggalLahir",
-  kota_domisili: "kotaDomisili",
   nomor_telepon: "nomorTelepon",
-  catatan: "catatan",
-  ref: "ref",
+  alamat_domisili: "alamatDomisili",
+  kota_domisili: "kotaDomisili",
 };
 
-const REQUIRED = ["cabangKe", "namaLengkap", "jenisKelamin"];
+/** Kolom wajib ada pada header file. */
+const REQUIRED = ["cabangKe", "namaPanggilan", "password", "namaLengkap"];
+
+/** Label tampilan (untuk pesan error) mengikuti judul kolom template baru. */
+const REQUIRED_LABEL: Record<string, string> = {
+  cabangKe: "kode cabang keluarga",
+  namaPanggilan: "nickname",
+  password: "password",
+  namaLengkap: "nama lengkap",
+};
 
 function mapHeaders(headers: string[]): (string | undefined)[] {
   const seen = new Set<string>();
@@ -40,7 +53,7 @@ function mapHeaders(headers: string[]): (string | undefined)[] {
   });
   for (const required of REQUIRED) {
     if (!seen.has(required)) {
-      const display = Object.entries(HEADER_MAP).find(([_, v]) => v === required)?.[0] || required;
+      const display = REQUIRED_LABEL[required] ?? required;
       throw new Error(`Kolom wajib "${display}" tidak ditemukan.`);
     }
   }
@@ -88,22 +101,22 @@ function appendRow(data: ParsedData, columns: (string | undefined)[], cells: str
   columns.forEach((field, index) => {
     if (field) values[field] = cells[index] ?? "";
   });
-  
+
   // Skip example rows
   if (values.namaLengkap?.toUpperCase().startsWith("CONTOH")) return;
-  
+
   data.anggota.push({
     _row: row,
-    cabangKe: values.cabangKe ? Number(values.cabangKe) : 0,
+    cabangKe: values.cabangKe ?? "",
     namaLengkap: values.namaLengkap ?? "",
-    jenisKelamin: (values.jenisKelamin ?? "") as Gender,
     namaPanggilan: values.namaPanggilan || undefined,
+    password: values.password || undefined,
+    jenisKelamin: (values.jenisKelamin ?? "") as Gender,
     tempatLahir: values.tempatLahir || undefined,
     tanggalLahir: values.tanggalLahir || undefined,
-    kotaDomisili: values.kotaDomisili || undefined,
     nomorTelepon: values.nomorTelepon || undefined,
-    catatan: values.catatan || undefined,
-    ref: values.ref || undefined,
+    alamatDomisili: values.alamatDomisili || undefined,
+    kotaDomisili: values.kotaDomisili || undefined,
   });
 }
 

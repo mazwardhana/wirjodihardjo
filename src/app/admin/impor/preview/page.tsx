@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ImporPreview } from "@/components/admin/ImporPreview";
+import { sanitizePreviewData } from "@/lib/import/importer";
 import type { ImportBatchPayload, ImportCounts, ImportCredential, ValidationError } from "@/lib/import/types";
 
 export const dynamic = "force-dynamic";
@@ -71,7 +72,7 @@ export default async function AdminImporPreviewPage({
           warnings={payload?.warnings ?? []}
           counts={(payload?.counts ?? null) as ImportCounts | null}
           credentials={(payload?.credentials ?? []) as ImportCredential[]}
-          preview={payload?.data ?? null}
+          preview={payload?.data ? sanitizePreviewData(payload.data) : null}
         />
       )}
     </div>

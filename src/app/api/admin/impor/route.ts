@@ -4,7 +4,7 @@ import { logAudit } from "@/lib/audit";
 import { requireImportAdmin } from "@/lib/import/auth";
 import { parseXLSX, parseCSV } from "@/lib/import/parser";
 import { validateImportData } from "@/lib/import/validate";
-import { analyzeImportData } from "@/lib/import/importer";
+import { analyzeImportData, hashImportPasswords, sanitizePreviewData } from "@/lib/import/importer";
 import { MAX_IMPORT_BYTES } from "@/lib/import/types";
 
 /**
@@ -77,16 +77,24 @@ export async function POST(request: Request) {
   }
 
   const validation = await validateImportData(data);
-  const plan = await analyzeImportData(validation.data);
+  // Hash password sebelum disimpan; plaintext tidak pernah masuk reportJson
+  // ataupun response preview/laporan/audit. Batch yang sudah gagal validasi
+  // tidak perlu hash (diblokir dari commit) sehingga password cukup dibuang.
+  const sanitized = validation.valid
+    ? await hashImportPasswords(validation.data)
+    : sanitizePreviewData(validation.data);
+  const plan = await analyzeImportData(sanitized);
+  const preview = sanitizePreviewData(sanitized);
 
   const totalRows = validation.data.anggota.length;
 
   const reportJson = {
     filename: file.name,
-    data: validation.data,
+    data: sanitized,
     errors: validation.errors,
     warnings: validation.warnings,
     credentials: plan.credentials,
+    skipped: plan.skipped,
     counts: plan.counts,
   };
 
@@ -119,8 +127,9 @@ export async function POST(request: Request) {
     warnings: validation.warnings,
     counts: plan.counts,
     credentials: plan.credentials,
+    skipped: plan.skipped,
     preview: {
-      anggota: validation.data.anggota.slice(0, 100),
+      anggota: preview.anggota.slice(0, 100),
     },
   });
 }

@@ -4,27 +4,49 @@ export type PartnerStatus = "MARRIED" | "DIVORCED" | "WIDOWED" | "UNKNOWN";
 export type UserRole = "SUPER_ADMIN" | "BRANCH_ADMIN" | "MEMBER";
 export type RelationKind = "ORANG_TUA" | "PASANGAN";
 
-/** Simplified import row: branch number + basic identity, no relations or accounts. */
+/**
+ * Satu baris data anggota dari template impor 10 kolom.
+ *
+ * Kolom: kode cabang keluarga*, nickname*, password*, nama lengkap*, gender,
+ * tempat kelahiran, tanggal lahir, nomor telepon, alamat domisili, kota domisili.
+ */
 export type ImportRowAnggota = {
   _row?: number;
-  cabangKe: number;
+  /** Nilai mentah kolom "kode cabang keluarga": nomor cabang (1-10) atau nama cabang. */
+  cabangKe: string;
+  /** Kolom "nama lengkap" (wajib). */
   namaLengkap: string;
-  jenisKelamin: Gender;
+  /** Kolom "nickname" (wajib); dipakai untuk menurunkan username. */
   namaPanggilan?: string;
+  /** Kolom "gender"; kosong → OTHER + warning. */
+  jenisKelamin: Gender;
+  /** Kolom "tempat kelahiran" → Person.birthPlace. */
   tempatLahir?: string;
+  /** Kolom "tanggal lahir" (YYYY-MM-DD atau DD/MM/YYYY) → Person.birthDate. */
   tanggalLahir?: string;
-  kotaDomisili?: string;
+  /** Kolom "nomor telepon" → PersonPrivate.phone. */
   nomorTelepon?: string;
-  catatan?: string;
-  ref?: string;
+  /** Kolom "alamat domisili" → PersonPrivate.addressLine. */
+  alamatDomisili?: string;
+  /** Kolom "kota domisili" → PersonPrivate.city. */
+  kotaDomisili?: string;
+  /**
+   * Password plaintext dari berkas. Hanya ada di memori selama request unggah;
+   * tidak pernah disimpan ke database maupun dikirim di response.
+   */
+  password?: string;
+  /** Hash bcrypt password. Disimpan di payload batch agar commit tidak perlu plaintext. */
+  passwordHash?: string;
+  /** Hasil resolusi cabang saat validasi (diisi `validateImportData`). */
+  branchId?: string;
+  /** Nomor cabang hasil resolusi (diisi `validateImportData`). */
+  branchNumber?: number;
 };
 
 export type ImportRowRelasi = {
   _row?: number;
   jenisRelasi: RelationKind;
-  /** Ref anak (untuk ORANG_TUA) atau ref pasangan pertama (untuk PASANGAN). */
   refOrang: string;
-  /** Ref orang tua (untuk ORANG_TUA) atau ref pasangan kedua (untuk PASANGAN). */
   refTarget: string;
   peranOrangTua?: ParentRole;
   adopsi?: string;
@@ -71,6 +93,24 @@ export type ImportCounts = {
   childEdgesCreated: number;
   partnerEdgesCreated: number;
   privateUpserts: number;
+  rowsSkipped: number;
+};
+
+/** Satu baris laporan kredensial: username dan status pembuatan akun. */
+export type ImportCredential = {
+  fullName: string;
+  /** Username hasil turunan nickname; kosong bila baris dilewati. */
+  username: string;
+  role: UserRole;
+  isNew: boolean;
+  status: string;
+};
+
+/** Baris yang dilewati karena sudah ada di database. */
+export type ImportSkipRow = {
+  fullName: string;
+  branchNumber: number;
+  reason: string;
 };
 
 export type ImportReport = {
@@ -83,16 +123,8 @@ export type ImportReport = {
   warnings: string[];
   counts: ImportCounts;
   credentials: ImportCredential[];
-  defaultPassword: string;
+  skipped: ImportSkipRow[];
   preview?: ParsedData;
-};
-
-export type ImportCredential = {
-  ref: string;
-  fullName: string;
-  email: string;
-  role: UserRole;
-  isNew: boolean;
 };
 
 /** Payload yang disimpan di `ImportBatch.reportJson` agar commit tidak perlu upload ulang. */
@@ -102,8 +134,8 @@ export type ImportBatchPayload = {
   errors: ValidationError[];
   warnings: string[];
   credentials: ImportCredential[];
+  skipped: ImportSkipRow[];
   counts: ImportCounts;
 };
 
-export const DEFAULT_IMPORT_PASSWORD = "WD26";
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024; // 10MB

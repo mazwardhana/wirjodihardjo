@@ -3,29 +3,27 @@ import type { ImportReport, ImportCredential, ValidationError } from "./types";
 
 /**
  * Generate credential report as CSV for download.
+ *
+ * Password sengaja tidak disertakan: password plaintext tidak pernah disimpan
+ * maupun dikirim ke laporan. Anggota memakai kredensial awal dari admin dan
+ * wajib menggantinya saat login pertama (`mustChangeCredentials`).
  */
-export function generateCredentialCSV(credentials: ImportCredential[], defaultPassword: string): Buffer {
+export function generateCredentialCSV(credentials: ImportCredential[]): Buffer {
   const records = credentials.map((c) => ({
-    ref: c.ref,
-    nama_lengkap: c.fullName,
-    email: c.email,
-    peran: c.role,
-    password: c.isNew ? defaultPassword : "",
-    status: c.isNew ? "Baru" : "Sudah ada",
-    catatan: c.isNew ? "Wajib ganti password saat login pertama" : "Password tidak berubah",
+    fullName: c.fullName,
+    username: c.username,
+    role: c.role,
+    status: c.status,
   }));
 
   const csv = stringify(records, {
     header: true,
     escape_formulas: true,
     columns: {
-      ref: "Ref",
-      nama_lengkap: "Nama Lengkap",
-      email: "Email",
-      peran: "Peran",
-      password: "Password",
+      fullName: "Nama Lengkap",
+      username: "Username",
+      role: "Peran",
       status: "Status",
-      catatan: "Catatan",
     },
   });
 
@@ -72,11 +70,17 @@ export function generateImportSummary(report: ImportReport): string {
   if (report.counts) {
     lines.push("Rincian:");
     lines.push(`  Anggota dibuat: ${report.counts.personsCreated}`);
-    lines.push(`  Anggota diperbarui: ${report.counts.personsUpdated}`);
+    lines.push(`  Baris dilewati: ${report.counts.rowsSkipped}`);
     lines.push(`  Akun dibuat: ${report.counts.accountsCreated}`);
-    lines.push(`  Akun diperbarui: ${report.counts.accountsUpdated}`);
-    lines.push(`  Relasi orang tua-anak: ${report.counts.childEdgesCreated}`);
-    lines.push(`  Relasi pasangan: ${report.counts.partnerEdgesCreated}`);
+    lines.push(`  Data privat: ${report.counts.privateUpserts}`);
+  }
+
+  if (report.skipped?.length) {
+    lines.push("");
+    lines.push("Dilewati:");
+    report.skipped.forEach((row) => {
+      lines.push(`  - ${row.fullName} (cabang ${row.branchNumber}): ${row.reason}`);
+    });
   }
 
   if (report.warnings.length > 0) {

@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { generateCredentialCSV, generateErrorCSV } from "@/lib/import/report";
 import { requireImportAdmin } from "@/lib/import/auth";
 import type { ImportBatchPayload } from "@/lib/import/types";
-import { DEFAULT_IMPORT_PASSWORD } from "@/lib/import/types";
 
 /**
  * GET /api/admin/impor/laporan?id=<batchId>&format=<json|credentials|errors>
@@ -53,6 +52,7 @@ export async function GET(request: Request) {
       warnings: payload?.warnings ?? [],
       counts: payload?.counts ?? null,
       credentials: payload?.credentials ?? [],
+      skipped: payload?.skipped ?? [],
     }, { headers: { "Cache-Control": "private, no-store" } });
   }
 
@@ -60,10 +60,22 @@ export async function GET(request: Request) {
     if (batch.status !== "COMMITTED") {
       return NextResponse.json({ error: "Kredensial hanya tersedia setelah impor berhasil disimpan." }, { status: 409 });
     }
-    if (!payload?.credentials || payload.credentials.length === 0) {
+    const created = payload?.credentials ?? [];
+    const skipped = payload?.skipped ?? [];
+    if (created.length === 0 && skipped.length === 0) {
       return NextResponse.json({ error: "Tidak ada kredensial untuk diunduh" }, { status: 404 });
     }
-    const csv = generateCredentialCSV(payload.credentials, DEFAULT_IMPORT_PASSWORD);
+    const rows = [
+      ...created,
+      ...skipped.map((row) => ({
+        fullName: row.fullName,
+        username: "",
+        role: "MEMBER" as const,
+        isNew: false,
+        status: row.reason,
+      })),
+    ];
+    const csv = generateCredentialCSV(rows);
     return new NextResponse(new Uint8Array(csv), {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",

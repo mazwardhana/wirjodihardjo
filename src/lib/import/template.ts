@@ -5,22 +5,36 @@ import { stringify } from "csv-stringify/sync";
 const VALIDATION_LAST_ROW = 1000;
 
 const HEADERS = [
-  "cabang_ke*",
-  "nama_lengkap*",
-  "jenis_kelamin*",
-  "nama_panggilan",
-  "tempat_lahir",
-  "tanggal_lahir",
-  "kota_domisili",
-  "nomor_telepon",
-  "catatan",
+  "kode cabang keluarga*",
+  "nickname*",
+  "password*",
+  "nama lengkap*",
+  "gender",
+  "tempat kelahiran",
+  "tanggal lahir",
+  "nomor telepon",
+  "alamat domisili",
+  "kota domisili",
 ] as const;
 
-const WIDTHS = [12, 30, 18, 20, 20, 16, 20, 20, 40];
+const WIDTHS = [22, 20, 18, 30, 16, 20, 16, 20, 34, 20];
 
 /** Kolom dropdown (0-based). */
 const DROPDOWNS = [
-  { column: 2, options: ["MALE", "FEMALE", "OTHER", "L", "P"] },
+  { column: 4, options: ["MALE", "FEMALE", "OTHER", "L", "P", "LAKI-LAKI", "PEREMPUAN"] },
+];
+
+const EXAMPLE_ROW = [
+  "1",
+  "contoh",
+  "rahasiacontoh",
+  "CONTOH Tn. Wirjodihardjo",
+  "MALE",
+  "Jakarta",
+  "1950-01-15",
+  "081234567890",
+  "Jl. Contoh No. 1",
+  "Surabaya",
 ];
 
 function styleHeader(sheet: ExcelJS.Worksheet, argb: string): void {
@@ -52,21 +66,28 @@ export async function generateTemplateXLSX(): Promise<Buffer> {
   petunjuk.columns = [{ width: 80 }];
 
   const instructions = [
-    "PETUNJUK PENGGUNAAN TEMPLATE IMPOR DATA ANGGOTA",
+    "PETUNJUK PENGGUNAAN TEMPLATE IMPOR MEMBER KELUARGA",
     "",
-    "1. Sheet 'Data': Data identitas anggota keluarga",
-    "   - cabang_ke: nomor cabang (1-10, wajib)",
-    "   - nama_lengkap: nama lengkap (wajib)",
-    "   - jenis_kelamin: L/P atau MALE/FEMALE/OTHER (wajib)",
-    "   - nama_panggilan: nama panggilan (opsional)",
-    "   - tempat_lahir: tempat lahir (opsional)",
-    "   - tanggal_lahir: format YYYY-MM-DD atau DD/MM/YYYY (opsional)",
-    "   - kota_domisili: kota domisili (opsional)",
-    "   - nomor_telepon: nomor telepon (opsional)",
-    "   - catatan: catatan tambahan (opsional)",
+    "Setiap baris membuat akun login anggota (role MEMBER) beserta datanya.",
     "",
-    "2. Baris dengan nama diawali 'CONTOH' akan diabaikan",
-    "3. Ukuran file maksimal 10MB",
+    "Sheet 'Data' (10 kolom, urut sesuai template):",
+    "   1. kode cabang keluarga*: nomor cabang (1-10) ATAU nama cabang (wajib)",
+    "   2. nickname*: 2-50 karakter, dipakai untuk menurunkan username (wajib)",
+    "   3. password*: minimal 8 karakter, akan di-hash (wajib)",
+    "   4. nama lengkap*: nama lengkap anggota (wajib)",
+    "   5. gender: MALE/FEMALE/OTHER atau L/P/Laki-laki/Perempuan (opsional)",
+    "      - kosong diisi OTHER",
+    "   6. tempat kelahiran: (opsional)",
+    "   7. tanggal lahir: format YYYY-MM-DD atau DD/MM/YYYY (opsional)",
+    "   8. nomor telepon: (opsional)",
+    "   9. alamat domisili: (opsional)",
+    "   10. kota domisili: (opsional)",
+    "",
+    "Aturan lain:",
+    "- Baris dengan nama lengkap diawali 'CONTOH' akan diabaikan",
+    "- Baris yang sudah ada (cabang + nama lengkap) akan dilewati, dilaporkan 'sudah ada, dilewati'",
+    "- Password tidak pernah disimpan dalam bentuk plaintext dan tidak muncul di laporan",
+    "- Ukuran file maksimal 10MB",
     "",
     "Simpan file ini dan isi sheet Data sesuai kebutuhan.",
   ];
@@ -82,17 +103,10 @@ export async function generateTemplateXLSX(): Promise<Buffer> {
   data.columns = HEADERS.map((header, i) => ({ header, key: `c${i}`, width: WIDTHS[i] }));
   styleHeader(data, "FFE8F4E6");
 
-  data.addRow({
-    c0: "1",
-    c1: "Tn. Contoh Wirjodihardjo",
-    c2: "MALE",
-    c3: "Contoh",
-    c4: "Jakarta",
-    c5: "1950-01-15",
-    c6: "Surabaya",
-    c7: "081234567890",
-    c8: "Pendiri cabang contoh",
-  });
+  data.addRow(EXAMPLE_ROW.reduce<Record<string, string>>((row, value, index) => {
+    row[`c${index}`] = value;
+    return row;
+  }, {}));
 
   applyDropdowns(data);
 
@@ -103,13 +117,7 @@ export async function generateTemplateXLSX(): Promise<Buffer> {
 /** CSV template dengan header dan baris contoh yang sama seperti sheet XLSX. */
 export function generateTemplateCSV(): Buffer {
   return Buffer.from(
-    stringify(
-      [
-        [...HEADERS],
-        ["1", "Tn. Contoh Wirjodihardjo", "MALE", "Contoh", "Jakarta", "1950-01-15", "Surabaya", "081234567890", "Pendiri cabang contoh"],
-      ],
-      { bom: true },
-    ),
+    stringify([[...HEADERS], [...EXAMPLE_ROW]], { bom: true }),
     "utf-8",
   );
 }

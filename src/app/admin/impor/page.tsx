@@ -28,18 +28,19 @@ export default async function AdminImporPage() {
       <div className="mb-6">
         <h1 className="font-display text-2xl font-semibold text-forest">Impor Data Keluarga</h1>
         <p className="mt-1 text-sm text-muted">
-          Unggah file XLSX atau CSV untuk impor anggota, relasi, dan akun secara massal
+          Unggah file XLSX atau CSV untuk membuat akun dan data anggota keluarga secara massal
         </p>
       </div>
 
       <div className="mb-8 rounded-lg border border-wood/20 bg-parchment/40 p-4">
         <h2 className="text-sm font-semibold text-forest">Petunjuk</h2>
         <ul className="mt-2 space-y-1 text-sm text-muted">
-          <li>1. Unduh template XLSX di bawah (atau CSV per sheet untuk editor spreadsheet sederhana)</li>
-          <li>2. Isi sheet Anggota, Relasi, dan Akun sesuai petunjuk</li>
-          <li>3. Unggah file yang sudah diisi untuk validasi (XLSX atau CSV)</li>
-          <li>4. Periksa pratinjau, lalu konfirmasi untuk menyimpan data</li>
-          <li>5. Unduh laporan kredensial untuk dibagikan ke anggota</li>
+          <li>1. Unduh template XLSX (atau CSV) berisi 10 kolom: kode cabang keluarga, nickname, password, nama lengkap, gender, tempat kelahiran, tanggal lahir, nomor telepon, alamat domisili, kota domisili</li>
+          <li>2. Isi sheet Data sesuai petunjuk. Kolom bertanda * wajib diisi</li>
+          <li>3. Setiap baris membuat akun login anggota (peran MEMBER) beserta datanya</li>
+          <li>4. Unggah file yang sudah diisi untuk validasi (XLSX atau CSV)</li>
+          <li>5. Periksa pratinjau, lalu konfirmasi untuk menyimpan data</li>
+          <li>6. Unduh laporan kredensial untuk dibagikan ke anggota</li>
         </ul>
       </div>
 

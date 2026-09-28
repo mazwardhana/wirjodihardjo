@@ -7,8 +7,9 @@ import type {
 import { prisma } from "@/lib/prisma";
 
 const GENDERS: Gender[] = ["MALE", "FEMALE", "OTHER"];
-const MIN_BRANCH = 1;
-const MAX_BRANCH = 10;
+const NICKNAME_MIN = 2;
+const NICKNAME_MAX = 50;
+const PASSWORD_MIN = 8;
 
 const GENDER_ALIASES: Record<string, Gender> = {
   l: "MALE",
@@ -35,6 +36,11 @@ function normalizeGender(value: string | undefined): Gender | null {
   if (GENDERS.includes(upper as Gender)) return upper as Gender;
   const alias = key.replace(/\s+/g, "-");
   return Object.prototype.hasOwnProperty.call(GENDER_ALIASES, alias) ? GENDER_ALIASES[alias] : null;
+}
+
+/** Nama lengkap ternormalisasi untuk deteksi idempotensi (branchId + nama). */
+export function normalizeFullName(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 /** Tanggal kalender yang ketat: tidak ada rollover, tidak ada fallback longgar. */
@@ -75,6 +81,25 @@ export function toDateObject(dateString: string): Date {
   return new Date(`${dateString}T00:00:00Z`);
 }
 
+type ResolvedBranch = { id: string; branchNumber: number; name: string };
+
+async function loadActiveBranches(): Promise<ResolvedBranch[]> {
+  return prisma.branch.findMany({
+    where: { isActive: true },
+    select: { id: true, branchNumber: true, name: true },
+  });
+}
+
+function resolveBranch(raw: string, branches: ResolvedBranch[]): ResolvedBranch | null {
+  if (/^\d+$/.test(raw)) {
+    const number = Number(raw);
+    const byNumber = branches.find((branch) => branch.branchNumber === number);
+    if (byNumber) return byNumber;
+  }
+  const lower = raw.toLowerCase();
+  return branches.find((branch) => branch.name.trim().toLowerCase() === lower) ?? null;
+}
+
 export async function validateImportData(data: ParsedData): Promise<ValidationResult> {
   const errors: ValidationError[] = [];
   const warnings: string[] = [];
@@ -89,28 +114,36 @@ export async function validateImportData(data: ParsedData): Promise<ValidationRe
     return { valid: false, errors, warnings, data };
   }
 
-  const refs = new Set<string>();
-
-  // Collect unique branch numbers and refs for batch queries
-  const branchNumbers = new Set<number>();
-  const refsToCheck = new Set<string>();
+  const branches = await loadActiveBranches();
 
   const anggota = data.anggota.map((row, index) => {
     const rowNo = row._row ?? index + 2;
-    const cabangKe = row.cabangKe;
+    const rawBranch = row.cabangKe?.trim() ?? "";
     const namaLengkap = row.namaLengkap?.trim() ?? "";
-    const gender = normalizeGender(row.jenisKelamin as unknown as string);
+    const nickname = row.namaPanggilan?.trim() ?? "";
+    const password = row.password?.trim() ?? "";
+    const passwordHash = row.passwordHash?.trim() ?? "";
+    const rawGender = row.jenisKelamin as unknown as string | undefined;
+    const gender = normalizeGender(rawGender);
 
-    // Branch number validation (1-10).
-    if (!cabangKe || !Number.isInteger(cabangKe) || cabangKe < MIN_BRANCH || cabangKe > MAX_BRANCH) {
+    let branch: ResolvedBranch | null = null;
+    if (!rawBranch) {
       errors.push({
         sheet: "Data",
         row: rowNo,
-        field: "cabang_ke",
-        message: `Cabang ke harus angka antara ${MIN_BRANCH} sampai ${MAX_BRANCH}.`,
+        field: "kode cabang keluarga",
+        message: "Kode cabang keluarga wajib diisi.",
       });
     } else {
-      branchNumbers.add(cabangKe);
+      branch = resolveBranch(rawBranch, branches);
+      if (!branch) {
+        errors.push({
+          sheet: "Data",
+          row: rowNo,
+          field: "kode cabang keluarga",
+          message: `Cabang '${rawBranch}' tidak ditemukan`,
+        });
+      }
     }
 
     if (!namaLengkap) {
@@ -122,13 +155,49 @@ export async function validateImportData(data: ParsedData): Promise<ValidationRe
       });
     }
 
-    if (!gender) {
+    if (!nickname) {
       errors.push({
         sheet: "Data",
         row: rowNo,
-        field: "jenis_kelamin",
-        message: "Jenis kelamin harus L/P atau MALE/FEMALE/OTHER.",
+        field: "nickname",
+        message: "Nickname wajib diisi.",
       });
+    } else if (nickname.length < NICKNAME_MIN || nickname.length > NICKNAME_MAX) {
+      errors.push({
+        sheet: "Data",
+        row: rowNo,
+        field: "nickname",
+        message: `Nickname harus ${NICKNAME_MIN}-${NICKNAME_MAX} karakter.`,
+      });
+    }
+
+    // Pada commit password sudah berbentuk hash sehingga panjangnya tidak bisa
+    // dicek ulang; hash yang kosong berarti data batch tidak lengkap.
+    if (!password && !passwordHash) {
+      errors.push({
+        sheet: "Data",
+        row: rowNo,
+        field: "password",
+        message: `Password wajib diisi minimal ${PASSWORD_MIN} karakter.`,
+      });
+    } else if (password && password.length < PASSWORD_MIN) {
+      errors.push({
+        sheet: "Data",
+        row: rowNo,
+        field: "password",
+        message: `Password minimal ${PASSWORD_MIN} karakter.`,
+      });
+    }
+
+    if (rawGender?.trim() && !gender) {
+      errors.push({
+        sheet: "Data",
+        row: rowNo,
+        field: "gender",
+        message: "Gender harus MALE/FEMALE/OTHER atau L/P/Laki-laki/Perempuan.",
+      });
+    } else if (!rawGender?.trim()) {
+      warnings.push("Gender kosong, diisi OTHER");
     }
 
     const tanggalLahir = parseStrictDate(row.tanggalLahir);
@@ -141,91 +210,28 @@ export async function validateImportData(data: ParsedData): Promise<ValidationRe
       });
     }
 
-    // Optional externalRef: validate uniqueness and charset if provided.
-    if (row.ref?.trim()) {
-      const ref = row.ref.trim();
-      if (!/^[A-Za-z0-9_-]+$/.test(ref)) {
-        errors.push({
-          sheet: "Data",
-          row: rowNo,
-          field: "ref",
-          message: "Ref hanya boleh huruf, angka, tanda hubung, dan garis bawah.",
-        });
-      } else if (refs.has(ref)) {
-        errors.push({
-          sheet: "Data",
-          row: rowNo,
-          field: "ref",
-          message: `Ref "${ref}" duplikat.`,
-        });
-      } else {
-        refs.add(ref);
-        refsToCheck.add(ref);
-      }
-    }
-
     return {
       ...row,
       _row: rowNo,
-      cabangKe,
+      cabangKe: rawBranch,
       namaLengkap,
-      jenisKelamin: gender ?? (row.jenisKelamin as Gender),
-      namaPanggilan: row.namaPanggilan?.trim() || undefined,
+      namaPanggilan: nickname || undefined,
+      password: password || undefined,
+      jenisKelamin: gender ?? "OTHER",
       tempatLahir: row.tempatLahir?.trim() || undefined,
       tanggalLahir: tanggalLahir === "invalid" ? row.tanggalLahir : (tanggalLahir ?? undefined),
-      kotaDomisili: row.kotaDomisili?.trim() || undefined,
       nomorTelepon: row.nomorTelepon?.trim() || undefined,
-      catatan: row.catatan?.trim() || undefined,
-      ref: row.ref?.trim() || undefined,
+      alamatDomisili: row.alamatDomisili?.trim() || undefined,
+      kotaDomisili: row.kotaDomisili?.trim() || undefined,
+      branchId: branch?.id,
+      branchNumber: branch?.branchNumber,
     };
   });
-
-  // H1: Check branch existence at validation time (preview), not commit time
-  if (branchNumbers.size > 0) {
-    const branches = await prisma.branch.findMany({
-      where: { branchNumber: { in: Array.from(branchNumbers) }, isActive: true },
-      select: { branchNumber: true },
-    });
-    const foundBranches = new Set(branches.map(b => b.branchNumber));
-    
-    // Report missing branches per row
-    for (const row of anggota) {
-      if (row.cabangKe && !foundBranches.has(row.cabangKe)) {
-        errors.push({
-          sheet: "Data",
-          row: row._row ?? 0,
-          field: "cabang_ke",
-          message: `Cabang ke-${row.cabangKe} tidak ditemukan atau tidak aktif.`,
-        });
-      }
-    }
-  }
-
-  // M2: Check externalRef collision with database (P2002 prevention)
-  if (refsToCheck.size > 0) {
-    const existingPersons = await prisma.person.findMany({
-      where: { externalRef: { in: Array.from(refsToCheck) } },
-      select: { externalRef: true },
-    });
-    const existingRefs = new Set(existingPersons.map(p => p.externalRef));
-
-    // Report ref collisions as row errors
-    for (const row of anggota) {
-      if (row.ref && existingRefs.has(row.ref)) {
-        errors.push({
-          sheet: "Data",
-          row: row._row ?? 0,
-          field: "ref",
-          message: `Ref "${row.ref}" sudah digunakan di database.`,
-        });
-      }
-    }
-  }
 
   return {
     valid: errors.length === 0,
     errors,
-    warnings,
+    warnings: Array.from(new Set(warnings)),
     data: { anggota },
   };
 }

@@ -2,13 +2,21 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import ExcelJS from "exceljs";
 import { parseXLSX, parseCSV } from "../src/lib/import/parser";
-import { validateImportData } from "../src/lib/import/validate";
 import { generateTemplateXLSX, generateTemplateCSV } from "../src/lib/import/template";
-import type { ParsedData, ImportRowAnggota, Gender } from "../src/lib/import/types";
+import type { Gender } from "../src/lib/import/types";
 
-function anggota(cabangKe: number, namaLengkap: string, jenisKelamin: string, extra: Partial<ImportRowAnggota> = {}): ImportRowAnggota {
-  return { cabangKe, namaLengkap, jenisKelamin: jenisKelamin as Gender, ...extra };
-}
+const NEW_HEADERS = [
+  "kode cabang keluarga*",
+  "nickname*",
+  "password*",
+  "nama lengkap*",
+  "gender",
+  "tempat kelahiran",
+  "tanggal lahir",
+  "nomor telepon",
+  "alamat domisili",
+  "kota domisili",
+];
 
 function buildXLSX(headers: string[], rows: (string | number)[][]): Promise<Buffer> {
   return (async () => {
@@ -21,7 +29,19 @@ function buildXLSX(headers: string[], rows: (string | number)[][]): Promise<Buff
   })();
 }
 
-test("template roundtrip: XLSX retains Petunjuk and Data sheets and drops CONTOH rows", async () => {
+function asText(values: unknown[]): string[] {
+  return values.map((value) => {
+    if (value === null || value === undefined) return "";
+    if (value instanceof Date) return value.toISOString().slice(0, 10);
+    if (typeof value === "object" && value !== null && "text" in value) {
+      return String((value as { text?: unknown }).text ?? "");
+    }
+    if (typeof value === "object" && value !== null && "formula" in value) return "";
+    return String(value);
+  });
+}
+
+test("template XLSX has 10 new headers, one example row, and a Petunjuk sheet", async () => {
   const buf = await generateTemplateXLSX();
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buf as unknown as ExcelJS.Buffer);
@@ -29,192 +49,140 @@ test("template roundtrip: XLSX retains Petunjuk and Data sheets and drops CONTOH
     wb.worksheets.map((w) => w.name),
     ["Petunjuk", "Data"],
   );
-  const parsed = await parseXLSX(buf);
-  assert.equal(parsed.anggota.length, 1);
-  assert.equal(parsed.anggota[0].namaLengkap, "Tn. Contoh Wirjodihardjo");
+
+  const data = wb.getWorksheet("Data")!;
+  const headers = asText([...Array(10)].map((_, i) => data.getRow(1).getCell(i + 1).value));
+  assert.deepEqual(headers, NEW_HEADERS);
+
+  const exampleRow = data.getRow(2);
+  const example = asText([...Array(10)].map((_, i) => exampleRow.getCell(i + 1).value));
+  assert.ok(example[3].toUpperCase().startsWith("CONTOH"), "baris contoh memakai CONTOH di nama lengkap");
+  assert.equal(example[0], "1");
+  assert.equal(example[1], "contoh");
+  assert.ok(example[2].length >= 8, "contoh password memenuhi minimal 8 karakter");
+
+  const petunjuk = wb.getWorksheet("Petunjuk")!;
+  assert.ok(String(petunjuk.getCell("A1").value ?? "").length > 0);
 });
 
-test("template XLSX restores gender dropdown via typed cell.dataValidation", async () => {
+test("template XLSX applies a gender dropdown to the gender column", async () => {
   const buf = await generateTemplateXLSX();
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buf as unknown as ExcelJS.Buffer);
-
   const data = wb.getWorksheet("Data")!;
-  const jenisKelamin = data.getCell("C2").dataValidation;
-  assert.ok(jenisKelamin);
-  assert.equal(jenisKelamin.type, "list");
-  assert.match(jenisKelamin.formulae![0], /MALE/);
+  const gender = data.getCell("E2").dataValidation;
+  assert.ok(gender);
+  assert.equal(gender.type, "list");
+  assert.match(gender.formulae![0], /MALE/);
 });
 
-test("generateTemplateCSV emits headers with BOM and a CONTOH example row", () => {
+test("template CSV has the 10 new headers with BOM and one CONTOH example row", () => {
   const csv = generateTemplateCSV().toString("utf-8");
   assert.ok(csv.startsWith("\uFEFF"));
   const lines = csv.replace(/^\uFEFF/, "").trim().split("\n");
   assert.equal(lines.length, 2);
-  assert.match(lines[0], /cabang_ke/);
+  assert.equal(lines[0], NEW_HEADERS.join(","));
   assert.match(lines[1], /CONTOH/i);
 });
 
-test("parseCSV parses Data rows and skips CONTOH", () => {
+test("parseCSV parses the 10 columns and skips CONTOH", () => {
   const data = parseCSV(
     Buffer.from(
-      "cabang_ke,nama_lengkap,jenis_kelamin\n1,CONTOH Contoh,MALE\n2,Nama Satu,MALE\n",
+      [
+        NEW_HEADERS.join(","),
+        "1,contoh,contohpw,CONTOH Wirjodihardjo,MALE,Jakarta,1950-01-15,0812,Jl. Contoh,Nocontoh",
+        "2,budi,rahasia123,Nama Satu,Laki-laki,Depok,15/06/1990,081234567890,Jl. Merdeka,Bandung",
+      ].join("\n") + "\n",
     ),
   );
   assert.equal(data.anggota.length, 1);
-  assert.equal(data.anggota[0].namaLengkap, "Nama Satu");
-  assert.equal(data.anggota[0].cabangKe, 2);
+  const row = data.anggota[0];
+  assert.equal(row.cabangKe, "2");
+  assert.equal(row.namaLengkap, "Nama Satu");
+  assert.equal(row.namaPanggilan, "budi");
+  assert.equal(row.password, "rahasia123");
+  assert.equal(row.jenisKelamin, "Laki-laki");
+  assert.equal(row.tempatLahir, "Depok");
+  assert.equal(row.tanggalLahir, "15/06/1990");
+  assert.equal(row.nomorTelepon, "081234567890");
+  assert.equal(row.alamatDomisili, "Jl. Merdeka");
+  assert.equal(row.kotaDomisili, "Bandung");
 });
 
-test("parseCSV maps headers by name, not column position (reordered)", () => {
+test("header parsing ignores asterisk, spacing, and underscore variants", () => {
   const data = parseCSV(
-    Buffer.from("jenis_kelamin,nama_lengkap,tanggal_lahir,ref,cabang_ke\nMALE,Nama Satu,1990-01-01,A001,2\n"),
+    Buffer.from(
+      "Kode_Cabang_Keluarga*,NICKNAME*,Password*,Nama Lengkap,Gender,Tempat Kelahiran,Tanggal Lahir,Nomor Telepon,Alamat Domisili,Kota Domisili\n1,budi,rahasia123,Budi Santoso,Male,Jakarta,1990-01-01,0812,Jl. A,Jakarta\n",
+    ),
   );
-  assert.equal(data.anggota[0].ref, "A001");
-  assert.equal(data.anggota[0].namaLengkap, "Nama Satu");
-  assert.equal(data.anggota[0].jenisKelamin, "MALE");
-  assert.equal(data.anggota[0].tanggalLahir, "1990-01-01");
-  assert.equal(data.anggota[0].cabangKe, 2);
-});
-
-test("parser maps headers by name for XLSX, ignoring column positions", async () => {
-  const buf = await buildXLSX(
-    ["jenis_kelamin", "nama_lengkap", "cabang_ke"],
-    [["MALE", "Nama Satu", 1]],
-  );
-  const data = await parseXLSX(buf);
-  assert.equal(data.anggota[0].namaLengkap, "Nama Satu");
-  assert.equal(data.anggota[0].cabangKe, 1);
-  assert.equal(data.anggota[0].jenisKelamin, "MALE");
-});
-
-test("parser does not silently skip nonempty missing-ref rows", async () => {
-  const buf = await buildXLSX(
-    ["cabang_ke", "nama_lengkap", "jenis_kelamin"],
-    [[1, "Tanpa Ref", "MALE"]],
-  );
-  const data = await parseXLSX(buf);
   assert.equal(data.anggota.length, 1);
-  assert.equal(data.anggota[0].ref, undefined);
+  assert.equal(data.anggota[0].namaPanggilan, "budi");
+  assert.equal(data.anggota[0].cabangKe, "1");
+  assert.equal(data.anggota[0].alamatDomisili, "Jl. A");
 });
 
 test("missing required columns are rejected at parse time", () => {
   assert.throws(
-    () => parseCSV(Buffer.from("nama_lengkap,jenis_kelamin\nNama Satu,MALE\n")),
-    /cabang_ke/,
+    () => parseCSV(Buffer.from("nickname*,password*,nama lengkap*\nbudi,rahasia123,Budi\n")),
+    /kode cabang keluarga/,
   );
   assert.throws(
-    () => parseCSV(Buffer.from("cabang_ke,jenis_kelamin\n1,MALE\n")),
-    /nama_lengkap/,
+    () => parseCSV(Buffer.from("kode cabang keluarga*,password*,nama lengkap*\n1,rahasia123,Budi\n")),
+    /nickname/,
   );
   assert.throws(
-    () => parseCSV(Buffer.from("cabang_ke,nama_lengkap\n1,Nama Satu\n")),
-    /jenis_kelamin/,
+    () => parseCSV(Buffer.from("kode cabang keluarga*,nickname*,nama lengkap*\n1,budi,Budi\n")),
+    /password/,
+  );
+  assert.throws(
+    () => parseCSV(Buffer.from("kode cabang keluarga*,nickname*,password*\n1,budi,rahasia123\n")),
+    /nama lengkap/,
   );
 });
 
-test("strict dates: no rollover for invalid calendar dates", async () => {
-  // This test would require database mock, skipping validation and testing parser behavior instead
-  const buf = await buildXLSX(
-    ["cabang_ke", "nama_lengkap", "jenis_kelamin", "tanggal_lahir"],
-    [[1, "A", "MALE", "2024-02-30"]],
+test("reordered columns still map by header name", () => {
+  const data = parseCSV(
+    Buffer.from("nama lengkap,password,nickname,kode cabang keluarga\nBudi Santoso,rahasia123,budi,3\n"),
   );
+  assert.equal(data.anggota[0].cabangKe, "3");
+  assert.equal(data.anggota[0].namaPanggilan, "budi");
+  assert.equal(data.anggota[0].password, "rahasia123");
+  assert.equal(data.anggota[0].namaLengkap, "Budi Santoso");
+});
+
+test("physical row numbers are exact, including skipped CONTOH rows", async () => {
+  const buf = await buildXLSX(NEW_HEADERS, [
+    ["1", "budi", "rahasia123", "CONTOH Skip Me", "MALE"],
+    ["1", "budi", "rahasia123", "Real", "MALE"],
+  ]);
   const data = await parseXLSX(buf);
-  assert.equal(data.anggota[0].tanggalLahir, "2024-02-30");
-  // Validation would catch this as invalid date
-});
-
-test("strict dates: rejects 31/02 and out-of-range month", async () => {
-  const cases = ["31/02/2024", "01/13/2024", "2024-13-01", "00/00/0000"];
-  for (const tanggalLahir of cases) {
-    const validation = await validateImportData({
-      anggota: [anggota(1, "A", "MALE", { tanggalLahir })],
-    });
-    assert.ok(validation.errors.some((e) => e.field === "tanggal_lahir"), `should reject ${tanggalLahir}`);
-  }
-});
-
-test("valid dates normalize to ISO", async () => {
-  const validation = await validateImportData({
-    anggota: [anggota(1, "A", "MALE", { tanggalLahir: "15/01/1990" })],
-  });
-  assert.equal(validation.data.anggota[0].tanggalLahir, "1990-01-15");
-  assert.equal(validation.errors.length, 0);
-});
-
-test("gender aliases normalize consistently", async () => {
-  const validation = await validateImportData({
-    anggota: [
-      anggota(1, "A", "pria"),
-      anggota(2, "B", "L"),
-      anggota(3, "C", "P"),
-      anggota(4, "D", "perempuan"),
-    ],
-  });
-  assert.equal(validation.data.anggota[0].jenisKelamin, "MALE");
-  assert.equal(validation.data.anggota[1].jenisKelamin, "MALE");
-  assert.equal(validation.data.anggota[2].jenisKelamin, "FEMALE");
-  assert.equal(validation.data.anggota[3].jenisKelamin, "FEMALE");
-  assert.equal(validation.valid, true);
-});
-
-test("invalid gender is reported as a row error", async () => {
-  const validation = await validateImportData({
-    anggota: [anggota(1, "A", "UNKNOWN")],
-  });
-  assert.equal(validation.valid, false);
-  assert.ok(validation.errors.some((e) => e.field === "jenis_kelamin"));
-});
-
-test("duplicate refs are rejected", async () => {
-  const validation = await validateImportData({
-    anggota: [
-      anggota(1, "A", "MALE", { ref: "A001" }),
-      anggota(2, "B", "FEMALE", { ref: "A001" }),
-    ],
-  });
-  assert.ok(validation.errors.some((e) => e.field === "ref" && /duplikat/.test(e.message)));
-});
-
-test("invalid ref charset is rejected", async () => {
-  const validation = await validateImportData({
-    anggota: [anggota(1, "A", "MALE", { ref: "BAD REF!" })],
-  });
-  assert.ok(validation.errors.some((e) => e.field === "ref"));
-});
-
-test("empty import is rejected", async () => {
-  const validation = await validateImportData({ anggota: [] });
-  assert.equal(validation.valid, false);
-  assert.ok(validation.errors.some((e) => /kosong/.test(e.message)));
+  assert.equal(data.anggota.length, 1);
+  assert.equal(data.anggota[0]._row, 3);
 });
 
 test("parser rejects formula cells in XLSX", async () => {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Data");
-  ws.addRow(["cabang_ke", "nama_lengkap", "jenis_kelamin"]);
-  ws.addRow([1, "Nama", "MALE"]);
-  ws.getCell("A3").value = { formula: "SUM(A1:A2)", result: 1 };
+  ws.addRow(NEW_HEADERS);
+  ws.addRow(["1", "budi", "rahasia123", "Nama", "MALE"]);
+  ws.getCell("D3").value = { formula: "SUM(A1:A2)", result: 1 };
   const buf = Buffer.from(await wb.xlsx.writeBuffer());
   await assert.rejects(() => parseXLSX(buf), /formula|objek/);
 });
 
 test("parser rejects formula cells in CSV", () => {
   assert.throws(
-    () => parseCSV(Buffer.from("cabang_ke,nama_lengkap,jenis_kelamin\n1,=SUM(1+1),MALE\n")),
+    () =>
+      parseCSV(
+        Buffer.from(
+          "kode cabang keluarga*,nickname*,password*,nama lengkap*\n1,budi,rahasia123,=SUM(1+1)\n",
+        ),
+      ),
     /formula/,
   );
 });
 
-test("physical row numbers are exact, including skipped CONTOH rows", async () => {
-  const buf = await buildXLSX(
-    ["cabang_ke", "nama_lengkap", "jenis_kelamin"],
-    [
-      [1, "CONTOH Skip Me", "MALE"],
-      [1, "Real", "MALE"],
-    ],
-  );
-  const data = await parseXLSX(buf);
-  assert.equal(data.anggota.length, 1);
-  assert.equal(data.anggota[0]._row, 3);
+test("parser rejects files over 10MB", () => {
+  const oversized = Buffer.alloc(11 * 1024 * 1024, 0);
+  assert.throws(() => parseCSV(oversized), /10MB/);
 });

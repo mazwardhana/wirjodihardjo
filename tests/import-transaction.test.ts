@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
+import bcrypt from "bcryptjs";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { ImportRowAnggota, ParsedData, ValidationError } from "../src/lib/import/types";
 
@@ -18,14 +19,17 @@ let importer: typeof import("../src/lib/import/importer");
 
 function matches(row: Row, where: Row = {}): boolean {
   return Object.entries(where).every(([key, expected]) => {
-    if (key === "OR") return (expected as Row[]).some(condition => matches(row, condition));
-    if (expected && typeof expected === "object") {
+    if (key === "OR") return (expected as Row[]).some((condition) => matches(row, condition));
+    if (expected && typeof expected === "object" && !Array.isArray(expected)) {
       const filter = expected as Row;
       if ("in" in filter) return (filter.in as unknown[]).includes(row[key]);
-      if ("equals" in filter) return filter.mode === "insensitive"
-        ? String(row[key]).toLowerCase() === String(filter.equals).toLowerCase()
-        : row[key] === filter.equals;
-      assert.fail(`Unsupported mock filter: ${key}`);
+      if ("startsWith" in filter) return String(row[key] ?? "").startsWith(String(filter.startsWith));
+      if ("equals" in filter) {
+        return filter.mode === "insensitive"
+          ? String(row[key]).toLowerCase() === String(filter.equals).toLowerCase()
+          : row[key] === filter.equals;
+      }
+      assert.fail(`Unsupported mock filter: ${key} ${JSON.stringify(filter)}`);
     }
     return row[key] === expected;
   });
@@ -41,7 +45,7 @@ function operation(name: string) {
 }
 
 function delegate(table: Table) {
-  const find = (where?: Row) => state[table].find(row => matches(row, where));
+  const find = (where?: Row) => state[table].find((row) => matches(row, where));
   return {
     async findUnique({ where }: Query) {
       operation(`${table}.findUnique`);
@@ -53,7 +57,7 @@ function delegate(table: Table) {
     },
     async findMany({ where }: Query = {}) {
       operation(`${table}.findMany`);
-      return structuredClone(state[table].filter(row => matches(row, where)));
+      return structuredClone(state[table].filter((row) => matches(row, where)));
     },
     async create({ data }: Query) {
       operation(`${table}.create`);
@@ -82,13 +86,13 @@ function delegate(table: Table) {
 }
 
 const transactionClient = {
-  ...Object.fromEntries(tables.map(table => [table, delegate(table)])),
+  ...Object.fromEntries(tables.map((table) => [table, delegate(table)])),
   async $queryRaw(strings: TemplateStringsArray, ...values: unknown[]) {
     operation("$queryRaw");
     assert.match(strings.join("?"), /SELECT "id" FROM "ImportBatch" WHERE "id" = \? FOR UPDATE/);
     assert.equal(values.length, 1);
     assert.equal(typeof values[0], "string");
-    return state.importBatch.filter(row => row.id === values[0]).map(row => ({ id: row.id }));
+    return state.importBatch.filter((row) => row.id === values[0]).map((row) => ({ id: row.id }));
   },
 };
 
@@ -98,7 +102,7 @@ const fakePrisma = {
     assert.deepEqual(options, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 120_000, maxWait: 10_000 });
     const previous = transactionTail;
     let release!: () => void;
-    transactionTail = new Promise<void>(resolve => { release = resolve; });
+    transactionTail = new Promise<void>((resolve) => { release = resolve; });
     await previous;
     const snapshot = structuredClone(state);
     try {
@@ -130,35 +134,54 @@ after(() => {
   else globalCache.prisma = previousPrisma;
 });
 beforeEach(() => {
-  state = Object.fromEntries(tables.map(table => [table, []])) as unknown as Record<Table, Row[]>;
+  state = Object.fromEntries(tables.map((table) => [table, []])) as unknown as Record<Table, Row[]>;
   calls = [];
   sequence = 0;
   injectedFailure = undefined;
 });
 
-function anggota(ref: string, extra: Partial<ImportRowAnggota> = {}): ImportRowAnggota {
-  return { cabangKe: 1, ref, namaLengkap: `Person ${ref}`, jenisKelamin: "MALE", ...extra };
+function anggota(namaLengkap: string, extra: Partial<ImportRowAnggota> = {}): ImportRowAnggota {
+  return {
+    cabangKe: "1",
+    namaLengkap,
+    namaPanggilan: "budi",
+    passwordHash: "$2a$12$storedhashstoredhashstoredhashstoredhashstoredhashstoredhash",
+    jenisKelamin: "MALE",
+    ...extra,
+  };
 }
-function data(refs: string[] = ["A"]): ParsedData {
-  return { anggota: refs.map(ref => anggota(ref)) };
+function data(names: string[] = ["Person A"]): ParsedData {
+  return { anggota: names.map((name) => anggota(name)) };
 }
-function person(ref: string, extra: Row = {}) {
-  const row = { id: `person-${ref}`, externalRef: ref, fullName: `Old ${ref}`, gender: "MALE", deletedAt: null, branchId: "branch-1", ...extra };
+function person(name: string, extra: Row = {}) {
+  const row = { id: `person-${name}`, fullName: name, gender: "MALE", deletedAt: null, branchId: "branch-1", ...extra };
   state.person.push(row);
   return row;
 }
 function batch(input: ParsedData, extra: Row = {}) {
-  state.importBatch.push({ id: batchId, status: "VALIDATED", successRows: 0, errorRows: 0,
-    reportJson: { filename: "test.xlsx", data: input, errors: [], warnings: [], credentials: [], counts: {} }, ...extra });
+  state.importBatch.push({
+    id: batchId,
+    status: "VALIDATED",
+    successRows: 0,
+    errorRows: 0,
+    reportJson: { filename: "test.xlsx", data: input, errors: [], warnings: [], credentials: [], skipped: [], counts: {} },
+    ...extra,
+  });
+}
+function actor(overrides: Row = {}) {
+  state.user.push({ id: actorId, username: "actor", personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangePassword: false, ...overrides });
+}
+function memberUsers(): Row[] {
+  return state.user.filter((row) => row.role === "MEMBER");
 }
 async function rejected(status: number, message: RegExp, expectedRow?: Partial<ValidationError>) {
   const snapshot = structuredClone(state);
-  await assert.rejects(importer.commitImportData(batchId, actorId), error => {
+  await assert.rejects(importer.commitImportData(batchId, actorId), (error: unknown) => {
     assert.ok(error instanceof importer.ImportError);
-    assert.equal(error.status, status);
-    assert.match(error.message, message);
+    assert.equal((error as InstanceType<typeof importer.ImportError>).status, status);
+    assert.match((error as Error).message, message);
     if (expectedRow) {
-      assert.ok(error.errors.some(row => Object.entries(expectedRow).every(([key, value]) => row[key as keyof ValidationError] === value)));
+      assert.ok((error as InstanceType<typeof importer.ImportError>).errors.some((row) => Object.entries(expectedRow).every(([key, value]) => row[key as keyof ValidationError] === value)));
     }
     return true;
   });
@@ -166,141 +189,260 @@ async function rejected(status: number, message: RegExp, expectedRow?: Partial<V
   assert.ok(calls.includes("$transaction.rollback"));
 }
 
-test("commit creates person and private data with correct branch resolution", async () => {
-  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", slug: "cabang-satu", isActive: true });
-  state.branch.push({ id: "branch-2", branchNumber: 2, name: "Cabang Dua", slug: "cabang-dua", isActive: true });
-  const input = data(["A", "B"]);
-  input.anggota[0] = anggota("A", { cabangKe: 1, kotaDomisili: "Jakarta", nomorTelepon: "081234567890", catatan: "Note A" });
-  input.anggota[1] = anggota("B", { cabangKe: 2, namaPanggilan: "Bee" });
+test("hashImportPasswords replaces plaintext with a verifiable bcrypt hash", async () => {
+  const hashed = await importer.hashImportPasswords({
+    anggota: [anggota("Budi Santoso", { passwordHash: undefined, password: "rahasia123" })],
+  });
+  const row = hashed.anggota[0];
+  assert.equal(row.password, undefined, "plaintext harus dihapus");
+  assert.ok(row.passwordHash?.startsWith("$2"), "hash bcrypt disimpan");
+  assert.ok(await bcrypt.compare("rahasia123", row.passwordHash!));
+});
+
+test("sanitizePreviewData strips password and hash", () => {
+  const sanitized = importer.sanitizePreviewData({
+    anggota: [anggota("Budi", { password: "rahasia123" })],
+  });
+  assert.ok(!("password" in sanitized.anggota[0]));
+  assert.ok(!("passwordHash" in sanitized.anggota[0]));
+});
+
+test("commit creates Person, PersonPrivate, and User with correct branch and username", async () => {
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
+  state.branch.push({ id: "branch-2", branchNumber: 2, name: "Cabang Dua", isActive: true });
+  const input = data(["Budi Santoso", "Siti Aminah"]);
+  input.anggota[0] = anggota("Budi Santoso", {
+    cabangKe: "1",
+    namaPanggilan: "Budi",
+    nomorTelepon: "081234567890",
+    alamatDomisili: "Jl. Merdeka 1",
+    kotaDomisili: "Jakarta",
+  });
+  input.anggota[1] = anggota("Siti Aminah", { cabangKe: "2", namaPanggilan: "Siti" });
   batch(input);
-  state.user = [{ id: actorId, personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangePassword: false }];
+  actor();
+
   const result = await importer.commitImportData(batchId, actorId);
+
   assert.equal(result.counts.personsCreated, 2);
-  assert.equal(result.counts.personsUpdated, 0);
+  assert.equal(result.counts.accountsCreated, 2);
+  assert.equal(result.counts.rowsSkipped, 0);
   assert.equal(result.counts.privateUpserts, 1);
+  assert.equal(result.skipped.length, 0);
+
   assert.equal(state.person.length, 2);
   assert.equal(state.person[0].branchId, "branch-1");
   assert.equal(state.person[1].branchId, "branch-2");
+  assert.equal(state.person[0].fullName, "Budi Santoso");
+  assert.equal(state.person[0].nickname, "Budi");
+
   assert.equal(state.personPrivate.length, 1);
   assert.equal(state.personPrivate[0].city, "Jakarta");
   assert.equal(state.personPrivate[0].phone, "081234567890");
-  assert.equal(state.personPrivate[0].familyNotes, "Note A");
+  assert.equal(state.personPrivate[0].addressLine, "Jl. Merdeka 1");
+
+  const users = memberUsers();
+  assert.equal(users.length, 2);
+  assert.equal(users[0].username, "budi");
+  assert.equal(users[1].username, "siti");
+  for (const user of users) {
+    assert.equal(user.role, "MEMBER");
+    assert.equal(user.isActive, true);
+    assert.equal(user.mustChangeCredentials, true);
+    assert.equal(user.email, null);
+    assert.ok(String(user.passwordHash).startsWith("$2"));
+    assert.equal(user.createdById, actorId);
+  }
+  assert.deepEqual(result.credentials.map((c) => c.username), ["budi", "siti"]);
 });
 
-test("analyze counts an existing external ref as an upsert", async () => {
-  person("A");
-  const result = await importer.analyzeImportData(data());
-  assert.equal(result.counts.personsUpdated, 1);
-  assert.equal(result.counts.personsCreated, 0);
-  assert.deepEqual(result.existingRefs, new Set(["A"]));
+test("commit skips rows whose (branch, normalized name) already exists", async () => {
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
+  person("Budi Santoso");
+  batch(data(["  budi   santoso ", "Siti Aminah"]));
+  actor();
+
+  const result = await importer.commitImportData(batchId, actorId);
+
+  assert.equal(result.counts.personsCreated, 1);
+  assert.equal(result.counts.rowsSkipped, 1);
+  assert.equal(result.skipped.length, 1);
+  assert.equal(result.skipped[0].reason, "sudah ada, dilewati");
+  assert.equal(result.skipped[0].fullName, "budi   santoso");
+  assert.equal(state.person.length, 2, "hanya satu person baru");
+  assert.equal(memberUsers().length, 1);
 });
 
-test("nonexistent branch number is caught at validation time", async () => {
-  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Active", slug: "active", isActive: true });
-  const input = data(["A"]);
-  input.anggota[0] = anggota("A", { _row: 12, cabangKe: 99 });
+test("commit skips duplicate rows within the same file", async () => {
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
+  batch(data(["Budi Santoso", "budi santoso", "Siti Aminah"]));
+  actor();
+
+  const result = await importer.commitImportData(batchId, actorId);
+
+  assert.equal(result.counts.personsCreated, 2);
+  assert.equal(result.counts.rowsSkipped, 1);
+  assert.equal(state.person.length, 2);
+  assert.equal(memberUsers().length, 2);
+});
+
+test("username collision with an existing user gets a -2 suffix", async () => {
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
+  state.user.push({ id: "existing", username: "budi", role: "MEMBER", personId: "p" });
+  batch(data(["Budi Santoso"]));
+  actor();
+
+  const result = await importer.commitImportData(batchId, actorId);
+
+  assert.equal(result.credentials[0].username, "budi-2");
+  assert.equal(memberUsers().find((u) => u.id !== "existing")?.username, "budi-2");
+});
+
+test("two rows with the same nickname get unique usernames", async () => {
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
+  batch(data(["Budi Santoso", "Budi Hartono"]));
+  actor();
+
+  const result = await importer.commitImportData(batchId, actorId);
+
+  assert.deepEqual(result.credentials.map((c) => c.username), ["budi", "budi-2"]);
+});
+
+test("analyzeImportData plans usernames, private upserts, and skips", async () => {
+  person("Budi Santoso");
+  const input: ParsedData = {
+    anggota: [
+      anggota("Budi Santoso", { branchId: "branch-1", branchNumber: 1 }),
+      anggota("Siti Aminah", { branchId: "branch-1", branchNumber: 1, namaPanggilan: "Siti", nomorTelepon: "0812" }),
+    ],
+  };
+  const plan = await importer.analyzeImportData(input);
+  assert.equal(plan.counts.personsCreated, 1);
+  assert.equal(plan.counts.rowsSkipped, 1);
+  assert.equal(plan.counts.privateUpserts, 1);
+  assert.deepEqual(plan.credentials.map((c) => c.username), ["siti"]);
+  assert.equal(plan.skipped[0].reason, "sudah ada, dilewati");
+});
+
+test("nonexistent branch code is caught at validation time", async () => {
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Active", isActive: true });
+  const input = data(["Person A"]);
+  input.anggota[0] = anggota("Person A", { _row: 12, cabangKe: "99" });
   batch(input);
-  state.user = [{ id: actorId, personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangePassword: false }];
-  await rejected(400, /unggah ulang/);
+  actor();
+
+  await rejected(400, /unggah ulang/, { sheet: "Data", field: "kode cabang keluarga", row: 12 });
+  assert.ok(!calls.includes("person.create"));
 });
 
 test("stored preview errors block an otherwise valid batch", async () => {
-  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", slug: "cabang-satu", isActive: true });
-  const errors: ValidationError[] = [{ sheet: "Data", row: 19, field: "ref", message: "Stored parser error" }];
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
+  const errors: ValidationError[] = [{ sheet: "Data", row: 19, field: "password", message: "Stored parser error" }];
   batch(data(), { reportJson: { data: data(), errors } });
-  state.user = [{ id: actorId, personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangePassword: false }];
+  actor();
+
   await rejected(400, /unggah ulang/, errors[0]);
-  assert.ok(!calls.includes("person.findUnique"));
+  assert.ok(!calls.includes("person.create"));
 });
 
 test("commit revalidates payload even when preview errors are empty", async () => {
-  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", slug: "cabang-satu", isActive: true });
-  const input = data(["A", "A"]);
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
+  const input = data(["Person A"]);
+  input.anggota[0] = anggota("Person A", { tanggalLahir: "31/02/2024" });
   batch(input);
-  state.user = [{ id: actorId, personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangePassword: false }];
-  await rejected(400, /unggah ulang/, { sheet: "Data", field: "ref", row: 3 });
-  assert.ok(!calls.includes("person.findUnique"));
+  actor();
+
+  await rejected(400, /unggah ulang/, { sheet: "Data", field: "tanggal_lahir", row: 2 });
+  assert.ok(!calls.includes("person.create"));
 });
 
 for (const status of ["COMMITTED", "FAILED", "PARTIAL", "UPLOADED"]) {
   test(`${status} batch cannot commit`, async () => {
-    state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", slug: "cabang-satu", isActive: true });
+    state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
     batch(data(), { status });
-    state.user = [{ id: actorId, personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangePassword: false }];
+    actor();
     await rejected(409, /sudah diproses/);
-    assert.ok(!calls.includes("person.findUnique"));
+    assert.ok(!calls.includes("person.create"));
   });
 }
 
 test("missing batch returns 404", async () => {
-  state.user = [{ id: actorId, personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangePassword: false }];
+  actor();
   await rejected(404, /tidak ditemukan/);
 });
 
 test("batch without stored data cannot commit", async () => {
-  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", slug: "cabang-satu", isActive: true });
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
   batch(data(), { reportJson: null });
-  state.user = [{ id: actorId, personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangePassword: false }];
+  actor();
   await rejected(400, /tidak lengkap/);
 });
 
 for (const restriction of ["missing", "inactive", "MEMBER", "BRANCH_ADMIN", "password-reset-required"]) {
   test(`authorization rejects ${restriction} actor without writes`, async () => {
-    state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", slug: "cabang-satu", isActive: true });
-    if (restriction === "missing") state.user = [];
-    else {
-      state.user = [{ id: actorId, personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangePassword: false }];
-      if (restriction === "inactive") state.user[0].isActive = false;
-      else if (restriction === "password-reset-required") state.user[0].mustChangePassword = true;
-      else state.user[0].role = restriction;
+    state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
+    if (restriction === "missing") {
+      // no actor pushed
+    } else if (restriction === "inactive") {
+      actor({ isActive: false });
+    } else if (restriction === "password-reset-required") {
+      actor({ mustChangePassword: true });
+    } else {
+      actor({ role: restriction });
     }
     batch(data());
     await rejected(403, /Akses impor ditolak/);
-    assert.ok(!calls.includes("person.findUnique"));
+    assert.ok(!calls.includes("person.create"));
   });
 }
 
-test("duplicate refs caught at validation time", async () => {
-  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", slug: "cabang-satu", isActive: true });
-  const input = data(["A", "A"]);
-  input.anggota[1] = anggota("A", { _row: 3 });
-  batch(input);
-  state.user = [{ id: actorId, personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangePassword: false }];
-  await rejected(400, /unggah ulang/);
+test("commit fails row-safely when a validated row has no password hash", async () => {
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
+  batch(data(["Person A"]), {
+    reportJson: {
+      data: { anggota: [anggota("Person A", { passwordHash: undefined, password: "rahasia123" })] },
+      errors: [],
+      warnings: [],
+      credentials: [],
+      skipped: [],
+      counts: {},
+    },
+  });
+  actor();
+  await rejected(400, /Password tidak tersedia/, { field: "password", row: 2 });
 });
 
 test("audit failure rolls back batch COMMITTED update and every data write", async () => {
-  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", slug: "cabang-satu", isActive: true });
-  const input = data();
-  batch(input);
-  state.user = [{ id: actorId, personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangePassword: false }];
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
+  batch(data());
+  actor();
   const snapshot = structuredClone(state);
   const error = new Error("Audit insert failed");
   injectedFailure = { operation: "auditLog.create", error };
-  await assert.rejects(importer.commitImportData(batchId, actorId), caught => caught === error);
+  await assert.rejects(importer.commitImportData(batchId, actorId), (caught: unknown) => caught === error);
   assert.deepEqual(state, snapshot);
   assert.ok(calls.includes("importBatch.update"));
 });
 
 test("P2034 at commit becomes a retryable 409 and rolls back", async () => {
-  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", slug: "cabang-satu", isActive: true });
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
   batch(data());
-  state.user = [{ id: actorId, personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangePassword: false }];
+  actor();
   injectedFailure = { operation: "$transaction.commit", error: new Prisma.PrismaClientKnownRequestError("Serialization failure", { code: "P2034", clientVersion: "test" }) };
   await rejected(409, /Muat ulang laporan/);
   assert.ok(calls.includes("auditLog.create"));
 });
 
 test("concurrent retries of one batch commit only once under the mock transaction mutex", async () => {
-  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", slug: "cabang-satu", isActive: true });
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
   batch(data());
-  state.user = [{ id: actorId, personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangePassword: false }];
+  actor();
   const results = await Promise.allSettled([
     importer.commitImportData(batchId, actorId),
     importer.commitImportData(batchId, actorId),
   ]);
-  assert.equal(results.filter(result => result.status === "fulfilled").length, 1);
-  const rejectedResult = results.find(result => result.status === "rejected") as PromiseRejectedResult;
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  const rejectedResult = results.find((result) => result.status === "rejected") as PromiseRejectedResult;
   assert.ok(rejectedResult.reason instanceof importer.ImportError);
   assert.equal(rejectedResult.reason.status, 409);
   assert.equal(state.person.length, 1);

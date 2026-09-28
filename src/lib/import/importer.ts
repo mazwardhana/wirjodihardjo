@@ -1,7 +1,18 @@
+import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { validateImportData, parseStrictDate, toDateObject } from "./validate";
-import type { ParsedData, ImportCounts, ImportBatchPayload, ValidationError } from "./types";
+import { validateImportData, parseStrictDate, toDateObject, normalizeFullName } from "./validate";
+import { deriveBaseUsername, deriveUniqueUsername } from "./username";
+import type {
+  ParsedData,
+  ImportCounts,
+  ImportCredential,
+  ImportSkipRow,
+  ImportBatchPayload,
+  ValidationError,
+} from "./types";
+
+export const BCRYPT_ROUNDS = 12;
 
 export class ImportError extends Error {
   constructor(message: string, public status = 400, public errors: ValidationError[] = []) {
@@ -21,25 +32,124 @@ function emptyCounts(data: ParsedData): ImportCounts {
     childEdgesCreated: 0,
     partnerEdgesCreated: 0,
     privateUpserts: 0,
+    rowsSkipped: 0,
   };
 }
 
+function hasPrivateData(row: ParsedData["anggota"][number]): boolean {
+  return Boolean(row.nomorTelepon || row.alamatDomisili || row.kotaDomisili);
+}
+
+/**
+ * Ganti password plaintext pada tiap baris dengan hash bcrypt 12 rounds.
+ * Plaintext tidak pernah disimpan di `ImportBatch.reportJson` maupun
+ * response preview/laporan/audit.
+ */
+export async function hashImportPasswords(data: ParsedData): Promise<ParsedData> {
+  const anggota: ParsedData["anggota"] = [];
+  for (const row of data.anggota) {
+    if (row.password) {
+      const passwordHash = await bcrypt.hash(row.password, BCRYPT_ROUNDS);
+      anggota.push({ ...row, password: undefined, passwordHash });
+    } else {
+      const { password: _dropped, ...rest } = row;
+      anggota.push(rest);
+    }
+  }
+  return { ...data, anggota };
+}
+
+/** Hapus password plaintext/hash dari data sebelum dikirim sebagai preview. */
+export function sanitizePreviewData(data: ParsedData): ParsedData {
+  return {
+    ...data,
+    anggota: data.anggota.map((row) => {
+      const { password: _password, passwordHash: _hash, ...rest } = row;
+      return rest;
+    }),
+  };
+}
+
+function rowKey(row: ParsedData["anggota"][number]): string {
+  return `${row.branchId ?? ""}::${normalizeFullName(row.namaLengkap)}`;
+}
+
+async function loadExistingKeys(
+  db: { person: { findMany(args: unknown): Promise<{ branchId: string | null; fullName: string }[]> } },
+  rows: ParsedData["anggota"],
+): Promise<Set<string>> {
+  const branchIds = Array.from(
+    new Set(rows.map((row) => row.branchId).filter((id): id is string => Boolean(id))),
+  );
+  if (branchIds.length === 0) return new Set();
+  const people = await db.person.findMany({
+    where: { branchId: { in: branchIds } },
+    select: { branchId: true, fullName: true },
+  });
+  return new Set(people.map((person) => `${person.branchId ?? ""}::${normalizeFullName(person.fullName)}`));
+}
+
+async function loadTakenUsernames(
+  db: { user: { findMany(args: unknown): Promise<{ username: string }[]> } },
+  rows: ParsedData["anggota"],
+): Promise<Set<string>> {
+  const bases = Array.from(
+    new Set(rows.map((row) => deriveBaseUsername(row.namaPanggilan ?? "", row.namaLengkap))),
+  );
+  if (bases.length === 0) return new Set();
+  const users = await db.user.findMany({
+    where: { OR: bases.map((base) => ({ username: { startsWith: base } })) },
+    select: { username: true },
+  });
+  return new Set(users.map((user) => user.username));
+}
+
+/**
+ * Hitung rencana impor pada pratinjau: baris yang akan dibuat, baris yang
+ * dilewati (sudah ada), serta username yang akan dipakai per baris.
+ */
 export async function analyzeImportData(data: ParsedData) {
-  const refsWithValues = data.anggota.filter(r => r.ref).map(r => r.ref!);
-  const people = refsWithValues.length > 0
-    ? await prisma.person.findMany({
-        where: { externalRef: { in: refsWithValues } },
-        select: { externalRef: true },
-      })
-    : [];
-  
-  const existingRefs = new Set(people.map(p => p.externalRef));
+  const rows = data.anggota;
+  const existingKeys = await loadExistingKeys(prisma, rows);
+  const taken = await loadTakenUsernames(prisma, rows);
+
   const counts = emptyCounts(data);
-  
-  counts.personsUpdated = data.anggota.filter(r => r.ref && existingRefs.has(r.ref)).length;
-  counts.personsCreated = data.anggota.length - counts.personsUpdated;
-  
-  return { counts, credentials: [], existingRefs };
+  const credentials: ImportCredential[] = [];
+  const skipped: ImportSkipRow[] = [];
+  const seen = new Set<string>();
+
+  for (const row of rows) {
+    const key = rowKey(row);
+    const duplicate = existingKeys.has(key) || seen.has(key);
+    seen.add(key);
+
+    if (duplicate) {
+      counts.rowsSkipped++;
+      skipped.push({
+        fullName: row.namaLengkap,
+        branchNumber: row.branchNumber ?? 0,
+        reason: "sudah ada, dilewati",
+      });
+      continue;
+    }
+
+    const username = deriveUniqueUsername(row.namaPanggilan ?? "", row.namaLengkap, taken);
+    taken.add(username);
+
+    counts.personsCreated++;
+    counts.accountsCreated++;
+    if (hasPrivateData(row)) counts.privateUpserts++;
+
+    credentials.push({
+      fullName: row.namaLengkap,
+      username,
+      role: "MEMBER",
+      isNew: true,
+      status: "dibuat",
+    });
+  }
+
+  return { counts, credentials, skipped };
 }
 
 function rowError(sheet: ValidationError["sheet"], row: number, field: string, message: string): never {
@@ -54,57 +164,64 @@ function date(value?: string): Date | undefined {
   return toDateObject(parsed);
 }
 
-async function applyData(tx: Prisma.TransactionClient, data: ParsedData, actorId: string) {
+type ApplyResult = { counts: ImportCounts; credentials: ImportCredential[]; skipped: ImportSkipRow[] };
+
+async function applyData(tx: Prisma.TransactionClient, data: ParsedData, actorId: string): Promise<ApplyResult> {
+  const rows = data.anggota;
   const counts = emptyCounts(data);
+  const existingKeys = await loadExistingKeys(tx, rows);
+  const taken = await loadTakenUsernames(tx, rows);
+  const credentials: ImportCredential[] = [];
+  const skipped: ImportSkipRow[] = [];
+  const seen = new Set<string>();
 
-  for (const [index, row] of data.anggota.entries()) {
+  for (const [index, row] of rows.entries()) {
     const rowNo = row._row ?? index + 2;
-    
-    // Resolve branch by branchNumber (validation already checked existence).
-    const branch = await tx.branch.findUnique({
-      where: { branchNumber: row.cabangKe, isActive: true },
+    const key = rowKey(row);
+    const duplicate = existingKeys.has(key) || seen.has(key);
+    seen.add(key);
+
+    if (duplicate) {
+      counts.rowsSkipped++;
+      skipped.push({
+        fullName: row.namaLengkap,
+        branchNumber: row.branchNumber ?? 0,
+        reason: "sudah ada, dilewati",
+      });
+      continue;
+    }
+
+    if (!row.branchId) {
+      rowError("Data", rowNo, "kode cabang keluarga", `Cabang '${row.cabangKe}' tidak ditemukan`);
+    }
+    if (!row.passwordHash) {
+      rowError(
+        "Data",
+        rowNo,
+        "password",
+        "Password tidak tersedia. Unggah ulang file dengan kolom password terisi.",
+      );
+    }
+
+    const person = await tx.person.create({
+      data: {
+        fullName: row.namaLengkap,
+        gender: row.jenisKelamin,
+        nickname: row.namaPanggilan || undefined,
+        birthDate: date(row.tanggalLahir),
+        birthPlace: row.tempatLahir || undefined,
+        branchId: row.branchId,
+        generationLevel: null, // Set by admin, not import
+      },
     });
-    // This should never fail if validation passed, but defensive check
-    if (!branch) {
-      rowError("Data", rowNo, "cabang_ke", `Cabang ke-${row.cabangKe} tidak ditemukan atau tidak aktif.`);
-    }
+    counts.personsCreated++;
 
-    // Check if person exists by externalRef.
-    const existing = row.ref ? await tx.person.findUnique({ where: { externalRef: row.ref } }) : null;
-    if (existing?.deletedAt) {
-      rowError("Data", rowNo, "ref", "Anggota diarsipkan. Pulihkan terlebih dahulu.");
-    }
-
-    const values = {
-      fullName: row.namaLengkap,
-      gender: row.jenisKelamin,
-      nickname: row.namaPanggilan || undefined,
-      birthDate: date(row.tanggalLahir),
-      birthPlace: row.tempatLahir || undefined,
-      branchId: branch.id,
-      generationLevel: null as number | null, // Set by admin, not import
-    };
-
-    const person = existing
-      ? await tx.person.update({ where: { id: existing.id }, data: values })
-      : await tx.person.create({
-          data: { ...values, externalRef: row.ref || undefined },
-        });
-
-    if (existing) {
-      counts.personsUpdated++;
-    } else {
-      counts.personsCreated++;
-    }
-
-    // Store optional fields in PersonPrivate.
-    const privateData = {
-      city: row.kotaDomisili || undefined,
-      phone: row.nomorTelepon || undefined,
-      familyNotes: row.catatan || undefined,
-    };
-
-    if (Object.values(privateData).some(Boolean)) {
+    if (hasPrivateData(row)) {
+      const privateData = {
+        city: row.kotaDomisili || undefined,
+        phone: row.nomorTelepon || undefined,
+        addressLine: row.alamatDomisili || undefined,
+      };
       await tx.personPrivate.upsert({
         where: { personId: person.id },
         update: privateData,
@@ -112,9 +229,34 @@ async function applyData(tx: Prisma.TransactionClient, data: ParsedData, actorId
       });
       counts.privateUpserts++;
     }
+
+    const username = deriveUniqueUsername(row.namaPanggilan ?? "", row.namaLengkap, taken);
+    taken.add(username);
+
+    await tx.user.create({
+      data: {
+        username,
+        email: null,
+        passwordHash: row.passwordHash,
+        role: "MEMBER",
+        isActive: true,
+        mustChangeCredentials: true,
+        personId: person.id,
+        createdById: actorId,
+      },
+    });
+    counts.accountsCreated++;
+
+    credentials.push({
+      fullName: row.namaLengkap,
+      username,
+      role: "MEMBER",
+      isNew: true,
+      status: "dibuat",
+    });
   }
 
-  return { counts, credentials: [] };
+  return { counts, credentials, skipped };
 }
 
 export async function commitImportData(batchId: string, actorId: string) {
