@@ -5,11 +5,11 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 
 const onboardingSchema = z.object({
-  newUsername: z
-    .string()
-    .min(3, "Username harus minimal 3 karakter")
-    .max(30, "Username maksimal 30 karakter")
-    .regex(/^[a-zA-Z0-9_-]+$/, "Username hanya boleh mengandung huruf, angka, underscore, dan dash"),
+  nickname: z
+    .string({ message: "Nickname wajib diisi" })
+    .trim()
+    .min(2, "Nickname harus minimal 2 karakter")
+    .max(50, "Nickname maksimal 50 karakter"),
   newPassword: z.string().min(8, "Kata sandi harus minimal 8 karakter"),
   confirmPassword: z.string(),
 });
@@ -53,33 +53,27 @@ export async function POST(request: Request) {
 
   const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
 
-  try {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        username: parsed.data.newUsername,
-        passwordHash,
-        mustChangeCredentials: false,
-      },
-    });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash,
+      mustChangeCredentials: false,
+    },
+  });
 
-    await prisma.auditLog.create({
-      data: {
-        action: "COMPLETE_ONBOARDING",
-        entityType: "User",
-        entityId: user.id,
-        actorUserId: session.user.id,
-      },
-    });
+  await prisma.person.update({
+    where: { id: user.personId },
+    data: { nickname: parsed.data.nickname },
+  });
 
-    return NextResponse.json({ ok: true });
-  } catch (error: any) {
-    if (error.code === "P2002") {
-      return NextResponse.json(
-        { error: "Username sudah digunakan" },
-        { status: 409 }
-      );
-    }
-    throw error;
-  }
+  await prisma.auditLog.create({
+    data: {
+      action: "COMPLETE_ONBOARDING",
+      entityType: "User",
+      entityId: user.id,
+      actorUserId: session.user.id,
+    },
+  });
+
+  return NextResponse.json({ ok: true });
 }

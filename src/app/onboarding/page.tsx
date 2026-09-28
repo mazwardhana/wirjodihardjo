@@ -4,12 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 
-const USERNAME_REGEX = /^[a-zA-Z0-9_-]{3,30}$/;
-
 export default function OnboardingPage() {
   const router = useRouter();
   const { data: session, status, update } = useSession();
-  const [newUsername, setNewUsername] = useState("");
+  const [nickname, setNickname] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -32,12 +30,14 @@ export default function OnboardingPage() {
 
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
+    const trimmedNickname = nickname.trim();
 
-    if (!newUsername) {
-      newErrors.newUsername = "Username wajib diisi.";
-    } else if (!USERNAME_REGEX.test(newUsername)) {
-      newErrors.newUsername =
-        "Username 3-30 karakter, hanya huruf, angka, underscore, dan dash.";
+    if (!trimmedNickname) {
+      newErrors.nickname = "Nickname wajib diisi.";
+    } else if (trimmedNickname.length < 2) {
+      newErrors.nickname = "Nickname minimal 2 karakter.";
+    } else if (trimmedNickname.length > 50) {
+      newErrors.nickname = "Nickname maksimal 50 karakter.";
     }
 
     if (!newPassword) {
@@ -68,7 +68,11 @@ export default function OnboardingPage() {
       const res = await fetch("/api/auth/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newUsername, newPassword, confirmPassword }),
+        body: JSON.stringify({
+          nickname: nickname.trim(),
+          newPassword,
+          confirmPassword,
+        }),
       });
 
       const data = await res.json();
@@ -81,7 +85,7 @@ export default function OnboardingPage() {
 
       // Refresh session to clear mustChangeCredentials flag from JWT
       await update();
-      router.push("/dashboard");
+      router.push("/dashboard/profil");
     } catch {
       setServerError("Terjadi kesalahan. Coba lagi.");
       setPending(false);
@@ -109,7 +113,7 @@ export default function OnboardingPage() {
           Lengkapi Akun Anda
         </h1>
         <p className="mt-3 text-sm text-muted">
-          Buat username dan kata sandi baru untuk mengakses platform keluarga.
+          Tentukan nickname dan kata sandi baru untuk mengakses platform keluarga.
         </p>
       </div>
 
@@ -118,35 +122,35 @@ export default function OnboardingPage() {
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
         <div>
           <label
-            htmlFor="newUsername"
+            htmlFor="nickname"
             className="block text-sm font-medium text-forest"
           >
-            Username Baru
+            Nickname
           </label>
           <input
-            id="newUsername"
+            id="nickname"
             type="text"
             required
-            value={newUsername}
+            value={nickname}
             onChange={(e) => {
-              setNewUsername(e.target.value);
-              if (errors.newUsername) {
-                setErrors((prev) => ({ ...prev, newUsername: "" }));
+              setNickname(e.target.value);
+              if (errors.nickname) {
+                setErrors((prev) => ({ ...prev, nickname: "" }));
               }
             }}
-            aria-describedby={errors.newUsername ? "newUsername-error" : undefined}
-            aria-invalid={!!errors.newUsername}
+            aria-describedby={errors.nickname ? "nickname-error" : undefined}
+            aria-invalid={!!errors.nickname}
             className="mt-1 block h-11 w-full rounded-md border border-wood/30 bg-cream px-4 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
-            placeholder="john_doe"
+            placeholder="Nama panggilan Anda"
             disabled={pending}
           />
-          {errors.newUsername && (
+          {errors.nickname && (
             <p
-              id="newUsername-error"
+              id="nickname-error"
               role="alert"
               className="mt-1.5 text-sm font-medium text-wood"
             >
-              {errors.newUsername}
+              {errors.nickname}
             </p>
           )}
         </div>
@@ -237,7 +241,7 @@ export default function OnboardingPage() {
       </form>
 
       <p className="mt-6 text-center text-xs text-muted">
-        Setelah disimpan, Anda dapat masuk dengan username dan kata sandi baru.
+        Setelah disimpan, Anda dapat masuk dengan nickname dan kata sandi baru.
       </p>
     </div>
   );

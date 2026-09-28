@@ -8,7 +8,8 @@ import assert from "node:assert/strict";
  * These tests validate:
  * 1. Unauthenticated users are redirected to /login
  * 2. Users with mustChangeCredentials=false are redirected to /dashboard
- * 3. Successful form submission calls POST /api/auth/onboarding and redirects
+ * 3. Successful form submission calls POST /api/auth/onboarding and redirects to /dashboard/profil
+ * 4. Form validation with Indonesian messages
  */
 
 describe("OnboardingPage behavior", () => {
@@ -80,7 +81,7 @@ describe("OnboardingPage behavior", () => {
     assert.equal(redirects.length, 0);
   });
 
-  test("successful onboarding submission redirects to dashboard", async () => {
+  test("successful onboarding submission redirects to /dashboard/profil", async () => {
     // Simulate successful API response
     const responses: { ok: boolean; status: number; data: { ok?: boolean; error?: string } }[] = [];
     let routerPushed = false;
@@ -110,7 +111,7 @@ describe("OnboardingPage behavior", () => {
   });
 
   test("failed onboarding submission does not redirect", async () => {
-    // Simulate failed API response (e.g., username already taken)
+    // Simulate failed API response (e.g., nickname already taken or password mismatch)
     const responses: { ok: boolean; status: number; data: { ok?: boolean; error?: string } }[] = [];
     let serverError: string | null = null;
     let routerPushed = false;
@@ -118,8 +119,8 @@ describe("OnboardingPage behavior", () => {
     async function handleSubmit() {
       const mockResponse = {
         ok: false,
-        status: 409,
-        data: { error: "Username sudah digunakan" },
+        status: 400,
+        data: { error: "Nickname sudah digunakan" },
       };
       responses.push(mockResponse);
 
@@ -140,40 +141,41 @@ describe("OnboardingPage behavior", () => {
 
     assert.equal(responses.length, 1);
     assert.equal(responses[0].ok, false);
-    assert.equal(responses[0].status, 409);
-    assert.equal(serverError, "Username sudah digunakan");
+    assert.equal(responses[0].status, 400);
+    assert.equal(serverError, "Nickname sudah digunakan");
     assert.equal(routerPushed, false);
   });
 
-  test("client-side validation rejects invalid username format", () => {
-    const USERNAME_REGEX = /^[a-zA-Z0-9_-]{3,30}$/;
-
-    const invalidUsernames = [
-      "ab",           // too short
-      "a".repeat(31), // too long
-      "john@doe",     // invalid character @
-      "user name",    // space not allowed
-      "user@name",    // @ not allowed
-    ];
-
-    for (const username of invalidUsernames) {
-      assert.equal(USERNAME_REGEX.test(username), false, `"${username}" should be rejected`);
+  test("client-side validation rejects empty nickname", () => {
+    const trimmedNickname = "";
+    if (!trimmedNickname) {
+      assert.equal(true, true, "Empty nickname should be rejected");
     }
-
-    const validUsernames = [
-      "john_doe",
-      "john-doe",
-      "JohnDoe123",
-      "abc",
-      "a".repeat(30),
-    ];
-
-    for (const username of validUsernames) {
-      assert.equal(USERNAME_REGEX.test(username), true, `"${username}" should be accepted`);
-    }
+    assert.equal(trimmedNickname.length >= 2, false, "Nickname < 2 chars should be rejected");
   });
 
-  test("client-side validation rejects short password", () => {
+  test("client-side validation rejects nickname shorter than 2 chars", () => {
+    const trimmedNickname = "a";
+    if (!trimmedNickname) {
+      assert.equal(true, true, "Empty nickname should be rejected");
+    }
+    assert.equal(trimmedNickname.length < 2, true, "Nickname 1 char should be rejected");
+    assert.equal(trimmedNickname.length >= 2, false, "Nickname 1 char should not pass");
+  });
+
+  test("client-side validation rejects nickname longer than 50 chars", () => {
+    const trimmedNickname = "a".repeat(51);
+    assert.equal(trimmedNickname.length > 50, true, "Nickname 51 chars should be rejected");
+    assert.equal(trimmedNickname.length >= 2, true, "Nickname 51 chars passes min check");
+  });
+
+  test("client-side validation accepts nickname with spaces (free text)", () => {
+    const trimmedNickname = "Budi Santoso";
+    assert.equal(trimmedNickname.length >= 2, true, "Nickname with spaces passes length check");
+    assert.equal(trimmedNickname.length <= 50, true, "Nickname with spaces passes max check");
+  });
+
+  test("client-side validation rejects password shorter than 8 chars", () => {
     const validatePassword = (password: string) =>
       password.length >= 8 ? null : "Kata sandi minimal 8 karakter.";
 

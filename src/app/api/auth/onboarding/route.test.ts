@@ -8,7 +8,7 @@ describe("Onboarding API", () => {
     f.state.session = null;
     const route = loadRoute("src/app/api/auth/onboarding/route.ts", f);
     const response = await route.POST(request("POST", {
-      newUsername: "john_doe",
+      nickname: "andi",
       newPassword: "password123",
       confirmPassword: "password123",
     }));
@@ -21,7 +21,7 @@ describe("Onboarding API", () => {
     f.state.user = { personId: "p1", mustChangeCredentials: false };
     const route = loadRoute("src/app/api/auth/onboarding/route.ts", f);
     const response = await route.POST(request("POST", {
-      newUsername: "john_doe",
+      nickname: "andi",
       newPassword: "password123",
       confirmPassword: "password123",
     }));
@@ -31,49 +31,76 @@ describe("Onboarding API", () => {
     assert.equal(f.state.writes.length, 0);
   });
 
-  test("POST rejects username shorter than 3 chars", async () => {
+  test("POST rejects missing nickname", async () => {
     const f = fixture();
     f.state.user = { personId: "p1", mustChangeCredentials: true };
     const route = loadRoute("src/app/api/auth/onboarding/route.ts", f);
     const response = await route.POST(request("POST", {
-      newUsername: "ab",
       newPassword: "password123",
       confirmPassword: "password123",
     }));
     assert.equal(response.status, 400);
-    const body = await response.json();
-    assert.ok(body.error.includes("Username"));
     assert.equal(f.state.writes.length, 0);
   });
 
-  test("POST rejects username longer than 30 chars", async () => {
+  test("POST rejects nickname shorter than 2 chars", async () => {
     const f = fixture();
     f.state.user = { personId: "p1", mustChangeCredentials: true };
     const route = loadRoute("src/app/api/auth/onboarding/route.ts", f);
     const response = await route.POST(request("POST", {
-      newUsername: "a".repeat(31),
+      nickname: "a",
       newPassword: "password123",
       confirmPassword: "password123",
     }));
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.ok(body.error.includes("Username"));
+    assert.ok(body.error.includes("Nickname"));
     assert.equal(f.state.writes.length, 0);
   });
 
-  test("POST rejects username with invalid characters", async () => {
+  test("POST rejects nickname longer than 50 chars", async () => {
     const f = fixture();
     f.state.user = { personId: "p1", mustChangeCredentials: true };
     const route = loadRoute("src/app/api/auth/onboarding/route.ts", f);
     const response = await route.POST(request("POST", {
-      newUsername: "john@doe",
+      nickname: "a".repeat(51),
       newPassword: "password123",
       confirmPassword: "password123",
     }));
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.ok(body.error.includes("Username"));
+    assert.ok(body.error.includes("Nickname"));
     assert.equal(f.state.writes.length, 0);
+  });
+
+  test("POST accepts free-text nickname with spaces (no username regex)", async () => {
+    const f = fixture();
+    f.state.user = { personId: "p1", id: "u1", mustChangeCredentials: true };
+    const route = loadRoute("src/app/api/auth/onboarding/route.ts", f);
+    const response = await route.POST(request("POST", {
+      nickname: "Budi Santoso",
+      newPassword: "password123",
+      confirmPassword: "password123",
+    }));
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.ok, true);
+    const personUpdate = f.state.writes[1];
+    assert.equal(personUpdate.nickname, "Budi Santoso");
+  });
+
+  test("POST trims surrounding whitespace on nickname", async () => {
+    const f = fixture();
+    f.state.user = { personId: "p1", id: "u1", mustChangeCredentials: true };
+    const route = loadRoute("src/app/api/auth/onboarding/route.ts", f);
+    const response = await route.POST(request("POST", {
+      nickname: "  Andi  ",
+      newPassword: "password123",
+      confirmPassword: "password123",
+    }));
+    assert.equal(response.status, 200);
+    const personUpdate = f.state.writes[1];
+    assert.equal(personUpdate.nickname, "Andi");
   });
 
   test("POST rejects password shorter than 8 chars", async () => {
@@ -81,7 +108,7 @@ describe("Onboarding API", () => {
     f.state.user = { personId: "p1", mustChangeCredentials: true };
     const route = loadRoute("src/app/api/auth/onboarding/route.ts", f);
     const response = await route.POST(request("POST", {
-      newUsername: "john_doe",
+      nickname: "andi",
       newPassword: "pass123",
       confirmPassword: "pass123",
     }));
@@ -96,7 +123,7 @@ describe("Onboarding API", () => {
     f.state.user = { personId: "p1", mustChangeCredentials: true };
     const route = loadRoute("src/app/api/auth/onboarding/route.ts", f);
     const response = await route.POST(request("POST", {
-      newUsername: "john_doe",
+      nickname: "andi",
       newPassword: "password123",
       confirmPassword: "different123",
     }));
@@ -106,32 +133,12 @@ describe("Onboarding API", () => {
     assert.equal(f.state.writes.length, 0);
   });
 
-  test("POST handles duplicate username gracefully", async () => {
-    const f = fixture();
-    f.state.user = { personId: "p1", mustChangeCredentials: true };
-    // Mock prisma to throw P2002 on user.update
-    f.prisma.user.update = async () => {
-      const error: any = new Error("Unique constraint failed");
-      error.code = "P2002";
-      throw error;
-    };
-    const route = loadRoute("src/app/api/auth/onboarding/route.ts", f);
-    const response = await route.POST(request("POST", {
-      newUsername: "existing_user",
-      newPassword: "password123",
-      confirmPassword: "password123",
-    }));
-    assert.equal(response.status, 409);
-    const body = await response.json();
-    assert.ok(body.error.includes("sudah digunakan"));
-  });
-
-  test("POST updates username, password, and clears flag", async () => {
+  test("POST updates nickname, password, and clears flag", async () => {
     const f = fixture();
     f.state.user = { personId: "p1", id: "u1", mustChangeCredentials: true };
     const route = loadRoute("src/app/api/auth/onboarding/route.ts", f);
     const response = await route.POST(request("POST", {
-      newUsername: "john_doe",
+      nickname: "andi",
       newPassword: "password123",
       confirmPassword: "password123",
     }));
@@ -139,15 +146,19 @@ describe("Onboarding API", () => {
     const body = await response.json();
     assert.equal(body.ok, true);
     
-    // Verify user update
+    // Verify user update includes passwordHash and cleared flag
     const userUpdate = f.state.writes[0];
-    assert.equal(userUpdate.username, "john_doe");
     assert.ok(userUpdate.passwordHash);
     assert.notEqual(userUpdate.passwordHash, "password123"); // Should be hashed
     assert.equal(userUpdate.mustChangeCredentials, false);
+    assert.equal(userUpdate.username, undefined); // No username handling
+    
+    // Verify person nickname was updated
+    const personUpdate = f.state.writes[1];
+    assert.equal(personUpdate.nickname, "andi");
     
     // Verify audit log
-    const audit = f.state.writes[1];
+    const audit = f.state.writes[2];
     assert.equal((audit.data as Row).action, "COMPLETE_ONBOARDING");
     assert.equal((audit.data as Row).actorUserId, "u1");
   });
