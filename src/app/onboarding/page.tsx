@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 
@@ -13,6 +13,9 @@ export default function OnboardingPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  // Setelah submit, update() membersihkan flag sehingga efek di bawah ikut
+  // terpicu. Guard ini menjaga tujuan akhir tetap /dashboard/profil.
+  const completed = useRef(false);
 
   // Redirect if no session or flag is already false
   useEffect(() => {
@@ -22,7 +25,7 @@ export default function OnboardingPage() {
     }
     if (status === "authenticated" && session?.user) {
       const mustChange = (session.user as { mustChangeCredentials?: boolean }).mustChangeCredentials;
-      if (!mustChange) {
+      if (!mustChange && !completed.current) {
         router.replace("/dashboard");
       }
     }
@@ -84,6 +87,7 @@ export default function OnboardingPage() {
       }
 
       // Refresh session to clear mustChangeCredentials flag from JWT
+      completed.current = true;
       await update();
       router.push("/dashboard/profil");
     } catch {

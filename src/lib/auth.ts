@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { resolveCredentialFlag } from "@/lib/session-flags";
 import { z } from "zod";
 
 const credentialsSchema = z.object({
@@ -53,12 +54,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role;
         token.mustChangeCredentials = (user as { mustChangeCredentials?: boolean }).mustChangeCredentials;
+        return token;
       }
+      // JWT menyimpan salinan flag. Onboarding mengubahnya di database,
+      // jadi baca ulang agar pengguna tidak terlempar balik ke /onboarding.
+      token.mustChangeCredentials = await resolveCredentialFlag(token, (userId) =>
+        prisma.user
+          .findUnique({ where: { id: userId }, select: { mustChangeCredentials: true } })
+          .then((row) => (row ? row.mustChangeCredentials : null)),
+      );
       return token;
     },
     session({ session, token }) {

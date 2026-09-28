@@ -83,7 +83,9 @@ async function loadExistingKeys(
   );
   if (branchIds.length === 0) return new Set();
   const people = await db.person.findMany({
-    where: { branchId: { in: branchIds } },
+    // Person terarsip tidak menghalangi impor ulang: baris akan dibuat kembali
+    // sebagai anggota aktif, sementara catatan lama tetap tersimpan.
+    where: { branchId: { in: branchIds }, deletedAt: null },
     select: { branchId: true, fullName: true },
   });
   return new Set(people.map((person) => `${person.branchId ?? ""}::${normalizeFullName(person.fullName)}`));
@@ -270,7 +272,7 @@ export async function commitImportData(batchId: string, actorId: string) {
         if (batch.status !== "VALIDATED") throw new ImportError("Batch sudah diproses.", 409);
 
         const user = await tx.user.findUnique({ where: { id: actorId } });
-        if (!user?.isActive || user.role !== "SUPER_ADMIN" || user.mustChangePassword) {
+        if (!user?.isActive || user.role !== "SUPER_ADMIN" || user.mustChangeCredentials) {
           throw new ImportError("Akses impor ditolak.", 403);
         }
 
@@ -291,7 +293,7 @@ export async function commitImportData(batchId: string, actorId: string) {
           where: { id: batchId },
           data: {
             status: "COMMITTED",
-            successRows: validation.data.anggota.length,
+            successRows: result.counts.personsCreated,
             errorRows: 0,
             reportJson: { ...payload, ...result, errors: [] },
           },

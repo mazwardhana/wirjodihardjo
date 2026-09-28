@@ -277,9 +277,13 @@ export function MemberDetailModal({ personId, onClose }: MemberDetailModalProps)
           <section>
             <h3 className={sectionTitleCls}>Kontak</h3>
             <dl className={`mt-3 ${cardCls}`}>
-              <InfoRow label="Telepon">{contact?.phone || "-"}</InfoRow>
+              <InfoRow label="Telepon">
+                {showAddress ? contact?.phone || "-" : "Disembunyikan oleh pemilik data"}
+              </InfoRow>
               <InfoRow label="WhatsApp">
-                {waNumber ? (
+                {!showAddress ? (
+                  "Disembunyikan oleh pemilik data"
+                ) : waNumber ? (
                   <a
                     href={`https://wa.me/${waNumber}`}
                     target="_blank"
@@ -292,7 +296,9 @@ export function MemberDetailModal({ personId, onClose }: MemberDetailModalProps)
                   contact?.whatsapp || "-"
                 )}
               </InfoRow>
-              <InfoRow label="Email">{contact?.email || "-"}</InfoRow>
+              <InfoRow label="Email">
+                {showAddress ? contact?.email || "-" : "Disembunyikan oleh pemilik data"}
+              </InfoRow>
             </dl>
           </section>
 

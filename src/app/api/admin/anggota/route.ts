@@ -92,10 +92,9 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Anggota tidak ditemukan" }, { status: 404 });
     }
 
-    // Validate access to existing person
-    if (existing.branchId) {
-      assertBranchAccess(scope, existing.branchId);
-    }
+    // Validate access to existing person. Person tanpa cabang tetap ditolak
+    // untuk admin cabang (fail-closed), hanya SUPER_ADMIN yang boleh.
+    assertBranchAccess(scope, existing.branchId ?? "");
 
     // If branchId is being changed, validate access to new branch
     if (body.branchId !== undefined && body.branchId !== existing.branchId) {
@@ -215,10 +214,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Anggota tidak ditemukan" }, { status: 404 });
     }
 
-    // Validate branch access
-    if (person.branchId) {
-      assertBranchAccess(scope, person.branchId);
-    }
+    // Validate branch access. Person tanpa cabang hanya boleh dibaca SUPER_ADMIN.
+    assertBranchAccess(scope, person.branchId ?? "");
 
     return NextResponse.json(person);
   } catch (err) {

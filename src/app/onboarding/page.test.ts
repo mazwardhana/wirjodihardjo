@@ -1,5 +1,9 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const pageSource = readFileSync(resolve("src/app/onboarding/page.tsx"), "utf8");
 
 /**
  * Onboarding page integration tests.
@@ -193,5 +197,13 @@ describe("OnboardingPage behavior", () => {
       "Kata sandi dan konfirmasi tidak cocok."
     );
     assert.equal(validateConfirm("password123", "password123"), null);
+  });
+
+  test("efek redirect diredam setelah submit agar tujuan akhir tetap /dashboard/profil", () => {
+    // Setelah update() membersihkan flag, efek di halaman juga terpicu. Guard
+    // `completed` di file asli harus ada agar efek tidak menimpa push ke profil.
+    assert.match(pageSource, /completed\.current = true/);
+    assert.match(pageSource, /!mustChange && !completed\.current/);
+    assert.match(pageSource, /router\.push\("\/dashboard\/profil"\)/);
   });
 });

@@ -169,7 +169,7 @@ function batch(input: ParsedData, extra: Row = {}) {
   });
 }
 function actor(overrides: Row = {}) {
-  state.user.push({ id: actorId, username: "actor", personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangePassword: false, ...overrides });
+  state.user.push({ id: actorId, username: "actor", personId: "actor-person", email: "actor@example.test", role: "SUPER_ADMIN", isActive: true, mustChangeCredentials: false, ...overrides });
 }
 function memberUsers(): Row[] {
   return state.user.filter((row) => row.role === "MEMBER");
@@ -271,6 +271,31 @@ test("commit skips rows whose (branch, normalized name) already exists", async (
   assert.equal(result.skipped[0].fullName, "budi   santoso");
   assert.equal(state.person.length, 2, "hanya satu person baru");
   assert.equal(memberUsers().length, 1);
+});
+
+test("archived person does not block re-import", async () => {
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
+  person("Budi Santoso", { deletedAt: new Date() });
+  batch(data(["Budi Santoso"]));
+  actor();
+
+  const result = await importer.commitImportData(batchId, actorId);
+
+  assert.equal(result.counts.personsCreated, 1, "person terarsip tidak dihitung exist");
+  assert.equal(result.counts.rowsSkipped, 0);
+  assert.equal(memberUsers().length, 1, "user tetap dibuat");
+});
+
+test("successRows counts only stored rows, not skipped ones", async () => {
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
+  person("Budi Santoso");
+  batch(data(["Budi Santoso", "Siti Aminah"]));
+  actor();
+
+  await importer.commitImportData(batchId, actorId);
+
+  const saved = state.importBatch.find((row) => row.id === batchId);
+  assert.equal(saved?.successRows, 1, "hanya baris tersimpan yang dihitung");
 });
 
 test("commit skips duplicate rows within the same file", async () => {
@@ -378,15 +403,15 @@ test("batch without stored data cannot commit", async () => {
   await rejected(400, /tidak lengkap/);
 });
 
-for (const restriction of ["missing", "inactive", "MEMBER", "BRANCH_ADMIN", "password-reset-required"]) {
+for (const restriction of ["missing", "inactive", "MEMBER", "BRANCH_ADMIN", "onboarding-required"]) {
   test(`authorization rejects ${restriction} actor without writes`, async () => {
     state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
     if (restriction === "missing") {
       // no actor pushed
     } else if (restriction === "inactive") {
       actor({ isActive: false });
-    } else if (restriction === "password-reset-required") {
-      actor({ mustChangePassword: true });
+    } else if (restriction === "onboarding-required") {
+      actor({ mustChangeCredentials: true });
     } else {
       actor({ role: restriction });
     }
