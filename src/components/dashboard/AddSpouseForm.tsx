@@ -4,15 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 /**
- * Form pengajuan penambahan anak.
+ * Form pengajuan penambahan pasangan.
  */
-export function AddChildForm({ personId, personName }: { personId: string; personName: string }) {
+export function AddSpouseForm({ personId, personName }: { personId: string; personName: string }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [gender, setGender] = useState<"MALE" | "FEMALE" | "OTHER">("MALE");
-  const [birthPlace, setBirthPlace] = useState("");
-  const [isStep, setIsStep] = useState(false);
-  const [isAdopted, setIsAdopted] = useState(false);
+  const [marriageDate, setMarriageDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,13 +24,11 @@ export function AddChildForm({ personId, personName }: { personId: string; perso
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "ADD_CHILD",
-          parentId: personId,
+          type: "ADD_SPOUSE",
+          personId,
           fullName: name,
           gender,
-          birthPlace: birthPlace || undefined,
-          isStep,
-          isAdopted,
+          marriageDate: marriageDate || undefined,
         }),
       });
       const data = await res.json();
@@ -53,18 +49,18 @@ export function AddChildForm({ personId, personName }: { personId: string; perso
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <p className="text-sm text-muted">
-          Anak dari: <span className="font-medium text-forest">{personName}</span>
+          Pasangan dari: <span className="font-medium text-forest">{personName}</span>
         </p>
       </div>
 
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-forest">Nama Lengkap Anak</label>
-        <input id="name" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} required />
+        <label htmlFor="spouse-name" className="block text-sm font-medium text-forest">Nama Lengkap Pasangan</label>
+        <input id="spouse-name" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} required />
       </div>
 
       <div>
-        <label htmlFor="gender" className="block text-sm font-medium text-forest">Jenis Kelamin</label>
-        <select id="gender" value={gender} onChange={(e) => setGender(e.target.value as any)} className={inputCls}>
+        <label htmlFor="spouse-gender" className="block text-sm font-medium text-forest">Jenis Kelamin</label>
+        <select id="spouse-gender" value={gender} onChange={(e) => setGender(e.target.value as any)} className={inputCls}>
           <option value="MALE">Laki-laki</option>
           <option value="FEMALE">Perempuan</option>
           <option value="OTHER">Lainnya</option>
@@ -72,19 +68,14 @@ export function AddChildForm({ personId, personName }: { personId: string; perso
       </div>
 
       <div>
-        <label htmlFor="birthPlace" className="block text-sm font-medium text-forest">Tempat Lahir</label>
-        <input id="birthPlace" value={birthPlace} onChange={(e) => setBirthPlace(e.target.value)} className={inputCls} />
-      </div>
-
-      <div className="flex items-center gap-4">
-        <label className="flex items-center gap-2 text-sm text-muted">
-          <input type="checkbox" checked={isStep} onChange={(e) => setIsStep(e.target.checked)} className="h-4 w-4 accent-forest" />
-          Anak tiri
-        </label>
-        <label className="flex items-center gap-2 text-sm text-muted">
-          <input type="checkbox" checked={isAdopted} onChange={(e) => setIsAdopted(e.target.checked)} className="h-4 w-4 accent-forest" />
-          Anak angkat
-        </label>
+        <label htmlFor="spouse-marriage-date" className="block text-sm font-medium text-forest">Tanggal Menikah</label>
+        <input
+          type="date"
+          id="spouse-marriage-date"
+          value={marriageDate}
+          onChange={(e) => setMarriageDate(e.target.value)}
+          className={inputCls}
+        />
       </div>
 
       {error && <p role="alert" className="rounded-md bg-wood/10 p-3 text-sm text-wood">{error}</p>}

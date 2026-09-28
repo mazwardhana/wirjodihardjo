@@ -2,6 +2,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { AddChildForm } from "@/components/dashboard/AddChildForm";
+import { AddSpouseForm } from "@/components/dashboard/AddSpouseForm";
+import { AddPersonForm } from "@/components/dashboard/AddPersonForm";
 import { getGenerationLabel } from "@/lib/generations";
 
 export default async function PengajuanBaruPage() {
@@ -28,15 +30,43 @@ export default async function PengajuanBaruPage() {
         Ajukan penambahan data anggota keluarga. Pengajuan akan diperiksa oleh admin sebelum disetujui.
       </p>
 
+      {user.person && (
+        <>
+          <section className="mt-10">
+            <h2 className="font-display text-xl font-semibold text-forest">
+              Tambah Anak
+            </h2>
+            <p className="mb-4 text-sm text-muted">
+              {getGenerationLabel(user.person.generationLevel)} - {user.person.fullName}
+            </p>
+            <div className="rounded-lg border border-wood/15 bg-cream p-6">
+              <AddChildForm personId={user.personId} personName={user.person.fullName} />
+            </div>
+          </section>
+
+          <section className="mt-10">
+            <h2 className="font-display text-xl font-semibold text-forest">
+              Tambah Pasangan
+            </h2>
+            <p className="mb-4 text-sm text-muted">
+              {getGenerationLabel(user.person.generationLevel)} - {user.person.fullName}
+            </p>
+            <div className="rounded-lg border border-wood/15 bg-cream p-6">
+              <AddSpouseForm personId={user.personId} personName={user.person.fullName} />
+            </div>
+          </section>
+        </>
+      )}
+
       <section className="mt-10">
         <h2 className="font-display text-xl font-semibold text-forest">
-          Tambah Anak
+          Daftarkan Anggota
         </h2>
         <p className="mb-4 text-sm text-muted">
-          {getGenerationLabel(user.person.generationLevel)} - {user.person.fullName}
+          Tambahkan anggota keluarga yang belum tercatat dalam pohon keluarga.
         </p>
         <div className="rounded-lg border border-wood/15 bg-cream p-6">
-          <AddChildForm personId={user.personId} personName={user.person.fullName} />
+          <AddPersonForm />
         </div>
       </section>
     </div>
