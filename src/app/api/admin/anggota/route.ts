@@ -28,8 +28,11 @@ export async function POST(request: Request) {
 
     const data = parsed.data;
 
-    // Fail-closed: BRANCH_ADMIN wajib menentukan cabang yang bisa diaksesnya;
-    // `""` tidak akan cocok sehingga anggota tanpa cabang hanya bisa dibuat SUPER_ADMIN.
+    // Fail-closed: BRANCH_ADMIN wajib menentukan cabang. Tanpa branchId
+    // permintaannya tidak lengkap (400), bukan di luar wewenang (403).
+    if (scope.role === "BRANCH_ADMIN" && !data.branchId) {
+      return NextResponse.json({ error: "Cabang wajib dipilih" }, { status: 400 });
+    }
     assertBranchAccess(scope, data.branchId ?? "");
 
     const person = await prisma.person.create({

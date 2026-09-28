@@ -30,7 +30,11 @@ export default async function AdminAnggotaTambahPage() {
       </p>
 
       <div className="mt-8 max-w-xl">
-        <AnggotaForm branches={branches.map((b) => ({ id: b.id, name: b.name }))} />
+        <AnggotaForm
+          branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+          defaultBranchId={user.role === "BRANCH_ADMIN" ? user.branchAdminOf?.id : undefined}
+          lockBranch={user.role === "BRANCH_ADMIN"}
+        />
       </div>
     </div>
   );

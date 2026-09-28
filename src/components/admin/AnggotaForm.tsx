@@ -36,12 +36,20 @@ const empty: FormState = {
 export function AnggotaForm({
   branches,
   initial,
+  defaultBranchId,
+  lockBranch = false,
 }: {
   branches: { id: string; name: string }[];
   initial?: Partial<FormState>;
+  defaultBranchId?: string;
+  lockBranch?: boolean;
 }) {
   const router = useRouter();
-  const [form, setForm] = useState<FormState>({ ...empty, ...initial });
+  const [form, setForm] = useState<FormState>({
+    ...empty,
+    ...(defaultBranchId ? { branchId: defaultBranchId } : {}),
+    ...initial,
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -130,12 +138,15 @@ export function AnggotaForm({
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
           <label htmlFor="branchId" className={labelCls}>Cabang</label>
-          <select id="branchId" value={form.branchId} onChange={(e) => set("branchId", e.target.value)} className={inputCls}>
-            <option value="">Tanpa cabang</option>
+          <select id="branchId" value={form.branchId} onChange={(e) => set("branchId", e.target.value)} className={inputCls} required={lockBranch}>
+            {!lockBranch && <option value="">Tanpa cabang</option>}
             {branches.map((b) => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
           </select>
+          {lockBranch && (
+            <p className="mt-1 text-xs text-muted">Anggota baru otomatis masuk cabang Anda.</p>
+          )}
         </div>
         <div>
           <label htmlFor="generationLevel" className={labelCls}>Level Generasi</label>
