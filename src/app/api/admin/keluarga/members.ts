@@ -7,6 +7,7 @@ export type MemberFilters = {
   generation?: string | null;
   status?: string | null;
   q?: string | null;
+  limit?: number | null;
 };
 
 export type KeluargaMember = {
@@ -24,6 +25,15 @@ export type KeluargaMember = {
   whatsapp: string | null;
   addressLine: string | null;
 };
+
+const MAX_MEMBER_LIMIT = 50;
+
+function resolveLimit(value: number | null | undefined): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  const floored = Math.floor(value);
+  if (floored < 1) return undefined;
+  return Math.min(floored, MAX_MEMBER_LIMIT);
+}
 
 /**
  * Susun where clause filter tabel anggota keluarga.
@@ -66,6 +76,7 @@ type MembersBoundary = {
     findMany(args: {
       where: Record<string, unknown>;
       orderBy: { fullName: "asc" };
+      take?: number;
       select: Record<string, unknown>;
     }): Promise<
       Array<{
@@ -98,9 +109,11 @@ export async function getKeluargaMembers(
   const scope = await requireAdminScope(userId, db as never);
   const branchId = resolveKeluargaBranch(scope, requestedBranchId);
 
+  const take = resolveLimit(filters.limit);
   const rows = await db.person.findMany({
     where: buildMemberWhere(branchId, filters),
     orderBy: { fullName: "asc" },
+    ...(take ? { take } : {}),
     select: {
       id: true,
       fullName: true,

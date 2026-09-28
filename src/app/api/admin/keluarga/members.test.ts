@@ -5,14 +5,16 @@ import { AuthorizationError } from "@/lib/rbac";
 
 type Role = "SUPER_ADMIN" | "BRANCH_ADMIN" | "MEMBER";
 
+type FindManyArgs = { where: Record<string, unknown>; take?: number };
+
 function makeDb(userRow: { role: Role; branchAdminOf: { id: string } | null } | null) {
-  const findManyCalls: { where: Record<string, unknown> }[] = [];
+  const findManyCalls: FindManyArgs[] = [];
   return {
     findManyCalls,
     user: { findUnique: async () => userRow },
     person: {
-      findMany: async ({ where }: { where: Record<string, unknown> }) => {
-        findManyCalls.push({ where });
+      findMany: async (args: FindManyArgs) => {
+        findManyCalls.push(args);
         return [
           {
             id: "p1",
@@ -29,7 +31,7 @@ function makeDb(userRow: { role: Role; branchAdminOf: { id: string } | null } | 
         ];
       },
     },
-  } as never;
+  };
 }
 
 // ── buildMemberWhere ───────────────────────────────────────────────────
@@ -91,4 +93,26 @@ test("member rows expose private city and phone", async () => {
   assert.equal(members[0].phone, "08123456789");
   assert.equal(members[0].generationLevel, 2);
   assert.equal(members[0].birthDate, "1990-05-04T00:00:00.000Z");
+});
+
+// ── limit (typeahead) ──────────────────────────────────────────────────
+
+test("positive limit is forwarded as take", async () => {
+  const db = makeDb({ role: "SUPER_ADMIN", branchAdminOf: null });
+  await getKeluargaMembers("u1", "b1", { limit: 8 }, db);
+  assert.equal(db.findManyCalls[0].take, 8);
+});
+
+test("limit above the cap is clamped to 50", async () => {
+  const db = makeDb({ role: "SUPER_ADMIN", branchAdminOf: null });
+  await getKeluargaMembers("u1", "b1", { limit: 999 }, db);
+  assert.equal(db.findManyCalls[0].take, 50);
+});
+
+test("missing, null, non-numeric and zero limits omit take", async () => {
+  for (const limit of [undefined, null, Number.NaN, 0]) {
+    const db = makeDb({ role: "SUPER_ADMIN", branchAdminOf: null });
+    await getKeluargaMembers("u1", "b1", { limit }, db);
+    assert.equal("take" in db.findManyCalls[0], false, `take should be omitted for ${String(limit)}`);
+  }
 });

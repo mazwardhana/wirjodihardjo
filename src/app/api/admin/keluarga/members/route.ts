@@ -11,11 +11,14 @@ export async function GET(request: Request) {
 
   try {
     const url = new URL(request.url);
+    const rawLimit = url.searchParams.get("limit");
+    const limit = rawLimit === null ? null : Number(rawLimit);
     const result = await getKeluargaMembers(session.user.id, url.searchParams.get("branchId"), {
       gender: url.searchParams.get("gender"),
       generation: url.searchParams.get("generation"),
       status: url.searchParams.get("status"),
       q: url.searchParams.get("q"),
+      limit,
     });
     return NextResponse.json(result);
   } catch (err) {

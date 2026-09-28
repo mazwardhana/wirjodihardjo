@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 import { toast } from "@/components/ui/Toast";
 
@@ -86,37 +86,62 @@ function ParentPicker({
   title,
   hint,
   role,
-  options,
   currentValue,
   busy,
   error,
   onPick,
+  onSearch,
 }: {
   title: string;
   hint: string;
   role: ParentRole;
-  options: BranchMember[];
   currentValue: ParentEntry | undefined;
   busy: boolean;
   error: string | null;
   onPick: (role: ParentRole, target: BranchMember) => void;
+  onSearch: (query: string, signal?: AbortSignal) => Promise<BranchMember[]>;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState<BranchMember[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const latestQueryRef = useRef("");
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return options
-      .filter((m) => m.id !== currentValue?.id)
-      .filter(
-        (m) =>
-          m.fullName.toLowerCase().includes(q) ||
-          (m.nickname ?? "").toLowerCase().includes(q),
-      )
-      .slice(0, 6);
-  }, [query, options, currentValue]);
+  useEffect(() => {
+    const q = query.trim();
+    latestQueryRef.current = q;
+    if (q.length < 2) return;
 
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setSearching(true);
+      setSearchError(null);
+
+      onSearch(q, controller.signal)
+        .then((results) => {
+          if (latestQueryRef.current !== q) return;
+          setOptions(results);
+          setSearching(false);
+        })
+        .catch((err: unknown) => {
+          if (latestQueryRef.current !== q) return;
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          if (controller.signal.aborted) return;
+          setOptions([]);
+          setSearching(false);
+          setSearchError(err instanceof Error ? err.message : "Gagal mencari anggota cabang");
+        });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query, onSearch]);
+
+  const results = options.filter((member) => member.id !== currentValue?.id);
+  const showResults = query.trim().length >= 2;
   const fieldId = `parent-search-${role}`;
 
   return (
@@ -141,40 +166,60 @@ function ParentPicker({
           autoComplete="off"
           value={query}
           onChange={(event) => {
-            setQuery(event.target.value);
+            const value = event.target.value;
+            setQuery(value);
             setOpen(true);
+            if (value.trim().length < 2) {
+              setOptions([]);
+              setSearching(false);
+              setSearchError(null);
+            }
           }}
           onFocus={() => setOpen(true)}
           placeholder="Ketik nama anggota cabang ini..."
           className={inputCls}
         />
-        {open && filtered.length > 0 && (
-          <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-wood/20 bg-cream py-1 shadow-lg">
-            {filtered.map((member) => (
-              <li key={member.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onPick(role, member);
-                    setQuery("");
-                    setOpen(false);
-                  }}
-                  disabled={busy}
-                  className="flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-forest transition-colors hover:bg-wood/10 disabled:opacity-50"
-                >
-                  <span className="truncate">
-                    {member.fullName}
-                    {member.nickname ? <span className="text-muted"> ({member.nickname})</span> : null}
-                  </span>
-                  <span className="shrink-0 text-xs text-muted">
-                    {member.gender === "FEMALE" ? "Perempuan" : "Laki-laki"}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+        {open && showResults && (searching || results.length > 0) && (
+          <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-wood/20 bg-cream py-1 shadow-lg">
+            {searching ? (
+              <p role="status" className="px-3 py-2 text-sm text-muted">
+                Mencari anggota...
+              </p>
+            ) : (
+              <ul>
+                {results.map((member) => (
+                  <li key={member.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onPick(role, member);
+                        setQuery("");
+                        setOpen(false);
+                      }}
+                      disabled={busy}
+                      className="flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-forest transition-colors hover:bg-wood/10 disabled:opacity-50"
+                    >
+                      <span className="truncate">
+                        {member.fullName}
+                        {member.nickname ? <span className="text-muted"> ({member.nickname})</span> : null}
+                      </span>
+                      <span className="shrink-0 text-xs text-muted">
+                        {member.gender === "FEMALE" ? "Perempuan" : "Laki-laki"}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </div>
+
+      {searchError && (
+        <p role="alert" className="mt-2 rounded-md bg-wood/10 p-2 text-sm text-wood">
+          {searchError}
+        </p>
+      )}
 
       {error && (
         <p role="alert" className="mt-2 rounded-md bg-wood/10 p-2 text-sm text-wood">
@@ -187,7 +232,6 @@ function ParentPicker({
 
 export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModalProps) {
   const [data, setData] = useState<RelasiPayload | null>(null);
-  const [members, setMembers] = useState<BranchMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyRole, setBusyRole] = useState<ParentRole | null>(null);
@@ -205,14 +249,10 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
       setLoading(true);
       setError(null);
       try {
-        const [relasiRes, membersRes] = await Promise.all([
-          fetch(`/api/admin/keluarga/relasi?personId=${encodeURIComponent(personId)}`, {
-            signal,
-          }),
-          fetch(`/api/admin/keluarga/members?branchId=${encodeURIComponent(branchId)}`, {
-            signal,
-          }),
-        ]);
+        const relasiRes = await fetch(
+          `/api/admin/keluarga/relasi?personId=${encodeURIComponent(personId)}`,
+          { signal },
+        );
 
         if (!relasiRes.ok) {
           const body = (await relasiRes.json().catch(() => ({}))) as { error?: string };
@@ -221,11 +261,6 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
 
         const relasi = (await relasiRes.json()) as RelasiPayload;
         setData(relasi);
-
-        if (membersRes.ok) {
-          const body = (await membersRes.json()) as { members?: BranchMember[] };
-          setMembers(body.members ?? []);
-        }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         setError(err instanceof Error ? err.message : "Gagal memuat data relasi keluarga");
@@ -236,7 +271,23 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
 
     load();
     return () => controller.abort();
-  }, [personId, branchId, reloadKey]);
+  }, [personId, reloadKey]);
+
+  const searchMembers = useCallback(
+    async (q: string, signal?: AbortSignal): Promise<BranchMember[]> => {
+      const res = await fetch(
+        `/api/admin/keluarga/members?branchId=${encodeURIComponent(branchId)}&q=${encodeURIComponent(q)}&limit=8`,
+        { signal },
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? "Gagal mencari anggota cabang");
+      }
+      const body = (await res.json()) as { members?: BranchMember[] };
+      return body.members ?? [];
+    },
+    [branchId],
+  );
 
   async function saveParent(role: ParentRole, target: BranchMember) {
     setBusyRole(role);
@@ -316,21 +367,21 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
               title="Masukan nama ayah"
               hint="Cari anggota dari cabang yang sama, lalu pilih untuk menetapkan relasi ayah."
               role="FATHER"
-              options={members}
               currentValue={father}
               busy={busyRole === "FATHER"}
               error={roleError.FATHER}
               onPick={saveParent}
+              onSearch={searchMembers}
             />
             <ParentPicker
               title="Masukan nama ibu"
               hint="Cari anggota dari cabang yang sama, lalu pilih untuk menetapkan relasi ibu."
               role="MOTHER"
-              options={members}
               currentValue={mother}
               busy={busyRole === "MOTHER"}
               error={roleError.MOTHER}
               onPick={saveParent}
+              onSearch={searchMembers}
             />
           </section>
 
