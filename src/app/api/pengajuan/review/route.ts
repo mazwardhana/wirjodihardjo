@@ -318,6 +318,7 @@ export async function POST(request: Request) {
       appliedPersonId,
       reviewedByUserId: user.id,
       reviewedAt: new Date(),
+      ...(body.reviewNote !== undefined && { reviewNote: (body.reviewNote as string) || null }),
     },
   });
 

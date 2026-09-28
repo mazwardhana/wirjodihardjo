@@ -44,10 +44,9 @@ export default async function AdminKeluargaPage({
     );
   }
 
-  // SUPER_ADMIN: pilih cabang (1-10).
+  // SUPER_ADMIN: pilih cabang.
   const branches = await prisma.branch.findMany({
     orderBy: { branchNumber: "asc" },
-    take: 10,
     select: { id: true, name: true, branchNumber: true },
   });
 

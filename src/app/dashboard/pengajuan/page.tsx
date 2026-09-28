@@ -56,6 +56,12 @@ export default async function DashboardPengajuanPage() {
                   {s.reviewNote}
                 </p>
               )}
+              <Link
+                href={`/dashboard/pengajuan/${s.id}`}
+                className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-gold-deep underline hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+              >
+                Lihat detail
+              </Link>
             </li>
           ))}
         </ul>

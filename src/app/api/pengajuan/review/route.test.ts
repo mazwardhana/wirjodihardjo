@@ -42,6 +42,7 @@ type ReviewState = {
   personPartnerCreate: Array<Record<string, any>>;
   personPartnerUpdate: Array<Record<string, any>>;
   personPartnerDelete: Array<string>;
+  submissionUpdate: Array<Record<string, unknown>>;
 };
 
 function reviewFixture(type: string, payload: Record<string, unknown>): ReviewState {
@@ -60,6 +61,7 @@ function reviewFixture(type: string, payload: Record<string, unknown>): ReviewSt
     personPartnerCreate: [],
     personPartnerUpdate: [],
     personPartnerDelete: [],
+    submissionUpdate: [],
   };
 }
 
@@ -86,7 +88,10 @@ function loadReviewRoute(state: ReviewState): { POST?: Handler } {
             submitter: { id: "u1", person: { gender: state.submitterGender } },
           };
         },
-        update: async () => ({ id: "submission-1" }),
+        update: async (args: { data: Record<string, unknown> }) => {
+          state.submissionUpdate.push(args.data);
+          return { id: "submission-1" };
+        },
       },
       person: {
         findFirst: async () => null,
@@ -297,4 +302,28 @@ test("EDIT_RELATION add parent menolak siklus dengan pesan bahasa Indonesia (500
   assert.equal(response.status, 500);
   const body = (await response.json()) as { error: string };
   assert.equal(body.error, "Gagal menerapkan: Relasi ini akan membentuk siklus silsilah yang tidak valid.");
+});
+
+test("APPROVE menyimpan reviewNote bila dikirim (200)", async () => {
+  const state = reviewFixture("ADD_PERSON", {
+    fullName: "Anggota Baru",
+    gender: "MALE",
+  });
+  const route = loadReviewRoute(state);
+
+  const response = await route.POST!(
+    new Request("http://localhost/api/pengajuan/review", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id: "submission-1",
+        action: "APPROVE",
+        reviewNote: "Sudah diperiksa.",
+      }),
+    }),
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(state.submissionUpdate.length, 1);
+  assert.equal(state.submissionUpdate[0].reviewNote, "Sudah diperiksa.");
 });
