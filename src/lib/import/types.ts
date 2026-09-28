@@ -138,7 +138,10 @@ export type ImportBatchPayload = {
   credentials: ImportCredential[];
   skipped: ImportSkipRow[];
   counts: ImportCounts;
-  /** Username yang sudah direncanakan pada pratinjau, dipakai ulang saat commit. */
+  /**
+   * Username per baris. Saat pratinjau berisi rencana; setelah commit nilainya
+   * diganti dengan username yang benar-benar dibuat.
+   */
   plannedUsernames?: Record<string, string>;
 };
 

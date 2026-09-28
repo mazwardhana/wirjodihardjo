@@ -33,7 +33,7 @@ function defaultSchedule(fn: () => void, delayMs: number): () => void {
 }
 
 function pesanGalat(galat: unknown): string {
-  return galat instanceof Error ? galat.message : String(galat);
+  return galat instanceof Error ? galat.message : "Gagal mencari anggota cabang";
 }
 
 /**

@@ -133,6 +133,17 @@ test("BRANCH_ADMIN tanpa branchId ditolak dan tidak menulis (400)", async () => 
   assert.equal(f.state.createCalls.length, 0);
 });
 
+test("BRANCH_ADMIN dengan branchId kosong tetap ditolak (400)", async () => {
+  const f = anggotaFixture();
+  f.state.session = { user: { id: "u2", role: "BRANCH_ADMIN" } };
+  const route = loadAnggotaRoute(f);
+  const response = await route.POST!(postRequest({ ...bodyWithoutBranch(), branchId: "" }));
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error: string };
+  assert.equal(body.error, "Cabang wajib dipilih");
+  assert.equal(f.state.createCalls.length, 0);
+});
+
 test("BRANCH_ADMIN dengan cabangnya sendiri membuat anggota (201)", async () => {
   const f = anggotaFixture();
   f.state.session = { user: { id: "u2", role: "BRANCH_ADMIN" } };

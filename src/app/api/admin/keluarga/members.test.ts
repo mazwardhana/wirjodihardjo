@@ -115,8 +115,8 @@ test("limit tak hingga tetap di-clamp ke 50", async () => {
   assert.equal(db.findManyCalls[0].take, 50);
 });
 
-test("missing, null, non-numeric and zero limits omit take", async () => {
-  for (const limit of [undefined, null, Number.NaN, 0]) {
+test("missing, null, non-numeric, zero and negative limits omit take", async () => {
+  for (const limit of [undefined, null, Number.NaN, 0, -5]) {
     const db = makeDb({ role: "SUPER_ADMIN", branchAdminOf: null });
     await getKeluargaMembers("u1", "b1", { limit }, db);
     assert.equal("take" in db.findManyCalls[0], false, `take should be omitted for ${String(limit)}`);

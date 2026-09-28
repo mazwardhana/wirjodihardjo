@@ -5,6 +5,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { toast } from "@/components/ui/Toast";
 import {
   PARENT_SEARCH_MIN_LENGTH,
+  buildParentSearchUrl,
   createParentSearch,
   type ParentSearchState,
 } from "./parent-search";
@@ -270,10 +271,7 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
 
   const searchMembers = useCallback(
     async (q: string, signal?: AbortSignal): Promise<BranchMember[]> => {
-      const res = await fetch(
-        `/api/admin/keluarga/members?branchId=${encodeURIComponent(branchId)}&q=${encodeURIComponent(q)}&limit=8`,
-        { signal },
-      );
+      const res = await fetch(buildParentSearchUrl(branchId, q), { signal });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(body.error ?? "Gagal mencari anggota cabang");
