@@ -128,6 +128,7 @@ model Person {
   birthDatePrecision String?
   birthPlace         String?
   deathDate          DateTime?
+  deathPlace         String?
   isDeceased         Boolean   @default(false)
   isMarriedInto      Boolean   @default(false)
   bio                String?

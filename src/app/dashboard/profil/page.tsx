@@ -1,8 +1,12 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { ProfilForm } from "@/components/dashboard/ProfilForm";
+import { ProfileForm } from "@/components/profile/ProfileForm";
 import { getGenerationLabel } from "@/lib/generations";
+
+function isoDate(value: Date | null) {
+  return value ? value.toISOString().slice(0, 10) : "";
+}
 
 export default async function DashboardProfilPage() {
   const session = await auth();
@@ -15,6 +19,7 @@ export default async function DashboardProfilPage() {
         include: {
           private: true,
           branch: { select: { name: true } },
+          socialLinks: { include: { platform: { select: { name: true } } } },
         },
       },
     },
@@ -22,15 +27,12 @@ export default async function DashboardProfilPage() {
   if (!user) redirect("/login");
 
   const { person } = user;
-  const platforms = await prisma.socialPlatform.findMany({
-    orderBy: { name: "asc" },
-  });
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8">
       <header className="mb-8">
         <h1 className="font-display text-3xl font-semibold text-forest">
-          Edit Profil
+          Profil Lengkap
         </h1>
         <p className="mt-1 text-sm text-muted">
           {getGenerationLabel(person.generationLevel)}
@@ -38,21 +40,32 @@ export default async function DashboardProfilPage() {
         </p>
       </header>
 
-      <ProfilForm
+      <ProfileForm
         initial={{
           fullName: person.fullName,
           nickname: person.nickname ?? "",
-          bio: person.bio ?? "",
-          occupation: person.occupation ?? "",
-          status: person.status ?? "",
+          gender: person.gender,
           photoUrl: person.photoUrl,
+          birthPlace: person.birthPlace ?? "",
+          birthDate: isoDate(person.birthDate),
+          birthDatePrecision: person.birthDatePrecision ?? "",
+          isDeceased: person.isDeceased,
+          deathPlace: person.deathPlace ?? "",
+          deathDate: isoDate(person.deathDate),
           phone: person.private?.phone ?? "",
           whatsapp: person.private?.whatsapp ?? "",
           addressLine: person.private?.addressLine ?? "",
           city: person.private?.city ?? "",
+          province: person.private?.province ?? "",
+          postalCode: person.private?.postalCode ?? "",
           visibleToMembers: person.private?.visibleToMembers ?? true,
         }}
-        platforms={platforms.map((p) => ({ id: p.id, name: p.name }))}
+        socialLinks={person.socialLinks.map((link) => ({
+          id: link.id,
+          platform: link.platform.name,
+          url: link.url,
+          username: link.username,
+        }))}
       />
     </div>
   );
