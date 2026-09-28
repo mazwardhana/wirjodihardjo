@@ -176,3 +176,14 @@ test("SUPER_ADMIN boleh membuat anggota tanpa cabang (201)", async () => {
   assert.equal(f.state.createCalls.length, 1);
   assert.equal(f.state.createCalls[0].data.branch, undefined);
 });
+
+test("POST mengabaikan generationLevel dari body (201)", async () => {
+  const f = anggotaFixture();
+  const route = loadAnggotaRoute(f);
+  const response = await route.POST!(
+    postRequest({ ...bodyWithoutBranch("Anggota Otomatis"), generationLevel: "3" }),
+  );
+  assert.equal(response.status, 201);
+  assert.equal(f.state.createCalls.length, 1);
+  assert.equal("generationLevel" in f.state.createCalls[0].data, false);
+});

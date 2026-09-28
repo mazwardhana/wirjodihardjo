@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import { computeGenerationLevels, type GenerationEdge } from "@/lib/generation-levels";
+
+export { computeGenerationLevels };
+export type { GenerationEdge };
 
 /**
  * Tipe saudara berdasarkan hubungan darah/pernikahan.
@@ -275,51 +279,149 @@ export async function getImmediateFamily(personId: string) {
 }
 
 /**
- * Hitung generationLevel dari akar keluarga (orang tanpa orang tua dengan level terkecil).
- * Dilakukan saat persetujuan pengajuan atau perubahan relasi.
+ * Kumpulkan komponen terhubung `personId` lewat relasi orang tua-anak.
+ *
+ * Dari setiap node yang terkumpul, ambil orang tua dan anaknya, lalu ulangi
+ * sampai tidak ada node baru. Dengan begitu hasilnya tertutup: setiap orang tua
+ * dan anak dari semua anggota komponen ikut terkumpul, sehingga satu
+ * rekalkulasi cukup untuk seluruh sisi yang terpengaruh.
+ *
+ * `deletedAt` sengaja tidak difilter: relasi orang yang sudah diarsipkan tetap
+ * ada di graf sehingga harus ikut dihitung agar levelnya konsisten.
  */
-export async function recalculateGenerationLevel(personId: string): Promise<number> {
-  const queue: { id: string; level: number }[] = [{ id: personId, level: 0 }];
-  const visited = new Set<string>();
-  let maxLevel = 0;
+async function collectComponent(personId: string): Promise<Set<string>> {
+  const component = new Set<string>([personId]);
+  let frontier: string[] = [personId];
 
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    if (visited.has(current.id)) continue;
-    visited.add(current.id);
-    maxLevel = Math.max(maxLevel, current.level);
+  while (frontier.length > 0) {
+    const [parentEdges, childEdges] = await Promise.all([
+      prisma.personChild.findMany({
+        where: { childId: { in: frontier } },
+        select: { parentId: true },
+      }),
+      prisma.personChild.findMany({
+        where: { parentId: { in: frontier } },
+        select: { childId: true },
+      }),
+    ]);
 
-    // Cari anak untuk propagate
-    const childEdges = await prisma.personChild.findMany({
-      where: { parentId: current.id },
-      select: { childId: true },
-    });
-
-    for (const edge of childEdges) {
-      if (!visited.has(edge.childId)) {
-        queue.push({ id: edge.childId, level: current.level + 1 });
+    const next: string[] = [];
+    for (const edge of parentEdges) {
+      if (!component.has(edge.parentId)) {
+        component.add(edge.parentId);
+        next.push(edge.parentId);
       }
     }
+    for (const edge of childEdges) {
+      if (!component.has(edge.childId)) {
+        component.add(edge.childId);
+        next.push(edge.childId);
+      }
+    }
+
+    frontier = next;
   }
 
-  await prisma.person.update({
-    where: { id: personId },
-    data: { generationLevel: maxLevel },
-  });
-
-  return maxLevel;
+  return component;
 }
 
 /**
- * Rekalkulasi level untuk banyak orang (mis. setelah approval batch).
+ * Hitung ulang `generationLevel` untuk seluruh komponen `personId` dan tulis
+ * hanya baris yang nilainya berubah. Mengembalikan level terbaru `personId`.
  */
-export async function recalculateAllGenerationLevels() {
-  const roots = await prisma.person.findMany({
-    where: { generationLevel: 0 },
-    select: { id: true },
+export async function recalculateGenerationLevel(
+  personId: string,
+): Promise<number | null> {
+  const component = await collectComponent(personId);
+  const ids = [...component];
+
+  const [edges, roots, current] = await Promise.all([
+    prisma.personChild.findMany({
+      where: { OR: [{ parentId: { in: ids } }, { childId: { in: ids } }] },
+      select: { parentId: true, childId: true },
+    }),
+    prisma.branch.findMany({
+      where: { rootPersonId: { in: ids } },
+      select: { rootPersonId: true },
+    }),
+    prisma.person.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, generationLevel: true },
+    }),
+  ]);
+
+  const levels = computeGenerationLevels({
+    personIds: ids,
+    edges: edges as GenerationEdge[],
+    branchRootIds: roots
+      .map((branch) => branch.rootPersonId)
+      .filter((id): id is string => Boolean(id)),
   });
 
-  for (const root of roots) {
-    await recalculateGenerationLevel(root.id);
+  const updates = current
+    .filter((row) => (levels.get(row.id) ?? null) !== row.generationLevel)
+    .map((row) => ({
+      id: row.id,
+      next: levels.get(row.id) ?? null,
+    }));
+
+  if (updates.length > 0) {
+    await prisma.$transaction(
+      updates.map((item) =>
+        prisma.person.update({
+          where: { id: item.id },
+          data: { generationLevel: item.next },
+        }),
+      ),
+    );
   }
+
+  return levels.get(personId) ?? null;
+}
+
+/** Jumlah update per transaksi saat rekalkulasi seluruh graf. */
+const RECALC_BATCH_SIZE = 100;
+
+/**
+ * Rekalkulasi level untuk SELURUH graf dalam satu kali hitung. Mengembalikan
+ * jumlah baris yang diperbarui.
+ */
+export async function recalculateAllGenerationLevels(): Promise<number> {
+  const [persons, edges, roots] = await Promise.all([
+    prisma.person.findMany({ select: { id: true, generationLevel: true } }),
+    prisma.personChild.findMany({ select: { parentId: true, childId: true } }),
+    prisma.branch.findMany({
+      where: { rootPersonId: { not: null } },
+      select: { rootPersonId: true },
+    }),
+  ]);
+
+  const levels = computeGenerationLevels({
+    personIds: persons.map((person) => person.id),
+    edges: edges as GenerationEdge[],
+    branchRootIds: roots
+      .map((branch) => branch.rootPersonId)
+      .filter((id): id is string => Boolean(id)),
+  });
+
+  const changes = persons
+    .filter((person) => (levels.get(person.id) ?? null) !== person.generationLevel)
+    .map((person) => ({
+      id: person.id,
+      next: levels.get(person.id) ?? null,
+    }));
+
+  for (let index = 0; index < changes.length; index += RECALC_BATCH_SIZE) {
+    const batch = changes.slice(index, index + RECALC_BATCH_SIZE);
+    await prisma.$transaction(
+      batch.map((item) =>
+        prisma.person.update({
+          where: { id: item.id },
+          data: { generationLevel: item.next },
+        }),
+      ),
+    );
+  }
+
+  return changes.length;
 }

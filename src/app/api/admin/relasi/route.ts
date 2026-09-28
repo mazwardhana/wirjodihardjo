@@ -115,6 +115,7 @@ export async function POST(request: Request) {
             parentRole: (role as any) ?? "UNKNOWN",
           },
         });
+        // Satu panggilan cukup: rekalkulasi menghitung seluruh komponen.
         try { await recalculateGenerationLevel(personId); } catch {}
       } else if (relationType === "child") {
         const existing = await prisma.personChild.findFirst({
@@ -134,6 +135,7 @@ export async function POST(request: Request) {
             parentRole: (role as any) ?? "UNKNOWN",
           },
         });
+        // Satu panggilan cukup: rekalkulasi menghitung seluruh komponen.
         try { await recalculateGenerationLevel(targetPersonId); } catch {}
       } else if (relationType === "partner") {
         const existing = await prisma.personPartner.findFirst({
@@ -189,11 +191,8 @@ export async function POST(request: Request) {
           await assertPersonAccess(scope, edge.childId);
 
           await prisma.personChild.delete({ where: { id: edgeId as string } });
-          try {
-            await recalculateGenerationLevel(
-              relationType === "child" ? edge.childId : edge.parentId,
-            );
-          } catch {}
+          // Satu panggilan cukup: komponen sudah mencakup kedua sisi relasi.
+          try { await recalculateGenerationLevel(edge.childId); } catch {}
         } else if (relationType === "partner") {
           const edge = await prisma.personPartner.findUnique({ where: { id: edgeId as string } });
           if (!edge) {

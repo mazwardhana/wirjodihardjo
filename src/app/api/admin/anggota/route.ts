@@ -46,7 +46,6 @@ export async function POST(request: Request) {
         deathDate: data.deathDate ? new Date(data.deathDate) : null,
         bio: data.bio || null,
         photoUrl: (body as any).photoUrl || null,
-        generationLevel: (body as any).generationLevel ? parseInt((body as any).generationLevel) : null,
         branch: data.branchId ? { connect: { id: data.branchId } } : undefined,
       } as any,
     });
@@ -117,7 +116,6 @@ export async function PUT(request: Request) {
         ...(body.deathDate !== undefined && { deathDate: body.deathDate ? new Date(body.deathDate as string) : null }),
         ...(body.bio !== undefined && { bio: (body.bio as string) || null }),
         ...(body.photoUrl !== undefined && { photoUrl: (body.photoUrl as string) || null }),
-        ...(body.generationLevel !== undefined && { generationLevel: parseInt(body.generationLevel as string) || null }),
         ...(body.branchId !== undefined && { branch: body.branchId ? { connect: { id: body.branchId as string } } : { disconnect: true } }),
       } as any,
     });
