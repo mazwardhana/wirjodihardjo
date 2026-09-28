@@ -6,12 +6,14 @@ import { notifyAdminsOfNewSubmission } from "@/lib/notifications";
 import {
   addChildSchema,
   addSpouseSchema,
+  addPersonSchema,
   editPersonSchema,
   editRelationSchema,
 } from "@/server/validations";
 const schemaByType = {
   ADD_CHILD: addChildSchema,
   ADD_SPOUSE: addSpouseSchema,
+  ADD_PERSON: addPersonSchema,
   EDIT_PERSON: editPersonSchema,
   EDIT_RELATION: editRelationSchema,
 } as const;

@@ -57,8 +57,18 @@ export const editRelationSchema = z.object({
   status: z.enum(["MARRIED", "DIVORCED", "WIDOWED"]).optional(),
 });
 
+export const addPersonSchema = z.object({
+  fullName: z.string().min(1, "Nama lengkap wajib diisi").max(200),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"]),
+  nickname: z.string().max(100).optional().or(z.literal("")),
+  birthDate: z.string().optional().or(z.literal("")),
+  birthPlace: z.string().max(200).optional().or(z.literal("")),
+  branchId: z.string().uuid().optional().or(z.literal("")),
+});
+
 export type PersonInput = z.infer<typeof personSchema>;
 export type AddChildInput = z.infer<typeof addChildSchema>;
 export type AddSpouseInput = z.infer<typeof addSpouseSchema>;
+export type AddPersonInput = z.infer<typeof addPersonSchema>;
 export type EditPersonInput = z.infer<typeof editPersonSchema>;
 export type EditRelationInput = z.infer<typeof editRelationSchema>;
