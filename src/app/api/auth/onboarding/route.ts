@@ -53,26 +53,30 @@ export async function POST(request: Request) {
 
   const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      passwordHash,
-      mustChangeCredentials: false,
-    },
-  });
+  // Ketiga tulisan dibungkus satu transaksi agar akun tidak pernah berada
+  // dalam keadaan setengah jadi bila salah satu tulisan gagal.
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        mustChangeCredentials: false,
+      },
+    });
 
-  await prisma.person.update({
-    where: { id: user.personId },
-    data: { nickname: parsed.data.nickname },
-  });
+    await tx.person.update({
+      where: { id: user.personId },
+      data: { nickname: parsed.data.nickname },
+    });
 
-  await prisma.auditLog.create({
-    data: {
-      action: "COMPLETE_ONBOARDING",
-      entityType: "User",
-      entityId: user.id,
-      actorUserId: session.user.id,
-    },
+    await tx.auditLog.create({
+      data: {
+        action: "COMPLETE_ONBOARDING",
+        entityType: "User",
+        entityId: user.id,
+        actorUserId: session.user.id,
+      },
+    });
   });
 
   return NextResponse.json({ ok: true });

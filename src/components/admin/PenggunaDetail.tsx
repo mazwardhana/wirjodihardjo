@@ -11,7 +11,7 @@ export function PenggunaDetail({ user }: { user: any }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [newPassword, setNewPassword] = useState<string | null>(null);
 
-  const { id, email, role, isActive, isVerified, mustChangePassword, person, createdBy, branchAdminOf, createdAt } = user;
+  const { id, email, role, isActive, isVerified, mustChangeCredentials, person, createdBy, branchAdminOf, createdAt } = user;
 
   async function update(fields: Record<string, unknown>) {
     setBusy("update");
@@ -110,6 +110,10 @@ export function PenggunaDetail({ user }: { user: any }) {
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={isVerified} onChange={(e) => update({ isVerified: e.target.checked })} className="h-4 w-4 accent-forest" />
               Terverifikasi
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={mustChangeCredentials} onChange={(e) => update({ mustChangeCredentials: e.target.checked })} className="h-4 w-4 accent-forest" />
+              Wajib ganti kredensial
             </label>
           </dd>
         </div>

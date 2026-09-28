@@ -162,4 +162,38 @@ describe("Onboarding API", () => {
     assert.equal((audit.data as Row).action, "COMPLETE_ONBOARDING");
     assert.equal((audit.data as Row).actorUserId, "u1");
   });
+
+  test("POST performs all onboarding writes inside one transaction", async () => {
+    const f = fixture();
+    f.state.user = { personId: "p1", id: "u1", mustChangeCredentials: true };
+
+    // Fixture menambahkan $transaction lewat Object.assign sehingga tidak muncul
+    // pada tipe hasil factory; dipetakan ulang di sini agar tetap terketik.
+    const prisma = f.prisma as typeof f.prisma & {
+      $transaction: (fn: (tx: unknown) => Promise<unknown>) => Promise<unknown>;
+    };
+    let txCalls = 0;
+    const originalTx = prisma.$transaction;
+    prisma.$transaction = async (fn) => {
+      txCalls += 1;
+      return originalTx(fn);
+    };
+
+    const route = loadRoute("src/app/api/auth/onboarding/route.ts", f);
+    const response = await route.POST(request("POST", {
+      nickname: "andi",
+      newPassword: "password123",
+      confirmPassword: "password123",
+    }));
+    assert.equal(response.status, 200);
+    assert.equal(txCalls, 1);
+
+    // Ketiga tulisan terekam di dalam transaksi tersebut.
+    assert.equal(f.state.writes.length, 3);
+    const userUpdate = f.state.writes[0];
+    assert.ok(userUpdate.passwordHash);
+    assert.equal(userUpdate.mustChangeCredentials, false);
+    assert.equal(f.state.writes[1].nickname, "andi");
+    assert.equal((f.state.writes[2].data as Row).action, "COMPLETE_ONBOARDING");
+  });
 });

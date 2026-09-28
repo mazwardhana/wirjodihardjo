@@ -98,7 +98,7 @@ export async function POST(request: Request) {
 
     await prisma.user.update({
       where: { id: userId },
-      data: { passwordHash, mustChangePassword: true, passwordResetToken: null, passwordResetExpires: null },
+      data: { passwordHash, mustChangeCredentials: true, passwordResetToken: null, passwordResetExpires: null },
     });
 
     await logAudit({ action: "USER_RESET_PASSWORD", entityType: "User", entityId: userId, actorUserId: admin.id });
@@ -181,7 +181,7 @@ export async function PUT(request: Request) {
   try { body = await request.json(); }
   catch { return NextResponse.json({ error: "Body tidak valid" }, { status: 400 }); }
 
-  const { id, role, isActive, isVerified, mustChangePassword } = body;
+  const { id, role, isActive, isVerified, mustChangeCredentials } = body;
   if (!id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
 
   const existing = await prisma.user.findUnique({ where: { id: id as string } });
@@ -196,7 +196,7 @@ export async function PUT(request: Request) {
   }
   if (isActive !== undefined) data.isActive = Boolean(isActive);
   if (isVerified !== undefined) data.isVerified = Boolean(isVerified);
-  if (mustChangePassword !== undefined) data.mustChangePassword = Boolean(mustChangePassword);
+  if (mustChangeCredentials !== undefined) data.mustChangeCredentials = Boolean(mustChangeCredentials);
 
   const updated = await prisma.$transaction(async (tx) => {
     // Clear branch admin assignment if role changes away from BRANCH_ADMIN
