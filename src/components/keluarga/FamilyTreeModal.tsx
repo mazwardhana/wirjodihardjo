@@ -41,8 +41,9 @@ type SiblingSection = {
   members: TreeMember[];
 };
 
-type ParentEntry = TreeMember & { role: string; isStep: boolean; isAdopted: boolean };
-type ChildEntry = TreeMember & { isStep: boolean; isAdopted: boolean };
+type ParentEntry = TreeMember & { edgeId: string; role: string; isStep: boolean; isAdopted: boolean };
+type ChildEntry = TreeMember & { edgeId: string; isStep: boolean; isAdopted: boolean };
+type PartnerEntry = { edgeId: string; status: string; member: TreeMember };
 
 type RelasiPayload = {
   person: TreeMember & { fullName: string };
@@ -52,6 +53,14 @@ type RelasiPayload = {
   descendants: DescendantLevel[];
   parents: ParentEntry[];
   children: ChildEntry[];
+  partners: PartnerEntry[];
+};
+
+type NewPersonDraft = {
+  fullName: string;
+  gender: "MALE" | "FEMALE" | "OTHER";
+  birthDate: string;
+  birthPlace: string;
 };
 
 type BranchMember = {
@@ -88,14 +97,133 @@ function MemberList({ members, emptyText }: { members: TreeMember[]; emptyText?:
   );
 }
 
+function partnerStatusLabel(status: string): string {
+  if (status === "DIVORCED") return "Cerai";
+  if (status === "WIDOWED") return "Pasangan wafat";
+  return "Menikah";
+}
+
+function NewPersonForm({
+  title,
+  withBirthPlace,
+  busy,
+  onCancel,
+  onSubmit,
+}: {
+  title: string;
+  withBirthPlace?: boolean;
+  busy: boolean;
+  onCancel: () => void;
+  onSubmit: (draft: NewPersonDraft) => void;
+}) {
+  const [draft, setDraft] = useState<NewPersonDraft>({
+    fullName: "",
+    gender: "MALE",
+    birthDate: "",
+    birthPlace: "",
+  });
+  const fieldId = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit(draft);
+      }}
+      className="space-y-3 rounded-md border border-wood/20 bg-cream p-3"
+    >
+      <p className="text-sm font-medium text-forest">{title}</p>
+
+      <div>
+        <label htmlFor={`${fieldId}-name`} className="block text-sm font-medium text-forest">
+          Nama Lengkap
+        </label>
+        <input
+          id={`${fieldId}-name`}
+          value={draft.fullName}
+          onChange={(event) => setDraft({ ...draft, fullName: event.target.value })}
+          className={inputCls}
+          required
+        />
+      </div>
+
+      <div>
+        <label htmlFor={`${fieldId}-gender`} className="block text-sm font-medium text-forest">
+          Jenis Kelamin
+        </label>
+        <select
+          id={`${fieldId}-gender`}
+          value={draft.gender}
+          onChange={(event) =>
+            setDraft({ ...draft, gender: event.target.value as NewPersonDraft["gender"] })
+          }
+          className={inputCls}
+        >
+          <option value="MALE">Laki-laki</option>
+          <option value="FEMALE">Perempuan</option>
+          <option value="OTHER">Lainnya</option>
+        </select>
+      </div>
+
+      <div>
+        <label htmlFor={`${fieldId}-birth`} className="block text-sm font-medium text-forest">
+          Tanggal Lahir
+        </label>
+        <input
+          id={`${fieldId}-birth`}
+          type="date"
+          value={draft.birthDate}
+          onChange={(event) => setDraft({ ...draft, birthDate: event.target.value })}
+          className={inputCls}
+        />
+      </div>
+
+      {withBirthPlace && (
+        <div>
+          <label htmlFor={`${fieldId}-place`} className="block text-sm font-medium text-forest">
+            Tempat Lahir
+          </label>
+          <input
+            id={`${fieldId}-place`}
+            value={draft.birthPlace}
+            onChange={(event) => setDraft({ ...draft, birthPlace: event.target.value })}
+            className={inputCls}
+          />
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="submit"
+          disabled={busy || !draft.fullName.trim()}
+          className="min-h-11 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft disabled:opacity-50"
+        >
+          Simpan
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={busy}
+          className="min-h-11 rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-wood/10 disabled:opacity-50"
+        >
+          Batal
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function ParentPicker({
   title,
   hint,
   role,
   currentValue,
   busy,
+  removing,
   error,
   onPick,
+  onRemove,
+  onCreate,
   onSearch,
 }: {
   title: string;
@@ -103,12 +231,16 @@ function ParentPicker({
   role: ParentRole;
   currentValue: ParentEntry | undefined;
   busy: boolean;
+  removing: boolean;
   error: string | null;
   onPick: (role: ParentRole, target: BranchMember) => void;
+  onRemove: () => void;
+  onCreate: (draft: NewPersonDraft) => Promise<boolean>;
   onSearch: (query: string, signal?: AbortSignal) => Promise<BranchMember[]>;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [searchState, setSearchState] = useState<ParentSearchState<BranchMember>>({
     options: [],
     searching: false,
@@ -144,83 +276,132 @@ function ParentPicker({
     <div className={cardCls}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className={sectionTitleCls}>{title}</h3>
-        {currentValue && (
-          <span className="text-sm text-muted">
-            Saat ini: <span className="font-medium text-forest">{currentValue.fullName}</span>
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {currentValue && (
+            <span className="text-sm text-muted">
+              Saat ini:{" "}
+              <span className="font-medium text-forest">{currentValue.fullName}</span>
+            </span>
+          )}
+          {currentValue && currentValue.edgeId && (
+            <button
+              type="button"
+              onClick={onRemove}
+              disabled={removing}
+              className="min-h-11 rounded-md px-3 py-2 text-xs font-medium text-wood underline transition-colors hover:bg-wood/10 disabled:opacity-50"
+            >
+              Hapus relasi
+            </button>
+          )}
+        </div>
       </div>
       <p className="mt-1 text-sm text-muted">{hint}</p>
 
-      <div className="relative mt-3">
-        <label htmlFor={fieldId} className="sr-only">
-          {title}
-        </label>
-        <input
-          id={fieldId}
-          type="search"
-          autoComplete="off"
-          value={query}
-          onChange={(event) => {
-            const value = event.target.value;
-            setQuery(value);
-            setOpen(true);
-            searchRef.current?.search(value);
-          }}
-          onFocus={() => setOpen(true)}
-          placeholder="Ketik nama anggota cabang ini..."
-          className={inputCls}
-        />
-        {open && showResults && (searching || searchError === null) && (
-          <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-wood/20 bg-cream py-1 shadow-lg">
-            {searching ? (
-              <p role="status" className="px-3 py-2 text-sm text-muted">
-                Mencari anggota...
-              </p>
-            ) : (
-              <ul>
-                {results.map((member) => (
-                  <li key={member.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onPick(role, member);
-                        searchRef.current?.cancel();
-                        setQuery("");
-                        setOpen(false);
-                      }}
-                      disabled={busy}
-                      className="flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-forest transition-colors hover:bg-wood/10 disabled:opacity-50"
-                    >
-                      <span className="truncate">
-                        {member.fullName}
-                        {member.nickname ? <span className="text-muted"> ({member.nickname})</span> : null}
-                      </span>
-                      <span className="shrink-0 text-xs text-muted">
-                        {member.gender === "FEMALE" ? "Perempuan" : "Laki-laki"}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-                {searchError === null && results.length === 0 && (
-                  <li className="px-3 py-2 text-sm text-muted">Anggota tidak ditemukan</li>
+      {creating ? (
+        <div className="mt-3">
+          <NewPersonForm
+            title={`${title} baru`}
+            busy={busy || removing}
+            onCancel={() => setCreating(false)}
+            onSubmit={async (draft) => {
+              const ok = await onCreate(draft);
+              if (ok) {
+                setCreating(false);
+                setQuery("");
+                setOpen(false);
+              }
+            }}
+          />
+        </div>
+      ) : (
+        <>
+          <div className="relative mt-3">
+            <label htmlFor={fieldId} className="sr-only">
+              {title}
+            </label>
+            <input
+              id={fieldId}
+              type="search"
+              autoComplete="off"
+              value={query}
+              onChange={(event) => {
+                const value = event.target.value;
+                setQuery(value);
+                setOpen(true);
+                searchRef.current?.search(value);
+              }}
+              onFocus={() => setOpen(true)}
+              placeholder="Ketik nama anggota cabang ini..."
+              className={inputCls}
+            />
+            {open && showResults && (searching || searchError === null) && (
+              <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-wood/20 bg-cream py-1 shadow-lg">
+                {searching ? (
+                  <p role="status" className="px-3 py-2 text-sm text-muted">
+                    Mencari anggota...
+                  </p>
+                ) : (
+                  <ul>
+                    {results.map((member) => (
+                      <li key={member.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onPick(role, member);
+                            searchRef.current?.cancel();
+                            setQuery("");
+                            setOpen(false);
+                          }}
+                          disabled={busy}
+                          className="flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-forest transition-colors hover:bg-wood/10 disabled:opacity-50"
+                        >
+                          <span className="truncate">
+                            {member.fullName}
+                            {member.nickname ? (
+                              <span className="text-muted"> ({member.nickname})</span>
+                            ) : null}
+                          </span>
+                          <span className="shrink-0 text-xs text-muted">
+                            {member.gender === "FEMALE" ? "Perempuan" : "Laki-laki"}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                    {searchError === null && results.length === 0 && (
+                      <li className="px-3 py-2 text-sm text-muted">Anggota tidak ditemukan</li>
+                    )}
+                  </ul>
                 )}
-              </ul>
+              </div>
             )}
           </div>
-        )}
-      </div>
 
-      {searchError && (
-        <p role="alert" className="mt-2 rounded-md bg-wood/10 p-2 text-sm text-wood">
-          {searchError}
-        </p>
-      )}
+          {searchError && (
+            <p role="alert" className="mt-2 rounded-md bg-wood/10 p-2 text-sm text-wood">
+              {searchError}
+            </p>
+          )}
 
-      {error && (
-        <p role="alert" className="mt-2 rounded-md bg-wood/10 p-2 text-sm text-wood">
-          {error}
-        </p>
+          {error && (
+            <p role="alert" className="mt-2 rounded-md bg-wood/10 p-2 text-sm text-wood">
+              {error}
+            </p>
+          )}
+
+          {!currentValue && (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setCreating(true);
+              }}
+              disabled={busy || removing}
+              className="mt-3 min-h-11 rounded-md border border-forest px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-forest/10 disabled:opacity-50"
+            >
+              Tidak menemukan? Buat anggota baru
+            </button>
+          )}
+        </>
       )}
     </div>
   );
@@ -235,6 +416,11 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
     FATHER: null,
     MOTHER: null,
   });
+  const [removingEdgeId, setRemovingEdgeId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [showPartnerForm, setShowPartnerForm] = useState(false);
+  const [showChildForm, setShowChildForm] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -282,6 +468,32 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
     [branchId],
   );
 
+  async function mutate(
+    body: Record<string, unknown>,
+    successMessage: string,
+  ): Promise<boolean> {
+    setSaveError(null);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/relasi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(payload.error ?? "Gagal menyimpan relasi");
+
+      toast("success", successMessage);
+      setReloadKey((key) => key + 1);
+      return true;
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Gagal menyimpan relasi");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveParent(role: ParentRole, target: BranchMember) {
     setBusyRole(role);
     setRoleError((prev) => ({ ...prev, [role]: null }));
@@ -310,9 +522,75 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
     }
   }
 
+  async function createParent(role: ParentRole, draft: NewPersonDraft): Promise<boolean> {
+    setBusyRole(role);
+    setRoleError((prev) => ({ ...prev, [role]: null }));
+    try {
+      const res = await fetch("/api/admin/relasi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "add-new",
+          relationType: "parent",
+          personId,
+          role,
+          ...draft,
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(body.error ?? "Gagal menambah orang tua baru");
+
+      toast("success", role === "FATHER" ? "Ayah baru berhasil ditambahkan." : "Ibu baru berhasil ditambahkan.");
+      setReloadKey((key) => key + 1);
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Gagal menambah orang tua baru";
+      setRoleError((prev) => ({ ...prev, [role]: message }));
+      return false;
+    } finally {
+      setBusyRole(null);
+    }
+  }
+
+  async function removeRelation(
+    relationType: "parent" | "child" | "partner",
+    edgeId: string,
+  ) {
+    if (typeof window !== "undefined" && !window.confirm("Hapus relasi ini?")) return;
+    setRemovingEdgeId(edgeId);
+    try {
+      await mutate(
+        { action: "remove", relationType, edgeId, personId },
+        "Relasi berhasil dihapus.",
+      );
+    } finally {
+      setRemovingEdgeId(null);
+    }
+  }
+
+  async function createChild(draft: NewPersonDraft): Promise<boolean> {
+    const ok = await mutate(
+      { action: "add-new", relationType: "child", personId, ...draft },
+      "Anak baru berhasil ditambahkan.",
+    );
+    if (ok) setShowChildForm(false);
+    return ok;
+  }
+
+  async function createPartner(draft: NewPersonDraft): Promise<boolean> {
+    const ok = await mutate(
+      { action: "add-new", relationType: "partner", personId, ...draft },
+      "Pasangan baru berhasil ditambahkan.",
+    );
+    if (ok) setShowPartnerForm(false);
+    return ok;
+  }
+
   const father = data?.parents.find((p) => p.role === "FATHER");
   const mother = data?.parents.find((p) => p.role === "MOTHER");
   const ancestorRows = [...(data?.ancestors ?? [])].reverse();
+  const partners = data?.partners ?? [];
+  const children = data?.children ?? [];
 
   return (
     <Dialog
@@ -353,29 +631,95 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
             </p>
           </section>
 
+          {saveError && (
+            <p role="alert" className="rounded-md bg-wood/10 p-3 text-sm text-wood">
+              {saveError}
+            </p>
+          )}
+
           {/* 2 & 3. Orang tua */}
           <section className="space-y-4">
             <h3 className={sectionTitleCls}>Orang tua</h3>
             <ParentPicker
               title="Masukan nama ayah"
-              hint="Cari anggota dari cabang yang sama, lalu pilih untuk menetapkan relasi ayah."
+              hint="Cari anggota dari cabang yang sama, lalu pilih untuk menetapkan relasi ayah. Bila belum ada di data, buat anggota baru."
               role="FATHER"
               currentValue={father}
               busy={busyRole === "FATHER"}
+              removing={Boolean(father && removingEdgeId === father.edgeId)}
               error={roleError.FATHER}
               onPick={saveParent}
+              onRemove={() => father && removeRelation("parent", father.edgeId)}
+              onCreate={(draft) => createParent("FATHER", draft)}
               onSearch={searchMembers}
             />
             <ParentPicker
               title="Masukan nama ibu"
-              hint="Cari anggota dari cabang yang sama, lalu pilih untuk menetapkan relasi ibu."
+              hint="Cari anggota dari cabang yang sama, lalu pilih untuk menetapkan relasi ibu. Bila belum ada di data, buat anggota baru."
               role="MOTHER"
               currentValue={mother}
               busy={busyRole === "MOTHER"}
+              removing={Boolean(mother && removingEdgeId === mother.edgeId)}
               error={roleError.MOTHER}
               onPick={saveParent}
+              onRemove={() => mother && removeRelation("parent", mother.edgeId)}
+              onCreate={(draft) => createParent("MOTHER", draft)}
               onSearch={searchMembers}
             />
+          </section>
+
+          {/* 3b. Pasangan */}
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className={sectionTitleCls}>Pasangan</h3>
+              {!showPartnerForm && (
+                <button
+                  type="button"
+                  onClick={() => setShowPartnerForm(true)}
+                  disabled={saving}
+                  className="min-h-11 rounded-md border border-forest px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-forest/10 disabled:opacity-50"
+                >
+                  Tambah pasangan
+                </button>
+              )}
+            </div>
+
+            {partners.length === 0 ? (
+              <div className={cardCls}>
+                <p className="text-sm text-muted">Belum ada data pasangan.</p>
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {partners.map((partner) => (
+                  <li
+                    key={partner.edgeId}
+                    className={`${cardCls} flex flex-wrap items-center justify-between gap-2`}
+                  >
+                    <span className="text-sm text-forest">
+                      <span className="font-medium">{partner.member.fullName}</span>
+                      <span className="text-muted"> - {partnerStatusLabel(partner.status)}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeRelation("partner", partner.edgeId)}
+                      disabled={removingEdgeId === partner.edgeId}
+                      className="min-h-11 rounded-md px-3 py-2 text-xs font-medium text-wood underline transition-colors hover:bg-wood/10 disabled:opacity-50"
+                    >
+                      Hapus relasi
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {showPartnerForm && (
+              <NewPersonForm
+                title="Pasangan baru"
+                busy={saving}
+                onCancel={() => setShowPartnerForm(false)}
+                onSubmit={createPartner}
+              />
+            )}
           </section>
 
           {/* 4. Generasi ke atas */}
@@ -445,7 +789,66 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
             )}
           </section>
 
-          {/* 6. Generasi di bawahnya */}
+          {/* 6. Anak langsung */}
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className={sectionTitleCls}>Anak</h3>
+              {!showChildForm && (
+                <button
+                  type="button"
+                  onClick={() => setShowChildForm(true)}
+                  disabled={saving}
+                  className="min-h-11 rounded-md border border-forest px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-forest/10 disabled:opacity-50"
+                >
+                  Tambah anak
+                </button>
+              )}
+            </div>
+
+            {children.length === 0 ? (
+              <div className={cardCls}>
+                <p className="text-sm text-muted">Belum ada data anak.</p>
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {children.map((child) => (
+                  <li
+                    key={child.edgeId}
+                    className={`${cardCls} flex flex-wrap items-center justify-between gap-2`}
+                  >
+                    <span className="text-sm text-forest">
+                      <span className="font-medium">{child.fullName}</span>
+                      <span className="text-muted">
+                        {child.isDeceased ? " - Wafat" : ""}
+                        {child.isStep ? " - Anak tiri" : ""}
+                        {child.isAdopted ? " - Anak angkat" : ""}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeRelation("child", child.edgeId)}
+                      disabled={removingEdgeId === child.edgeId}
+                      className="min-h-11 rounded-md px-3 py-2 text-xs font-medium text-wood underline transition-colors hover:bg-wood/10 disabled:opacity-50"
+                    >
+                      Hapus relasi
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {showChildForm && (
+              <NewPersonForm
+                title="Anak baru"
+                withBirthPlace
+                busy={saving}
+                onCancel={() => setShowChildForm(false)}
+                onSubmit={createChild}
+              />
+            )}
+          </section>
+
+          {/* 7. Generasi di bawahnya */}
           <section>
             <h3 className={sectionTitleCls}>Informasi generasi di bawahnya</h3>
             <div className="mt-3 rounded-md border border-wood/15 divide-y divide-wood/10">
