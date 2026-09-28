@@ -3,7 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { assertPersonAccess, requireAdminScope, AuthorizationError } from "@/lib/rbac";
+import { assertBranchAccess, requireAdminScope, AuthorizationError } from "@/lib/rbac";
 
 const editSchema = z.object({
   fullName: z
@@ -52,8 +52,8 @@ export async function PUT(
     }
 
     const scope = await requireAdminScope(session.user.id);
-    await assertPersonAccess(scope, id);
 
+    // Satu baca: ambil data audit sekaligus cabang untuk cek akses.
     const existing = await prisma.person.findUnique({
       where: { id },
       select: {
@@ -67,8 +67,12 @@ export async function PUT(
       },
     });
     if (!existing) {
-      return NextResponse.json({ error: "Anggota tidak ditemukan" }, { status: 404 });
+      throw new AuthorizationError("Anggota tidak ditemukan", 404);
     }
+
+    // Person tanpa cabang tetap ditolak untuk admin cabang (fail-closed),
+    // hanya SUPER_ADMIN yang boleh.
+    assertBranchAccess(scope, existing.branchId ?? "");
 
     const data = parsed.data;
     const person = await prisma.person.update({

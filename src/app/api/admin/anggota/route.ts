@@ -28,10 +28,9 @@ export async function POST(request: Request) {
 
     const data = parsed.data;
 
-    // Enforce branch scope on create
-    if (data.branchId) {
-      assertBranchAccess(scope, data.branchId);
-    }
+    // Fail-closed: BRANCH_ADMIN wajib menentukan cabang yang bisa diaksesnya;
+    // `""` tidak akan cocok sehingga anggota tanpa cabang hanya bisa dibuat SUPER_ADMIN.
+    assertBranchAccess(scope, data.branchId ?? "");
 
     const person = await prisma.person.create({
       data: {
