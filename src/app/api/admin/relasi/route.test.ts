@@ -254,3 +254,24 @@ test("add-new partner menandai menikah masuk dan menyimpan relasi pasangan (201)
   assert.equal(state.personPartnerCreate[0].data.partnerBId, "person-baru");
   assert.equal(state.personPartnerCreate[0].data.status, "MARRIED");
 });
+
+test("add-new dengan tanggal lahir tidak valid ditolak dan tidak menulis (400)", async () => {
+  const state = relasiFixture();
+  const route = loadRelasiRoute(state);
+
+  const response = await route.POST!(
+    postRequest({
+      action: "add-new",
+      relationType: "child",
+      personId: "fokus",
+      fullName: "Anak Baru",
+      gender: "FEMALE",
+      birthDate: "bukan-tanggal",
+    }),
+  );
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error: string };
+  assert.equal(body.error, "Tanggal lahir tidak valid");
+  assert.equal(state.personCreate.length, 0);
+});

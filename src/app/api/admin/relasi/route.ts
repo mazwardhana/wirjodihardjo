@@ -196,6 +196,17 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: "Tipe relasi tidak dikenal" }, { status: 400 });
         }
 
+        // `new Date("abc")` menghasilkan Invalid Date; Prisma lalu melempar dan
+        // balasan menjadi 500, jadi tanggal diperiksa di sini agar menjadi 400.
+        let birthDateValue: Date | null = null;
+        if (birthDate) {
+          const parsedBirthDate = new Date(birthDate);
+          if (Number.isNaN(parsedBirthDate.getTime())) {
+            return NextResponse.json({ error: "Tanggal lahir tidak valid" }, { status: 400 });
+          }
+          birthDateValue = parsedBirthDate;
+        }
+
         await assertPersonAccess(scope, personId);
         const person = await prisma.person.findUnique({ where: { id: personId } });
         if (!person) {
@@ -240,7 +251,7 @@ export async function POST(request: Request) {
             data: {
               fullName,
               gender: gender as any,
-              birthDate: birthDate ? new Date(birthDate) : null,
+              birthDate: birthDateValue,
               birthPlace: birthPlace || null,
               branchId: person.branchId ?? undefined,
               isMarriedInto: relationType === "partner",

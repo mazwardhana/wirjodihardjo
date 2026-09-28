@@ -382,12 +382,6 @@ function ParentPicker({
             </p>
           )}
 
-          {error && (
-            <p role="alert" className="mt-2 rounded-md bg-wood/10 p-2 text-sm text-wood">
-              {error}
-            </p>
-          )}
-
           {!currentValue && (
             <button
               type="button"
@@ -402,6 +396,12 @@ function ParentPicker({
             </button>
           )}
         </>
+      )}
+
+      {error && (
+        <p role="alert" className="mt-2 rounded-md bg-wood/10 p-2 text-sm text-wood">
+          {error}
+        </p>
       )}
     </div>
   );
