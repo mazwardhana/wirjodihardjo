@@ -15,7 +15,6 @@ type FormState = {
   deathDate: string;
   bio: string;
   branchId: string;
-  generationLevel: string;
   photoUrl: string | null;
 };
 
@@ -29,7 +28,6 @@ const empty: FormState = {
   deathDate: "",
   bio: "",
   branchId: "",
-  generationLevel: "",
   photoUrl: null,
 };
 
@@ -76,7 +74,6 @@ export function AnggotaForm({
           deathDate: form.deathDate || undefined,
           bio: form.bio || undefined,
           branchId: form.branchId || undefined,
-          generationLevel: form.generationLevel || undefined,
           photoUrl: form.photoUrl ?? undefined,
         }),
       });
@@ -149,8 +146,10 @@ export function AnggotaForm({
           )}
         </div>
         <div>
-          <label htmlFor="generationLevel" className={labelCls}>Level Generasi</label>
-          <input id="generationLevel" type="number" min="0" value={form.generationLevel} onChange={(e) => set("generationLevel", e.target.value)} className={inputCls} placeholder="Otomatis bila kosong" />
+          <p className="text-xs text-muted">
+            Generasi dihitung otomatis dari relasi keluarga. Anggota yang belum
+            tersambung ke pohon akan tampil sebagai &quot;Belum ditentukan&quot;.
+          </p>
         </div>
       </div>
 
