@@ -117,3 +117,18 @@ body {
   );
   background-size: 24px 24px;
 }
+
+/* ── Nav bawah mobile (PWA member) ──
+   Saat nav bawah tampil (member pages, mobile), beri ruang di bawah agar footer
+   dan konten tidak tertutup nav. Nav disembunyikan (atribut hidden) pada halaman
+   /admin, /login, /onboarding, dan /sso, jadi aturan ini otomatis tidak aktif di
+   sana — tidak ada padding ganda untuk halaman admin. */
+body:has(.member-bottom-nav:not([hidden])) {
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 768px) {
+  body:has(.member-bottom-nav:not([hidden])) {
+    padding-bottom: 0;
+  }
+}

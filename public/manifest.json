@@ -3,7 +3,9 @@
   "short_name": "KB Wirjodihardjo",
   "description": "Platform silsilah keluarga besar Wirjodihardjo",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#FFFBF5",
   "theme_color": "#1A4D2E",
   "icons": [

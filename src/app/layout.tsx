@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { MobileBottomNav } from "@/components/pwa/MobileBottomNav";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 import { Providers } from "@/components/Providers";
 import { ToastContainer } from "@/components/ui/Toast";
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <ToastContainer />
           <ServiceWorkerRegistration />
           <InstallPrompt />
+          <MobileBottomNav />
         </Providers>
       </body>
     </html>
