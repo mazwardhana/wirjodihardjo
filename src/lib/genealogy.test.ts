@@ -91,3 +91,57 @@ test("edge yang menunjuk node di luar daftar diabaikan", () => {
   const levels = run(["a"], [{ parentId: "luar", childId: "a" }]);
   assert.equal(levels.get("a"), null);
 });
+
+test("leluhur baru di atas anak yang dalam mendapat level tepat di bawah anak", () => {
+  // `p` adalah orang tua kedua `f` yang baru dibuat dan tidak punya orang tua.
+  const levels = run(
+    ["pendiri", "g1", "g2", "g3", "g4", "f", "p"],
+    [
+      { parentId: "pendiri", childId: "g1" },
+      { parentId: "g1", childId: "g2" },
+      { parentId: "g2", childId: "g3" },
+      { parentId: "g3", childId: "g4" },
+      { parentId: "g4", childId: "f" },
+      { parentId: "p", childId: "f" },
+    ],
+  );
+  assert.equal(levels.get("pendiri"), 0);
+  assert.equal(levels.get("g4"), 4);
+  assert.equal(levels.get("f"), 5);
+  assert.equal(levels.get("p"), 4);
+});
+
+test("pasangan pendiri tetap 0 meski keduanya tanpa orang tua", () => {
+  const levels = run(
+    ["pendiri1", "pendiri2", "anak"],
+    [
+      { parentId: "pendiri1", childId: "anak" },
+      { parentId: "pendiri2", childId: "anak" },
+    ],
+  );
+  assert.equal(levels.get("pendiri1"), 0);
+  assert.equal(levels.get("pendiri2"), 0);
+  assert.equal(levels.get("anak"), 1);
+});
+
+test("leluhur dengan anak di dua tingkat memakai anak paling rendah", () => {
+  // Bila memakai max, `x` akan menjadi 1 dan menyamai anaknya `a` (salah).
+  const levels = run(
+    ["x", "a", "b", "c"],
+    [
+      { parentId: "x", childId: "a" },
+      { parentId: "x", childId: "b" },
+      { parentId: "a", childId: "b" },
+      { parentId: "b", childId: "c" },
+    ],
+  );
+  assert.equal(levels.get("x"), 0);
+  assert.equal(levels.get("a"), 1);
+  assert.equal(levels.get("b"), 2);
+  assert.equal(levels.get("c"), 3);
+});
+
+test("akar cabang tanpa anak tetap 1", () => {
+  const levels = run(["akar"], [], ["akar"]);
+  assert.equal(levels.get("akar"), 1);
+});

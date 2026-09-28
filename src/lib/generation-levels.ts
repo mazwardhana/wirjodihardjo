@@ -4,7 +4,8 @@
  * Aturan dipakai berturut-turut:
  * 1. Punya orang tua -> 1 + max(generationLevel para orang tua).
  * 2. Tanpa orang tua, tetapi akar cabang -> 1.
- * 3. Tanpa orang tua, punya anak -> 0.
+ * 3. Tanpa orang tua, punya anak -> max(0, min(level anak) - 1), dihitung
+ *    pada fase kedua setelah seluruh graf terisi.
  * 4. Tanpa orang tua, tanpa anak, bukan akar cabang -> null.
  *
  * Fungsi ini tidak menyentuh Prisma supaya bisa diuji tanpa basis data.
@@ -85,6 +86,28 @@ export function computeGenerationLevels(
   // secara topologis, jadi diberi null alih-alih menggantung.
   for (const id of personIds) {
     if (!levels.has(id)) levels.set(id, null);
+  }
+
+  // Fase kedua: akar tanpa orang tua yang bukan akar cabang tidak otomatis
+  // pendiri. Dengan `min(anak) - 1` seorang leluhur yang baru dibuat jatuh
+  // tepat di atas anaknya, bukan di 0. Fase ini hanya menaikkan, tidak pernah
+  // menurunkan, dan tidak berkaskade karena sebuah akar tidak pernah punya
+  // orang tua.
+  for (const id of personIds) {
+    if ((parentsOf.get(id)?.length ?? 0) > 0) continue;
+    if (rootIds.has(id)) continue;
+    const childIds = childrenOf.get(id) ?? [];
+    if (childIds.length === 0) continue;
+
+    let lowestChildLevel = Number.POSITIVE_INFINITY;
+    for (const childId of childIds) {
+      const childLevel = levels.get(childId);
+      if (typeof childLevel !== "number") continue;
+      if (childLevel < lowestChildLevel) lowestChildLevel = childLevel;
+    }
+    if (lowestChildLevel === Number.POSITIVE_INFINITY) continue;
+
+    levels.set(id, Math.max(0, lowestChildLevel - 1));
   }
 
   return levels;
