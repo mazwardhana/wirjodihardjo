@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAncestorLabel, getDescendantLabel } from "@/lib/generations";
 import { z } from "zod";
 
 type PartnerStatus = "MARRIED" | "DIVORCED" | "WIDOWED" | "UNKNOWN";
@@ -16,28 +17,6 @@ const memberSelect = {
   branchId: true,
   birthDate: true,
 } as const;
-
-// Istilah Jawa untuk rantai ke atas. Dipakai apa adanya, tidak dikarang.
-const ancestorLabels: Record<number, string> = {
-  3: "Buyut",
-  4: "Canggah",
-  5: "Wareng",
-  6: "Udheg-udheg",
-  7: "Gantung siwur",
-  8: "Gropak senthe",
-};
-
-function ancestorLabel(depth: number, gender: string): string {
-  if (depth <= 1) return "Orang Tua";
-  if (depth === 2) return gender === "FEMALE" ? "Nenek" : "Kakek";
-  return ancestorLabels[depth] ?? `Generasi ke-${depth}`;
-}
-
-function descendantLabel(depth: number): string {
-  if (depth === 1) return "Anak";
-  if (depth === 2) return "Cucu";
-  return { 3: "Buyut", 4: "Canggah", 5: "Wareng" }[depth] ?? `Generasi ke-${depth}`;
-}
 
 function siblingRelation(roles: Set<string>): string {
   if (roles.has("FATHER") && roles.has("MOTHER")) return "Saudara kandung";
@@ -171,7 +150,7 @@ export async function GET(request: Request) {
         photoUrl: edge.parent.photoUrl,
         isDeceased: edge.parent.isDeceased,
         depth,
-        label: ancestorLabel(depth, edge.parent.gender),
+        label: getAncestorLabel(depth, edge.parent.gender),
         via: edge.childId,
       });
       next.push({ id: edge.parentId, depth });
@@ -256,7 +235,7 @@ export async function GET(request: Request) {
           photoUrl: edge.child.photoUrl,
           isDeceased: edge.child.isDeceased,
           depth,
-          label: descendantLabel(depth),
+          label: getDescendantLabel(depth),
         });
       }
       next.push({ id: edge.childId, depth });
@@ -273,9 +252,12 @@ export async function GET(request: Request) {
     },
     orderBy: { orderIndex: "asc" },
   });
-  const partners = partnerEdges.map((edge) => {
+  const partnersByMember = new Map<string, Record<string, unknown>>();
+  for (const edge of partnerEdges) {
+    const memberId = edge.partnerAId === person.id ? edge.partnerBId : edge.partnerAId;
+    if (partnersByMember.has(memberId)) continue;
     const member = edge.partnerAId === person.id ? edge.partnerB : edge.partnerA;
-    return {
+    partnersByMember.set(memberId, {
       id: member.id,
       fullName: member.fullName,
       nickname: member.nickname,
@@ -286,8 +268,9 @@ export async function GET(request: Request) {
       orderIndex: edge.orderIndex,
       marriageDate: edge.marriageDate,
       marriagePlace: edge.notes,
-    };
-  });
+    });
+  }
+  const partners = [...partnersByMember.values()];
 
   return NextResponse.json({
     relations: { parents, ancestors, siblings, children, descendants, partners },
@@ -408,18 +391,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Anggota tidak ditemukan" }, { status: 400 });
     }
 
-    const partnership = await prisma.personPartner.upsert({
-      where: { partnerAId_partnerBId: { partnerAId: personId, partnerBId: data.personId } },
-      update: { status, marriageDate, notes: data.marriagePlace ?? null },
-      create: {
-        partnerAId: personId,
-        partnerBId: data.personId,
-        status,
-        marriageDate,
-        notes: data.marriagePlace ?? null,
+    // Satu pasangan hanya satu baris: cari dulu tanpa peduli urutan A/B,
+    // supaya pemanggilan dengan urutan terbalik tidak membuat baris kedua.
+    const existing = await prisma.personPartner.findFirst({
+      where: {
+        OR: [
+          { partnerAId: personId, partnerBId: data.personId },
+          { partnerAId: data.personId, partnerBId: personId },
+        ],
       },
     });
-    edgeId = partnership.id;
+
+    if (existing) {
+      const updated = await prisma.personPartner.update({
+        where: { id: existing.id },
+        data: { status, marriageDate, notes: data.marriagePlace ?? null },
+      });
+      edgeId = updated.id;
+    } else {
+      const created = await prisma.personPartner.create({
+        data: {
+          partnerAId: personId,
+          partnerBId: data.personId,
+          status,
+          marriageDate,
+          notes: data.marriagePlace ?? null,
+          orderIndex: await prisma.personPartner.count({
+            where: { OR: [{ partnerAId: personId }, { partnerBId: personId }] },
+          }),
+        },
+      });
+      edgeId = created.id;
+    }
   }
 
   await prisma.personPrivate.upsert({

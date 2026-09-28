@@ -14,6 +14,7 @@ function relationsFixture() {
     p5: { id: "p5", fullName: "Anak Muda", nickname: null, gender: "FEMALE", branchId: "b1", generationLevel: 2, isDeceased: false, photoUrl: null, birthDate: new Date("1990-05-01") },
     p6: { id: "p6", fullName: "Anak Tua", nickname: null, gender: "MALE", branchId: "b1", generationLevel: 2, isDeceased: false, photoUrl: null, birthDate: new Date("1980-05-01") },
     p7: { id: "p7", fullName: "Istri Budi", nickname: null, gender: "FEMALE", branchId: "b1", generationLevel: 1, isDeceased: false, photoUrl: null, birthDate: null },
+    p8: { id: "p8", fullName: "Cucu Budi", nickname: null, gender: "MALE", branchId: "b1", generationLevel: 3, isDeceased: false, photoUrl: null, birthDate: null },
   };
   const parentsOf: Record<string, Row[]> = {
     p1: [{ parentId: "p2", parentRole: "FATHER", isStep: false, isAdopted: false, parent: people.p2 }],
@@ -24,9 +25,11 @@ function relationsFixture() {
       { childId: "p6", parentRole: "FATHER", isStep: false, isAdopted: false, child: people.p6 },
       { childId: "p5", parentRole: "FATHER", isStep: false, isAdopted: false, child: people.p5 },
     ],
+    p6: [{ childId: "p8", parentRole: "FATHER", isStep: false, isAdopted: false, child: people.p8 }],
   };
   const created: Row[] = [];
   const upserted: Row[] = [];
+  const partner = { edges: [] as Row[], writes: [] as Row[] };
 
   Object.assign(f.prisma, {
     person: {
@@ -71,8 +74,32 @@ function relationsFixture() {
       deleteMany: async () => ({ count: 0 }),
     },
     personPartner: {
-      findMany: async () => [],
-      upsert: async (args: Row) => { upserted.push(args); return args; },
+      findMany: async () => [...partner.edges].sort((a, b) => Number(a.orderIndex ?? 0) - Number(b.orderIndex ?? 0)),
+      findFirst: async (args: Row) => {
+        const terms = (((args?.where ?? {}) as Row).OR as Row[]) ?? [];
+        return partner.edges.find((edge) =>
+          terms.some((term) => term.partnerAId === edge.partnerAId && term.partnerBId === edge.partnerBId),
+        ) ?? null;
+      },
+      count: async (args: Row) => {
+        const terms = (((args?.where ?? {}) as Row).OR as Row[]) ?? [];
+        return partner.edges.filter((edge) =>
+          terms.some((term) =>
+            ("partnerAId" in term && edge.partnerAId === term.partnerAId) ||
+            ("partnerBId" in term && edge.partnerBId === term.partnerBId),
+          ),
+        ).length;
+      },
+      create: async (args: Row) => {
+        partner.writes.push({ kind: "create", ...args });
+        return { id: "pp-baru", ...(args.data as Row) };
+      },
+      update: async (args: Row) => {
+        partner.writes.push({ kind: "update", ...args });
+        const id = (args.where as Row).id as string;
+        const edge = partner.edges.find((row) => row.id === id) ?? { id };
+        return { ...edge, ...(args.data as Row) };
+      },
     },
     personPrivate: {
       findUnique: async () => null,
@@ -81,7 +108,7 @@ function relationsFixture() {
     auditLog: { create: async (args: Row) => { f.state.writes.push(args); return args; } },
     _created: created,
   });
-  return { f, people, created, upserted };
+  return { f, people, created, upserted, partner };
 }
 
 describe("Profile Relations API", () => {
@@ -169,7 +196,7 @@ describe("Profile Relations API", () => {
   });
 
   test("POST saves spouse, marriage place and marital status", async () => {
-    const { f, upserted } = relationsFixture();
+    const { f, upserted, partner } = relationsFixture();
     const route = loadRoute("src/app/api/profil/relations/route.ts", f);
     const response = await route.POST(request("POST", {
       action: "setPartner",
@@ -179,16 +206,53 @@ describe("Profile Relations API", () => {
       marriagePlace: "Surakarta",
     }));
     assert.equal(response.status, 200);
-    const partnerUpsert = upserted.find((u) => (u.where as Row).partnerAId_partnerBId);
-    assert.ok(partnerUpsert);
-    const compound = (partnerUpsert!.where as Row).partnerAId_partnerBId as Row;
-    assert.equal(compound.partnerAId, "p1");
-    assert.equal(compound.partnerBId, "p7");
-    assert.equal((partnerUpsert!.create as Row).notes, "Surakarta");
-    assert.equal((partnerUpsert!.create as Row).status, "MARRIED");
+    const create = partner.writes.find((write) => write.kind === "create");
+    assert.ok(create);
+    const data = create!.data as Row;
+    assert.equal(data.partnerAId, "p1");
+    assert.equal(data.partnerBId, "p7");
+    assert.equal(data.notes, "Surakarta");
+    assert.equal(data.status, "MARRIED");
     const privateUpsert = upserted.find((u) => (u.where as Row).personId === "p1");
     assert.ok(privateUpsert);
     assert.equal((privateUpsert!.update as Row).maritalStatus, "MENIKAH");
+  });
+
+  test("POST setPartner tidak menggandakan pasangan berurutan terbalik", async () => {
+    const { f, partner } = relationsFixture();
+    partner.edges.push({ id: "pp-lama", partnerAId: "p7", partnerBId: "p1", orderIndex: 0, status: "MARRIED", marriageDate: null, notes: null });
+    const route = loadRoute("src/app/api/profil/relations/route.ts", f);
+    const response = await route.POST(request("POST", { action: "setPartner", personId: "p7", maritalStatus: "MENIKAH" }));
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).edgeId, "pp-lama");
+    assert.equal(partner.writes.filter((write) => write.kind === "create").length, 0);
+    assert.equal(partner.writes.filter((write) => write.kind === "update").length, 1);
+    assert.equal((partner.writes[0].where as Row).id, "pp-lama");
+  });
+
+  test("GET memakai label keturunan adat Jawa", async () => {
+    const { f } = relationsFixture();
+    const route = loadRoute("src/app/api/profil/relations/route.ts", f);
+    const response = await route.GET(new Request("http://localhost/api/profil/relations"));
+    assert.equal(response.status, 200);
+    const { relations } = await response.json();
+    const depthTwo = relations.descendants.find((row: Row) => row.depth === 2);
+    assert.ok(depthTwo, "cucu p8 harus muncul sebagai keturunan depth 2");
+    assert.equal(depthTwo!.label, "Putu / Wayah");
+  });
+
+  test("GET menampilkan satu baris per pasangan walau edge duplikat", async () => {
+    const { f, people, partner } = relationsFixture();
+    partner.edges.push(
+      { id: "pp1", partnerAId: "p1", partnerBId: "p7", orderIndex: 0, status: "MARRIED", marriageDate: null, notes: null, partnerA: people.p1, partnerB: people.p7 },
+      { id: "pp2", partnerAId: "p7", partnerBId: "p1", orderIndex: 1, status: "MARRIED", marriageDate: null, notes: null, partnerA: people.p1, partnerB: people.p7 },
+    );
+    const route = loadRoute("src/app/api/profil/relations/route.ts", f);
+    const response = await route.GET(new Request("http://localhost/api/profil/relations"));
+    assert.equal(response.status, 200);
+    const { relations } = await response.json();
+    assert.equal(relations.partners.length, 1);
+    assert.equal(relations.partners[0].id, "p7");
   });
 
   test("POST returns 400 for malformed JSON", async () => {

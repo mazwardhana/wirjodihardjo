@@ -1,9 +1,12 @@
 /**
- * Penamaan generasi dalam adat Jawa (turunan mudhun).
+ * Penamaan generasi dalam adat Jawa, dua arah.
+ * - Ke bawah (keturunan): level dihitung dari subjek, 0 = pasangan pendiri,
+ *   1 = anak, 2 = putu, dan seterusnya sampai level 18.
+ * - Ke atas (leluhur): level dihitung dari subjek, 1 = orang tua,
+ *   2 = kakek/nenek, 3 = buyut, dan seterusnya.
  * Sumber istilah: budaya.jogjaprov.go.id, detikJateng, ANTARA.
  *
- * Level 0 = pasangan pendiri. Level 1 = anak, dan seterusnya.
- * Di luar level 18, sistem memakai fallback "Generasi ke-N".
+ * Di luar level yang terdaftar, sistem memakai fallback "Generasi ke-N".
  */
 export const GENERATION_LABELS: { level: number; jawa: string; indonesia: string | null }[] = [
   { level: 0, jawa: "Leluhur / Pendiri", indonesia: "Pendiri Keluarga" },
@@ -32,4 +35,29 @@ export function getGenerationLabel(level: number | null | undefined): string {
   const found = GENERATION_LABELS.find((l) => l.level === level);
   if (found) return found.jawa;
   return `Generasi ke-${level}`;
+}
+
+/**
+ * Label rantai ke atas (leluhur) untuk satu tingkat dari subjek.
+ * Level 1 orang tua, level 2 kakek/nenek, level 3 ke atas memakai kolom `jawa`.
+ * Tanpa gender memakai bentuk umum.
+ */
+export function getAncestorLabel(level: number, gender?: string | null): string {
+  if (level <= 0) return `Generasi ke-${level}`;
+  if (level === 1) {
+    if (gender === "MALE") return "Ayah";
+    if (gender === "FEMALE") return "Ibu";
+    return "Orang Tua";
+  }
+  if (level === 2) {
+    if (gender === "MALE") return "Kakek";
+    if (gender === "FEMALE") return "Nenek";
+    return "Kakek/Nenek";
+  }
+  return GENERATION_LABELS.find((l) => l.level === level)?.jawa ?? `Generasi ke-${level}`;
+}
+
+/** Label rantai ke bawah (keturunan). Identik dengan `getGenerationLabel`. */
+export function getDescendantLabel(level: number): string {
+  return getGenerationLabel(level);
 }

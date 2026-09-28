@@ -41,6 +41,22 @@ export function fixture() {
   return { state, prisma };
 }
 
+// Modul TS murni (tanpa prisma) yang diimpor rute tetapi tidak dikenali Node
+// karena memakai alias `@/`. Hasil kompilasi dimemoisasi per path absolut.
+const tsModuleCache = new Map<string, Record<string, unknown>>();
+
+function loadTsModule(filename: string, fallback: (id: string) => unknown): Record<string, unknown> {
+  const cached = tsModuleCache.get(filename);
+  if (cached) return cached;
+  const output = ts.transpileModule(readFileSync(filename, "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
+  }).outputText;
+  const exports: Record<string, unknown> = {};
+  runInNewContext(output, { exports, URL, Request, Response, require: fallback }, { filename });
+  tsModuleCache.set(filename, exports);
+  return exports;
+}
+
 // Load real route source with only authentication and persistence replaced.
 // Node 20 does not support mock.module; keep this adapter confined to tests.
 export function loadRoute(path: string, f: ReturnType<typeof fixture>) {
@@ -50,10 +66,15 @@ export function loadRoute(path: string, f: ReturnType<typeof fixture>) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
   }).outputText;
   const exports: Record<string, (request: Request, context?: { params: Promise<{ id: string }> }) => Promise<Response>> = {};
+  const requireMap = (id: string): unknown => {
+    if (id === "@/lib/auth") return { auth: async () => f.state.session };
+    if (id === "@/lib/prisma") return { prisma: f.prisma };
+    if (id === "@/lib/generations") return loadTsModule(resolve("src/lib/generations.ts"), requireMap);
+    return require(id);
+  };
   runInNewContext(output, {
     exports, URL, Request, Response,
-    require: (id: string) => id === "@/lib/auth" ? { auth: async () => f.state.session }
-      : id === "@/lib/prisma" ? { prisma: f.prisma } : require(id),
+    require: requireMap,
   }, { filename });
   return exports;
 }

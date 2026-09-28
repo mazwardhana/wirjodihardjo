@@ -58,8 +58,9 @@ test("getAncestorLabel memakai label adat Jawa berurutan", () => {
   assert.equal(getAncestorLabel(3), "Buyut");
   assert.equal(getAncestorLabel(4), "Canggah");
   assert.equal(getAncestorLabel(5), "Wareng");
-  assert.equal(getAncestorLabel(6), "Udeg-udeg");
-  assert.equal(getAncestorLabel(7), "Gantung Siwur");
+  assert.equal(getAncestorLabel(6), "Udheg-udheg");
+  assert.equal(getAncestorLabel(7), "Gantung siwur");
+  assert.equal(getAncestorLabel(8), "Gropak senthe");
 });
 
 test("getAncestorLabel membedakan gender di tingkat 1 dan 2", () => {
@@ -70,8 +71,8 @@ test("getAncestorLabel membedakan gender di tingkat 1 dan 2", () => {
 });
 
 test("getAncestorLabel fallback untuk tingkat di luar daftar", () => {
-  assert.equal(getAncestorLabel(8), "Generasi ke-8");
   assert.equal(getAncestorLabel(0), "Generasi ke-0");
+  assert.equal(getAncestorLabel(99), "Generasi ke-99");
 });
 
 // ── buildAncestorLevels ──────────────────────────────────────────────────

@@ -10,7 +10,10 @@ import {
   type SiblingGroup,
   type SiblingType,
 } from "@/lib/genealogy";
-import { getGenerationLabel } from "@/lib/generations";
+import { getAncestorLabel, getDescendantLabel } from "@/lib/generations";
+
+// Re-export agar import lama (test dan modul lain) tetap berjalan.
+export { getAncestorLabel };
 
 export type TreeMember = {
   id: string;
@@ -158,29 +161,6 @@ const TREE_SELECT = {
 const MAX_ANCESTOR_LEVEL = 12;
 const MAX_DESCENDANT_LEVEL = 8;
 
-type AncestorLabelDef = { combined: string; male: string; female: string };
-
-// Label adat Jawa untuk rantai ke atas.
-// Orang Tua -> Kakek/Nenek -> Buyut -> Canggah -> Wareng -> Udeg-udeg -> Gantung Siwur
-const UP_LABELS: Record<number, AncestorLabelDef> = {
-  1: { combined: "Orang Tua", male: "Ayah", female: "Ibu" },
-  2: { combined: "Kakek/Nenek", male: "Kakek", female: "Nenek" },
-  3: { combined: "Buyut", male: "Buyut", female: "Buyut" },
-  4: { combined: "Canggah", male: "Canggah", female: "Canggah" },
-  5: { combined: "Wareng", male: "Wareng", female: "Wareng" },
-  6: { combined: "Udeg-udeg", male: "Udeg-udeg", female: "Udeg-udeg" },
-  7: { combined: "Gantung Siwur", male: "Gantung Siwur", female: "Gantung Siwur" },
-};
-
-/** Label adat Jawa untuk satu tingkat ke atas. Tanpa gender memakai bentuk umum. */
-export function getAncestorLabel(level: number, gender?: string | null): string {
-  const def = UP_LABELS[level];
-  if (!def) return `Generasi ke-${level}`;
-  if (gender === "MALE") return def.male;
-  if (gender === "FEMALE") return def.female;
-  return def.combined;
-}
-
 function toMember(row: PersonRow): TreeMember {
   return {
     id: row.id,
@@ -241,7 +221,7 @@ export function buildAncestorLevels(
 
 /**
  * Susun daftar generasi di bawah (anak, cucu, dst).
- * Label memakai adat Jawa dari `getGenerationLabel`.
+ * Label memakai adat Jawa dari `getDescendantLabel`.
  */
 export function buildDescendantLevels(
   startId: string,
@@ -273,7 +253,7 @@ export function buildDescendantLevels(
     const level = index + 1;
     return {
       level,
-      label: getGenerationLabel(level),
+      label: getDescendantLabel(level),
       members: ids.map((id) => members.get(id)).filter((m): m is TreeMember => m !== null),
     };
   });
