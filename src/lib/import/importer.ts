@@ -70,7 +70,14 @@ export function sanitizePreviewData(data: ParsedData): ParsedData {
   };
 }
 
-function rowKey(row: ParsedData["anggota"][number]): string {
+/**
+ * Kunci baris impor: gabungan cabang dan nama lengkap ternormalisasi.
+ *
+ * Kunci ini harus stabil antara pratinjau dan commit karena berasal dari data
+ * yang sama, sehingga rencana username di layar pratinjau bisa dipakai ulang
+ * saat commit tanpa perlu dihitung ulang.
+ */
+export function rowKey(row: ParsedData["anggota"][number]): string {
   return `${row.branchId ?? ""}::${normalizeFullName(row.namaLengkap)}`;
 }
 
@@ -118,6 +125,7 @@ export async function analyzeImportData(data: ParsedData) {
   const counts = emptyCounts(data);
   const credentials: ImportCredential[] = [];
   const skipped: ImportSkipRow[] = [];
+  const plannedUsernames: Record<string, string> = {};
   const seen = new Set<string>();
 
   for (const row of rows) {
@@ -142,16 +150,18 @@ export async function analyzeImportData(data: ParsedData) {
     counts.accountsCreated++;
     if (hasPrivateData(row)) counts.privateUpserts++;
 
+    plannedUsernames[key] = username;
     credentials.push({
       fullName: row.namaLengkap,
       username,
       role: "MEMBER",
       isNew: true,
       status: "dibuat",
+      rowKey: key,
     });
   }
 
-  return { counts, credentials, skipped };
+  return { counts, credentials, skipped, plannedUsernames };
 }
 
 function rowError(sheet: ValidationError["sheet"], row: number, field: string, message: string): never {
@@ -168,7 +178,12 @@ function date(value?: string): Date | undefined {
 
 type ApplyResult = { counts: ImportCounts; credentials: ImportCredential[]; skipped: ImportSkipRow[] };
 
-async function applyData(tx: Prisma.TransactionClient, data: ParsedData, actorId: string): Promise<ApplyResult> {
+async function applyData(
+  tx: Prisma.TransactionClient,
+  data: ParsedData,
+  actorId: string,
+  plannedUsernames?: Record<string, string>,
+): Promise<ApplyResult> {
   const rows = data.anggota;
   const counts = emptyCounts(data);
   const existingKeys = await loadExistingKeys(tx, rows);
@@ -232,7 +247,13 @@ async function applyData(tx: Prisma.TransactionClient, data: ParsedData, actorId
       counts.privateUpserts++;
     }
 
-    const username = deriveUniqueUsername(row.namaPanggilan ?? "", row.namaLengkap, taken);
+    // Pakai username yang sudah direncanakan pada pratinjau selama belum
+    // terambil di database saat commit; kalau sudah terambil, turunkan yang
+    // baru dan laporkan username yang benar-benar dibuat.
+    const planned = plannedUsernames?.[key];
+    const username = planned && !taken.has(planned)
+      ? planned
+      : deriveUniqueUsername(row.namaPanggilan ?? "", row.namaLengkap, taken);
     taken.add(username);
 
     await tx.user.create({
@@ -288,14 +309,22 @@ export async function commitImportData(batchId: string, actorId: string) {
           );
         }
 
-        const result = await applyData(tx, validation.data, actorId);
+        // Sumber utama rencana adalah `credentials` karena itulah yang benar-benar
+        // ditulis rute pratinjau. `plannedUsernames` dipakai sebagai override bila ada.
+        const planned: Record<string, string> = {};
+        for (const credential of payload.credentials ?? []) {
+          if (credential.rowKey && credential.username) planned[credential.rowKey] = credential.username;
+        }
+        Object.assign(planned, payload.plannedUsernames ?? {});
+
+        const result = await applyData(tx, validation.data, actorId, planned);
         await tx.importBatch.update({
           where: { id: batchId },
           data: {
             status: "COMMITTED",
             successRows: result.counts.personsCreated,
             errorRows: 0,
-            reportJson: { ...payload, ...result, errors: [] },
+            reportJson: { ...payload, ...result, plannedUsernames: planned, errors: [] },
           },
         });
 

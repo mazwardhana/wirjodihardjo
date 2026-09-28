@@ -349,6 +349,76 @@ test("analyzeImportData plans usernames, private upserts, and skips", async () =
   assert.equal(plan.skipped[0].reason, "sudah ada, dilewati");
 });
 
+test("analyzeImportData returns the planned usernames keyed by row", async () => {
+  person("Budi Santoso");
+  const input: ParsedData = {
+    anggota: [
+      anggota("Budi Santoso", { branchId: "branch-1", branchNumber: 1 }),
+      anggota("Siti Aminah", { branchId: "branch-1", branchNumber: 1, namaPanggilan: "Siti" }),
+    ],
+  };
+
+  const plan = await importer.analyzeImportData(input);
+
+  // rowKey menormalkan nama ke huruf kecil lewat normalizeFullName.
+  assert.equal(plan.plannedUsernames["branch-1::siti aminah"], "siti");
+  assert.equal(plan.plannedUsernames["branch-1::budi santoso"], undefined, "baris dilewati tidak masuk rencana");
+  assert.equal(plan.credentials[0].rowKey, "branch-1::siti aminah");
+});
+
+test("commit reuses the username planned at preview", async () => {
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
+  batch(data(["Budi Santoso"]), {
+    reportJson: {
+      filename: "test.xlsx",
+      data: data(["Budi Santoso"]),
+      errors: [],
+      warnings: [],
+      // Bentuk inilah yang benar-benar ditulis rute pratinjau: rencana ada di
+      // dalam `credentials` lewat `rowKey` (nama ternormalisasi huruf kecil).
+      credentials: [{ fullName: "Budi Santoso", username: "budi_keluarga", rowKey: "branch-1::budi santoso", role: "MEMBER", isNew: true, status: "dibuat" }],
+      skipped: [],
+      counts: {},
+    },
+  });
+  actor();
+
+  const result = await importer.commitImportData(batchId, actorId);
+
+  const created = memberUsers().find((u) => u.personId?.toString().startsWith("created-"));
+  assert.equal(created?.username, "budi_keluarga");
+  assert.equal(result.credentials[0].username, "budi_keluarga");
+
+  // Rencana ikut tercatat saat reportJson ditulis ulang oleh commit.
+  const saved = state.importBatch.find((row) => row.id === batchId);
+  const savedPayload = saved?.reportJson as { plannedUsernames?: Record<string, string> };
+  assert.equal(savedPayload?.plannedUsernames?.["branch-1::budi santoso"], "budi_keluarga");
+});
+
+test("planned username that became taken falls back to a unique one", async () => {
+  state.branch.push({ id: "branch-1", branchNumber: 1, name: "Cabang Satu", isActive: true });
+  state.user.push({ id: "existing", username: "budi_keluarga", role: "MEMBER", personId: "p" });
+  batch(data(["Budi Santoso"]), {
+    reportJson: {
+      filename: "test.xlsx",
+      data: data(["Budi Santoso"]),
+      errors: [],
+      warnings: [],
+      credentials: [{ fullName: "Budi Santoso", username: "budi_keluarga", rowKey: "branch-1::budi santoso", role: "MEMBER", isNew: true, status: "dibuat" }],
+      skipped: [],
+      counts: {},
+    },
+  });
+  actor();
+
+  const result = await importer.commitImportData(batchId, actorId);
+
+  const created = memberUsers().find((u) => u.personId?.toString().startsWith("created-"));
+  assert.notEqual(created?.username, "budi_keluarga");
+  assert.equal(created?.username, "budi");
+  assert.equal(result.credentials[0].username, "budi");
+});
+
 test("nonexistent branch code is caught at validation time", async () => {
   state.branch.push({ id: "branch-1", branchNumber: 1, name: "Active", isActive: true });
   const input = data(["Person A"]);

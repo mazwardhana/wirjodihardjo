@@ -104,6 +104,8 @@ export type ImportCredential = {
   role: UserRole;
   isNew: boolean;
   status: string;
+  /** Kunci baris (`branchId::nama-normalisasi`) untuk mencocokkan baris pratinjau saat commit. */
+  rowKey?: string;
 };
 
 /** Baris yang dilewati karena sudah ada di database. */
@@ -136,6 +138,8 @@ export type ImportBatchPayload = {
   credentials: ImportCredential[];
   skipped: ImportSkipRow[];
   counts: ImportCounts;
+  /** Username yang sudah direncanakan pada pratinjau, dipakai ulang saat commit. */
+  plannedUsernames?: Record<string, string>;
 };
 
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024; // 10MB
