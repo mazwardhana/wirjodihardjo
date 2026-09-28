@@ -9,6 +9,7 @@ const menu = [
   { href: "/admin/pengajuan", label: "Pengajuan", icon: "⊞" },
   { href: "/admin/anggota", label: "Data Anggota", icon: "⊡" },
   { href: "/admin/cabang", label: "Cabang", icon: "⊟" },
+  { href: "/admin/keluarga", label: "Keluarga", icon: "⊞" },
   { href: "/admin/galeri", label: "Galeri", icon: "⊠" },
   { href: "/admin/hall-of-fame", label: "Hall of Fame", icon: "★" },
   { href: "/admin/artikel", label: "Artikel", icon: "▤" },

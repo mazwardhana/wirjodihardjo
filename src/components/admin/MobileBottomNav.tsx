@@ -14,6 +14,7 @@ const primaryItems = [
 
 const overflowItems = [
   { href: "/admin/cabang", label: "Cabang", icon: "⊟" },
+  { href: "/admin/keluarga", label: "Keluarga", icon: "⊞" },
   { href: "/admin/galeri", label: "Galeri", icon: "⊠" },
   { href: "/admin/hall-of-fame", label: "Hall of Fame", icon: "★" },
   { href: "/admin/reuni", label: "Reuni", icon: "☰" },
