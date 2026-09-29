@@ -50,6 +50,21 @@ function anggotaFixture() {
       u3: { role: "MEMBER" as Role, branchAdminOf: null as { id: string } | null },
     } as Record<string, { role: Role; branchAdminOf: { id: string } | null }>,
     createCalls: [] as CreateArgs[],
+    existing: {
+      id: "person-1",
+      branchId: null,
+      fullName: "Anggota Lama",
+      nickname: null,
+      gender: "MALE",
+      birthDate: null,
+      birthPlace: null,
+      isDeceased: false,
+      deathDate: null,
+      bio: null,
+      photoUrl: null,
+      generationLevel: 1,
+    } as Record<string, unknown> | null,
+    updateCalls: [] as { where: { id: string }; data: Record<string, unknown> }[],
   };
 
   const prisma = {
@@ -61,7 +76,12 @@ function anggotaFixture() {
         state.createCalls.push(args);
         return { id: "person-baru", fullName: args.data.fullName };
       },
-      findUnique: async () => null,
+      findUnique: async (args: { where: { id: string } }) =>
+        state.existing && state.existing.id === args.where.id ? state.existing : null,
+      update: async (args: { where: { id: string }; data: Record<string, unknown> }) => {
+        state.updateCalls.push(args);
+        return { id: args.where.id, fullName: args.data.fullName ?? "" };
+      },
     },
   };
 
@@ -96,7 +116,7 @@ function loadAnggotaRoute(fixture: ReturnType<typeof anggotaFixture>) {
     if (id === "@/lib/rbac") return rbac;
     if (id === "@/server/validations") return validations;
     return nodeRequire(id);
-  }) as { POST?: Handler };
+  }) as { POST?: Handler; PUT?: Handler };
 }
 
 const POST_URL = "http://localhost/api/admin/anggota";
@@ -104,6 +124,14 @@ const POST_URL = "http://localhost/api/admin/anggota";
 function postRequest(body: Record<string, unknown>) {
   return new Request(POST_URL, {
     method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function putRequest(body: Record<string, unknown>) {
+  return new Request(POST_URL, {
+    method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -186,4 +214,16 @@ test("POST mengabaikan generationLevel dari body (201)", async () => {
   assert.equal(response.status, 201);
   assert.equal(f.state.createCalls.length, 1);
   assert.equal("generationLevel" in f.state.createCalls[0].data, false);
+});
+
+test("PUT mengabaikan generationLevel dari body (200)", async () => {
+  const f = anggotaFixture();
+  const route = loadAnggotaRoute(f);
+  const response = await route.PUT!(
+    putRequest({ id: "person-1", fullName: "Anggota Diperbarui", generationLevel: "3" }),
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(f.state.updateCalls.length, 1);
+  assert.equal("generationLevel" in f.state.updateCalls[0].data, false);
 });

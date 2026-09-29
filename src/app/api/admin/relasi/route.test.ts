@@ -89,6 +89,8 @@ type RelasiState = {
   personPartnerCreate: Array<{
     data: { partnerAId: string; partnerBId: string; status: string; orderIndex: number };
   }>;
+  userRole: "SUPER_ADMIN" | "BRANCH_ADMIN";
+  branchAdminOf: { id: string } | null;
 };
 
 function relasiFixture(): RelasiState {
@@ -99,6 +101,8 @@ function relasiFixture(): RelasiState {
     personCreate: [],
     personChildCreate: [],
     personPartnerCreate: [],
+    userRole: "SUPER_ADMIN" as "SUPER_ADMIN" | "BRANCH_ADMIN",
+    branchAdminOf: null as { id: string } | null,
   };
 }
 
@@ -109,9 +113,16 @@ function loadRelasiRoute(state: RelasiState): { POST?: Handler } {
   const nodeRequire = createRequire(abs);
 
   const prismaPalsu = {
-    user: { findUnique: async () => ({ id: "u1", role: "SUPER_ADMIN", branchAdminOf: null }) },
+    user: {
+      findUnique: async () => ({
+        id: "u1",
+        role: state.userRole,
+        branchAdminOf: state.branchAdminOf,
+      }),
+    },
     person: {
-      findUnique: async () => state.person,
+      findUnique: async ({ where }: { where: { id: string } }) =>
+        state.person && where.id === state.person.id ? state.person : null,
       create: async (args: { data: { fullName: string; branchId?: string; isMarriedInto?: boolean } }) => {
         state.personCreate.push(args);
         return { id: "person-baru", fullName: args.data.fullName };
@@ -273,5 +284,25 @@ test("add-new dengan tanggal lahir tidak valid ditolak dan tidak menulis (400)",
   assert.equal(response.status, 400);
   const body = (await response.json()) as { error: string };
   assert.equal(body.error, "Tanggal lahir tidak valid");
+  assert.equal(state.personCreate.length, 0);
+});
+
+test("add-new ditolak saat orang fokus di luar cabang admin cabang (403)", async () => {
+  const state = relasiFixture();
+  state.userRole = "BRANCH_ADMIN";
+  state.branchAdminOf = { id: "cabang-lain" };
+  const route = loadRelasiRoute(state);
+
+  const response = await route.POST!(
+    postRequest({
+      action: "add-new",
+      relationType: "child",
+      personId: "fokus",
+      fullName: "Anggota Baru",
+      gender: "MALE",
+    }),
+  );
+
+  assert.equal(response.status, 403);
   assert.equal(state.personCreate.length, 0);
 });
