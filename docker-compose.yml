@@ -59,6 +59,22 @@ services:
     networks:
       - teknoloka-network
 
+  # UI database untuk penelusuran dari luar host.
+  # Dua ikatan: loopback untuk periksaan lokal, dan IP Tailscale sehingga
+  # hanya perangkat di tailnet yang bisa membuka. Tidak pernah pakai 0.0.0.0,
+  # jadi tidak terekspos ke LAN maupun internet.
+  adminer:
+    image: adminer:4
+    container_name: wirjodihardjo-adminer
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: wirjodihardjo-db
+    ports:
+      - "127.0.0.1:8081:8080"
+      - "100.66.50.103:8081:8080"
+    networks:
+      - teknoloka-network
+
 volumes:
   wirjodihardjo-pgdata:
   wirjodihardjo-redisdata:
