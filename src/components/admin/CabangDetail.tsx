@@ -419,7 +419,7 @@ export function CabangDetail({ branch }: { branch: BranchDetail }) {
         </button>
         <button
           type="button"
-          onClick={() => router.push("/admin/cabang")}
+          onClick={() => router.push("/admin/keluarga/cabang")}
           className="rounded-md border border-wood/30 px-5 py-2.5 text-sm text-muted transition-colors hover:bg-wood/10"
         >
           Kembali

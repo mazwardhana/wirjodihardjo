@@ -19,8 +19,28 @@ const menu = [
   { href: "/admin/audit-log", label: "Audit Log", icon: "▦", role: "SUPER_ONLY" as const },
 ];
 
+const CABANG_HREF = "/admin/cabang";
+const CABANG_SEGMENT = "/admin/keluarga/cabang";
+
 function isActive(pathname: string, href: string): boolean {
   if (href === "/admin") return pathname === "/admin";
+  // "Cabang" nav entry lights on both the legacy /admin/cabang route (which now
+  // redirects to the unified segment) and the unified /admin/keluarga/cabang segment.
+  if (href === CABANG_HREF) {
+    return (
+      pathname === CABANG_HREF ||
+      pathname.startsWith(`${CABANG_HREF}/`) ||
+      pathname === CABANG_SEGMENT ||
+      pathname.startsWith(`${CABANG_SEGMENT}/`)
+    );
+  }
+  // "Keluarga" stays exclusive: do not light when the unified cabang segment
+  // is active, since that belongs to the "Cabang" entry.
+  if (href === "/admin/keluarga") {
+    const inCabangSegment =
+      pathname === CABANG_SEGMENT || pathname.startsWith(`${CABANG_SEGMENT}/`);
+    return !inCabangSegment && (pathname === href || pathname.startsWith(`${href}/`));
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

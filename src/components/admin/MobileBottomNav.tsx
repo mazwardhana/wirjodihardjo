@@ -31,8 +31,26 @@ const overflowItems: AdminNavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "←", role: "ALL" },
 ];
 
+const CABANG_HREF = "/admin/cabang";
+const CABANG_SEGMENT = "/admin/keluarga/cabang";
+
 function isActive(pathname: string, href: string) {
   if (href === "/admin") return pathname === "/admin";
+  // Sama seperti sidebar: entri "Cabang" menyala juga di segmen terpadu.
+  if (href === CABANG_HREF) {
+    return (
+      pathname === CABANG_HREF ||
+      pathname.startsWith(`${CABANG_HREF}/`) ||
+      pathname === CABANG_SEGMENT ||
+      pathname.startsWith(`${CABANG_SEGMENT}/`)
+    );
+  }
+  // "Keluarga" eksklusif: jangan menyala di segmen cabang terpadu.
+  if (href === "/admin/keluarga") {
+    const inCabangSegment =
+      pathname === CABANG_SEGMENT || pathname.startsWith(`${CABANG_SEGMENT}/`);
+    return !inCabangSegment && pathname.startsWith(href);
+  }
   return pathname.startsWith(href);
 }
 

@@ -245,49 +245,16 @@ export function KeluargaDashboard({
         </p>
       )}
 
-      {/* Card 1: info cabang (full width) */}
-      <section className="mt-6 rounded-lg border border-wood/20 bg-parchment/30 p-6">
-        <h2 className="font-display text-xl font-semibold text-forest">
-          {branch?.name ?? "Memuat cabang..."}
-        </h2>
-        <p className="mt-1 text-sm text-muted">
-          {branch ? `Cabang nomor ${branch.branchNumber}` : "\u00A0"}
+      {/* Info cabang (nama, admin, akar, jumlah) hidup di /admin/keluarga/cabang; di sini cukup pointer. */}
+      {isSuperAdmin && (
+        <p className="mt-6 text-sm text-muted">
+          Info dan pengaturan cabang ada di{" "}
+          <Link href="/admin/keluarga/cabang" className="underline hover:text-forest">
+            Kelola Cabang
+          </Link>
+          .
         </p>
-        {branch?.description && (
-          <p className="mt-3 max-w-3xl text-sm text-forest/80">{branch.description}</p>
-        )}
-        <dl className="mt-5 grid gap-4 sm:grid-cols-3">
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-muted">Admin Cabang</dt>
-            <dd className="mt-1 text-sm font-medium text-forest">{branch?.adminName ?? "-"}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-muted">Root Person</dt>
-            <dd className="mt-1 text-sm font-medium text-forest">{branch?.rootPersonName ?? "-"}</dd>
-            {branch && !branch.rootPersonName && (
-              <p className="mt-1 text-xs text-wood">
-                Belum ada akar cabang.{" "}
-                {isSuperAdmin ? (
-                  <Link
-                    href={`/admin/cabang/${branch.id}`}
-                    className="underline hover:text-forest"
-                  >
-                    Tetapkan lewat edit cabang
-                  </Link>
-                ) : (
-                  "Hubungi Super Admin untuk menetapkan akar cabang."
-                )}
-              </p>
-            )}
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-muted">Jumlah Anggota</dt>
-            <dd className="mt-1 text-sm font-medium text-forest">
-              {branch ? branch.memberCount : "-"}
-            </dd>
-          </div>
-        </dl>
-      </section>
+      )}
 
       {/* Baris 4 card */}
       <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
