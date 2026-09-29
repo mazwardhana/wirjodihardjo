@@ -100,6 +100,7 @@ function MemberList({ members, emptyText }: { members: TreeMember[]; emptyText?:
 function partnerStatusLabel(status: string): string {
   if (status === "DIVORCED") return "Cerai";
   if (status === "WIDOWED") return "Pasangan wafat";
+  if (status === "UNKNOWN") return "Status belum diketahui";
   return "Menikah";
 }
 

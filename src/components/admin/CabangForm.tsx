@@ -42,6 +42,7 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
   const [rootResults, setRootResults] = useState<{ id: string; fullName: string }[]>([]);
   const [rootSelected, setRootSelected] = useState<{ id: string; fullName: string } | null>(null);
   const [rootSearching, setRootSearching] = useState(false);
+  const [rootHint, setRootHint] = useState<string | null>(null);
 
   async function uploadCover(file: File | null) {
     if (!file) return;
@@ -74,17 +75,19 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
   async function searchRootCandidates() {
     const q = rootQuery.trim();
     if (q.length < 2) {
-      setError("Ketik minimal 2 karakter untuk mencari anggota.");
+      setRootResults([]);
+      setRootHint("Ketik minimal 2 karakter untuk mencari anggota.");
       return;
     }
     setRootSearching(true);
     setError(null);
+    setRootHint(null);
     try {
       const res = await fetch(`/api/admin/cari-orang?q=${encodeURIComponent(q)}`);
       if (!res.ok) throw new Error("Gagal mencari anggota");
       const data = (await res.json()) as { id: string; fullName: string }[];
       setRootResults(data);
-      if (data.length === 0) setError("Anggota tidak ditemukan.");
+      if (data.length === 0) setRootHint("Anggota tidak ditemukan.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal mencari anggota");
     } finally {
@@ -323,6 +326,10 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
                 </button>
               </div>
 
+              {rootHint && (
+                <p className="text-sm text-muted">{rootHint}</p>
+              )}
+
               {rootResults.length > 0 && (
                 <ul className="space-y-1">
                   {rootResults.map((candidate) => (
@@ -334,6 +341,7 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
                           setRootResults([]);
                           setRootQuery("");
                           setError(null);
+                          setRootHint(null);
                         }}
                         className="min-h-11 w-full rounded-md border border-wood/20 px-3 py-2 text-left text-sm text-forest transition-colors hover:bg-cream"
                       >
