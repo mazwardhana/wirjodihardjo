@@ -133,6 +133,8 @@ function cabangFixture() {
     personCreateCalls: [] as { data: Record<string, unknown> }[],
     branchUpdateCalls: [] as { where: Record<string, unknown>; data: Record<string, unknown> }[],
     personUpdateCalls: [] as { where: Record<string, unknown>; data: Record<string, unknown> }[],
+    branchUpdateConflict: false,
+    recalcCalls: [] as string[],
   };
 
   const prisma = {
@@ -152,7 +154,15 @@ function cabangFixture() {
             _count: { members: 0 },
           };
         }
-        return null;
+        return {
+          id: args.where.id,
+          name: "Cabang Lama",
+          slug: "cabang-lama",
+          description: null,
+          coverImageUrl: null,
+          orderIndex: 0,
+          isActive: true,
+        };
       },
       findFirst: async () => state.branchFindFirstResult,
       create: async (args: { data: Record<string, unknown> }) => {
@@ -164,6 +174,15 @@ function cabangFixture() {
         };
       },
       update: async (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+        if (state.branchUpdateConflict) {
+          const error = new Error("Unique constraint failed on rootPersonId") as Error & {
+            code: string;
+            meta: { target: string[] };
+          };
+          error.code = "P2002";
+          error.meta = { target: ["rootPersonId"] };
+          throw error;
+        }
         state.branchUpdateCalls.push(args);
         return { id: args.where.id };
       },
@@ -202,14 +221,30 @@ function loadCabangRoute(fixture: ReturnType<typeof cabangFixture>) {
         BranchAdminValidationError: class extends Error {},
       };
     }
-    if (id === "@/lib/genealogy") return { recalculateGenerationLevel: async () => null };
+    if (id === "@/lib/genealogy")
+      return {
+        recalculateGenerationLevel: async (personId: string) => {
+          fixture.state.recalcCalls.push(personId);
+          return null;
+        },
+      };
     return nodeRequire(id);
-  }) as { POST?: Handler };
+  }) as { POST?: Handler; PUT?: Handler };
 }
 
 function postRequest(body: Record<string, unknown>) {
   return new Request(POST_URL, {
     method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+const PUT_URL = "http://localhost/api/admin/cabang";
+
+function putRequest(body: Record<string, unknown>) {
+  return new Request(PUT_URL, {
+    method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -293,4 +328,54 @@ test("POST dengan rootPersonId yang sudah jadi akar cabang lain ditolak", async 
   const data = (await response.json()) as { error?: string };
   assert.equal(data.error, "Anggota ini sudah menjadi akar dari cabang lain");
   assert.equal(f.state.branchCreateCalls.length, 0);
+});
+
+test("POST dengan rootPersonId non-string ditolak (400)", async () => {
+  const f = cabangFixture();
+  const route = loadCabangRoute(f);
+  const response = await route.POST!(postRequest({ name: "Cabang", rootPersonId: 123 }));
+
+  assert.equal(response.status, 400);
+  const data = (await response.json()) as { error?: string };
+  assert.equal(data.error, "rootPersonId tidak valid");
+  assert.equal(f.state.branchCreateCalls.length, 0);
+});
+
+test("PUT dengan rootPersonId non-string ditolak (400)", async () => {
+  const f = cabangFixture();
+  const route = loadCabangRoute(f);
+  const response = await route.PUT!(putRequest({ id: BRANCH_BARU, rootPersonId: 123 }));
+
+  assert.equal(response.status, 400);
+  const data = (await response.json()) as { error?: string };
+  assert.equal(data.error, "rootPersonId tidak valid");
+  assert.equal(f.state.branchUpdateCalls.length, 0);
+});
+
+test("POST membalas 409 bila akar diadopsi bersamaan (pelanggaran unique)", async () => {
+  const f = cabangFixture();
+  f.state.personResult = { id: "p-1", branchId: null };
+  f.state.branchUpdateConflict = true;
+  const route = loadCabangRoute(f);
+  const response = await route.POST!(postRequest({ name: "Cabang", rootPersonId: "p-1" }));
+
+  assert.equal(response.status, 409);
+  const data = (await response.json()) as { error?: string };
+  assert.equal(data.error, "Anggota ini sudah menjadi akar dari cabang lain");
+  assert.equal(f.state.branchUpdateCalls.length, 0);
+});
+
+test("POST dengan rootPersonId mengadopsi anggota lama dan memicu rekalkulasi (201)", async () => {
+  const f = cabangFixture();
+  f.state.personResult = { id: "p-1", branchId: null };
+  const route = loadCabangRoute(f);
+  const response = await route.POST!(postRequest({ name: "Cabang Baru", rootPersonId: "p-1" }));
+
+  assert.equal(response.status, 201);
+  assert.equal(f.state.personUpdateCalls.length, 1);
+  const personData = f.state.personUpdateCalls[0].data;
+  assert.equal(personData.branchId, BRANCH_BARU);
+  assert.equal(personData.generationLevel, 1);
+  assert.equal(f.state.branchUpdateCalls[0].data.rootPersonId, "p-1");
+  assert.deepEqual(f.state.recalcCalls, ["p-1"]);
 });

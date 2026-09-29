@@ -31,6 +31,27 @@ async function nextBranchNumber(): Promise<number> {
   return maxBranch ? maxBranch.branchNumber + 1 : 1;
 }
 
+/** Pelanggaran unique pada Branch.rootPersonId muncul bila adopsi akar terjadi bersamaan. */
+function isRootPersonConflict(error: unknown): boolean {
+  const target = (error as { meta?: { target?: unknown } }).meta?.target;
+  return Array.isArray(target) && target.includes("rootPersonId");
+}
+
+/** Menjalankan aksi tulis; pelanggaran unique rootPersonId diterjemahkan jadi 409. */
+async function withRootConflict409<T>(run: () => Promise<T>): Promise<T | NextResponse> {
+  try {
+    return await run();
+  } catch (error) {
+    if (isRootPersonConflict(error)) {
+      return NextResponse.json(
+        { error: "Anggota ini sudah menjadi akar dari cabang lain" },
+        { status: 409 },
+      );
+    }
+    throw error;
+  }
+}
+
 // GET: list branches with rootPerson, admin, member count
 export async function GET() {
   const user = await requireSuperAdmin();
@@ -75,7 +96,15 @@ export async function POST(request: Request) {
   }
 
   const rootPerson = (body.rootPerson as RootPersonInput | undefined) ?? null;
-  const rootPersonId = (body.rootPersonId as string | undefined)?.trim() || "";
+  const rawRootPersonId = body.rootPersonId;
+  if (
+    rawRootPersonId !== undefined &&
+    rawRootPersonId !== null &&
+    typeof rawRootPersonId !== "string"
+  ) {
+    return NextResponse.json({ error: "rootPersonId tidak valid" }, { status: 400 });
+  }
+  const rootPersonId = typeof rawRootPersonId === "string" ? rawRootPersonId.trim() : "";
 
   if (rootPerson && rootPersonId) {
     return NextResponse.json(
@@ -128,45 +157,49 @@ export async function POST(request: Request) {
 
   const branchNumber = await nextBranchNumber();
 
-  const created = await prisma.$transaction(async (tx) => {
-    const branch = await tx.branch.create({
-      data: {
-        name: name.trim(),
-        slug,
-        description:
-          typeof description === "string" && description.trim() ? description.trim() : null,
-        coverImageUrl:
-          typeof coverImageUrl === "string" && coverImageUrl.trim() ? coverImageUrl.trim() : null,
-        orderIndex: typeof orderIndex === "number" ? orderIndex : 0,
-        branchNumber,
-      },
-    });
-
-    if (rootPerson) {
-      const person = await tx.person.create({
+  const createdResult = await withRootConflict409(() =>
+    prisma.$transaction(async (tx) => {
+      const branch = await tx.branch.create({
         data: {
-          fullName: rootFullName,
-          gender: rootGender as "MALE" | "FEMALE" | "OTHER",
-          birthDate: rootBirthDate ? new Date(rootBirthDate) : null,
-          branchId: branch.id,
-          generationLevel: 1,
+          name: name.trim(),
+          slug,
+          description:
+            typeof description === "string" && description.trim() ? description.trim() : null,
+          coverImageUrl:
+            typeof coverImageUrl === "string" && coverImageUrl.trim() ? coverImageUrl.trim() : null,
+          orderIndex: typeof orderIndex === "number" ? orderIndex : 0,
+          branchNumber,
         },
       });
-      await tx.branch.update({ where: { id: branch.id }, data: { rootPersonId: person.id } });
-      return { branchId: branch.id, rootId: person.id };
-    }
 
-    if (rootPersonId) {
-      await tx.person.update({
-        where: { id: rootPersonId },
-        data: { branchId: branch.id, generationLevel: 1 },
-      });
-      await tx.branch.update({ where: { id: branch.id }, data: { rootPersonId } });
-      return { branchId: branch.id, rootId: rootPersonId };
-    }
+      if (rootPerson) {
+        const person = await tx.person.create({
+          data: {
+            fullName: rootFullName,
+            gender: rootGender as "MALE" | "FEMALE" | "OTHER",
+            birthDate: rootBirthDate ? new Date(rootBirthDate) : null,
+            branchId: branch.id,
+            generationLevel: 1,
+          },
+        });
+        await tx.branch.update({ where: { id: branch.id }, data: { rootPersonId: person.id } });
+        return { branchId: branch.id, rootId: person.id };
+      }
 
-    return { branchId: branch.id, rootId: null as string | null };
-  });
+      if (rootPersonId) {
+        await tx.person.update({
+          where: { id: rootPersonId },
+          data: { branchId: branch.id, generationLevel: 1 },
+        });
+        await tx.branch.update({ where: { id: branch.id }, data: { rootPersonId } });
+        return { branchId: branch.id, rootId: rootPersonId };
+      }
+
+      return { branchId: branch.id, rootId: null as string | null };
+    }),
+  );
+  if (createdResult instanceof NextResponse) return createdResult;
+  const created = createdResult;
 
   if (created.rootId) {
     // Satu panggilan cukup: rekalkulasi menghitung seluruh komponen.
@@ -260,15 +293,17 @@ export async function PUT(request: Request) {
   if (rootPersonId !== undefined) {
     if (rootPersonId === null || rootPersonId === "") {
       data.rootPerson = { disconnect: true };
+    } else if (typeof rootPersonId !== "string") {
+      return NextResponse.json({ error: "rootPersonId tidak valid" }, { status: 400 });
     } else {
       // Check if person exists
-      const person = await prisma.person.findUnique({ where: { id: rootPersonId as string } });
+      const person = await prisma.person.findUnique({ where: { id: rootPersonId } });
       if (!person) {
         return NextResponse.json({ error: "Anggota tidak ditemukan" }, { status: 404 });
       }
       // Check if person is already root of another branch
       const otherBranch = await prisma.branch.findFirst({
-        where: { rootPersonId: rootPersonId as string, id: { not: id } },
+        where: { rootPersonId, id: { not: id } },
       });
       if (otherBranch) {
         return NextResponse.json(
@@ -307,15 +342,19 @@ export async function PUT(request: Request) {
     }
   }
 
-  const branch = await prisma.branch.update({
-    where: { id },
-    data: data as any,
-    include: {
-      rootPerson: { select: { id: true, fullName: true } },
-      admin: { select: { id: true, email: true, role: true, person: { select: { fullName: true } } } },
-      _count: { select: { members: true } },
-    },
-  });
+  const branchResult = await withRootConflict409(() =>
+    prisma.branch.update({
+      where: { id },
+      data: data as any,
+      include: {
+        rootPerson: { select: { id: true, fullName: true } },
+        admin: { select: { id: true, email: true, role: true, person: { select: { fullName: true } } } },
+        _count: { select: { members: true } },
+      },
+    }),
+  );
+  if (branchResult instanceof NextResponse) return branchResult;
+  const branch = branchResult;
 
   await logAudit({
     action: "BRANCH_UPDATE",
