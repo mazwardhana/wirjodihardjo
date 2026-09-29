@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 /**
  * Lapisan akses data publik.
@@ -85,14 +86,14 @@ export async function getFamilyTree(filters?: {
   generationLevel?: number;
   isDeceased?: boolean;
 }) {
-  const where: Record<string, unknown> = {};
+  const where: Prisma.PersonWhereInput = {};
   if (filters?.branchId) where.branchId = filters.branchId;
   if (filters?.generationLevel !== undefined) where.generationLevel = filters.generationLevel;
   if (filters?.isDeceased !== undefined) where.isDeceased = filters.isDeceased;
 
   const [persons, childEdges, partnerEdges] = await Promise.all([
     prisma.person.findMany({
-      where: where as any,
+      where,
       select: publicPersonSelect,
       orderBy: { generationLevel: "asc" },
     }),

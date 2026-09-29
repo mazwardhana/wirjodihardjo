@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { submissionTypeLabel } from "@/app/dashboard/pengajuan/labels";
 
 /**
  * Buat notifikasi untuk seorang user.
@@ -52,7 +53,7 @@ export async function notifySubmissionStatus(
   });
   if (!submission) return;
 
-  const typeLabel = submission.type.replace(/_/g, " ").toLowerCase();
+  const typeLabel = submissionTypeLabel(submission.type);
   const whom = submission.targetPerson ? ` untuk ${submission.targetPerson.fullName}` : "";
 
   await createNotification({
@@ -73,7 +74,7 @@ export async function notifyAdminsOfNewSubmission(submissionId: string, type: st
     where: { role: { in: ["SUPER_ADMIN", "BRANCH_ADMIN"] }, isActive: true },
     select: { id: true },
   });
-  const typeLabel = type.replace(/_/g, " ").toLowerCase();
+  const typeLabel = submissionTypeLabel(type);
   for (const admin of admins) {
     await createNotification({
       userId: admin.id,

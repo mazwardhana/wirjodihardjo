@@ -278,6 +278,11 @@ export async function getImmediateFamily(personId: string) {
   };
 }
 
+/** Bentuk hasil `getImmediateFamily` saat data orangnya ada. */
+export type ImmediateFamily = NonNullable<
+  Awaited<ReturnType<typeof getImmediateFamily>>
+>;
+
 /**
  * Kumpulkan komponen terhubung `personId` lewat relasi orang tua-anak.
  *

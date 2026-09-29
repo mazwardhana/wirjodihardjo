@@ -4,7 +4,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Avatar } from "@/components/ui/Avatar";
 import { getGenerationLabel } from "@/lib/generations";
+import { getImmediateFamily, getClassifiedSiblings } from "@/lib/genealogy";
 import { recordUpcomingReunionReminders } from "@/lib/notifications";
+import { DataKeluargaSaya } from "./_components/DataKeluargaSaya";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -20,6 +22,8 @@ export default async function DashboardPage() {
           nickname: true,
           photoUrl: true,
           generationLevel: true,
+          isDeceased: true,
+          branch: { select: { id: true, name: true, slug: true } },
         },
       },
     },
@@ -30,33 +34,36 @@ export default async function DashboardPage() {
   // Catat reminder reuni mendatang (idempoten)
   try { await recordUpcomingReunionReminders(user.id); } catch {}
 
-  const [pendingCount, reunionCount, notificationCount] = await Promise.all([
-    prisma.submission.count({
-      where: { submittedByUserId: user.id, status: "PENDING" },
-    }),
-    prisma.reunionRegistration.count({
-      where: { userId: user.id, status: "CONFIRMED" },
-    }),
-    prisma.notification.count({
-      where: { userId: user.id, isRead: false },
-    }),
-  ]);
+  const [pendingCount, reunionCount, notificationCount, family, siblings] =
+    await Promise.all([
+      prisma.submission.count({
+        where: { submittedByUserId: user.id, status: "PENDING" },
+      }),
+      prisma.reunionRegistration.count({
+        where: { userId: user.id, status: "CONFIRMED" },
+      }),
+      prisma.notification.count({
+        where: { userId: user.id, isRead: false },
+      }),
+      user.person ? getImmediateFamily(user.person.id) : Promise.resolve(null),
+      user.person ? getClassifiedSiblings(user.person.id) : Promise.resolve([]),
+    ]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="flex items-center gap-4">
         <Avatar
-          name={user.person.fullName}
-          photoUrl={user.person.photoUrl}
+          name={user.person?.fullName ?? user.username}
+          photoUrl={user.person?.photoUrl ?? null}
           size="lg"
         />
         <div>
           <h1 className="font-display text-3xl font-semibold text-forest">
-            {user.person.fullName}
+            {user.person?.fullName ?? user.username}
           </h1>
           <p className="text-sm text-muted">
-            {getGenerationLabel(user.person.generationLevel)}
-            {user.person.nickname && ` (${user.person.nickname})`}
+            {getGenerationLabel(user.person?.generationLevel)}
+            {user.person?.nickname && ` (${user.person.nickname})`}
           </p>
           <p className="text-xs text-muted">
             {user.role === "SUPER_ADMIN"
@@ -72,7 +79,10 @@ export default async function DashboardPage() {
         <div className="mt-6 rounded-md border border-gold/40 bg-gold/10 p-4">
           <p className="text-sm font-medium text-forest">
             {notificationCount} notifikasi belum dibaca.{" "}
-            <Link href="/dashboard/notifikasi" className="underline">
+            <Link
+              href="/dashboard/notifikasi"
+              className="inline-flex min-h-11 items-center underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+            >
               Lihat
             </Link>
           </p>
@@ -99,6 +109,12 @@ export default async function DashboardPage() {
           href="/dashboard/profil"
         />
       </div>
+
+      <DataKeluargaSaya
+        person={user.person ?? null}
+        family={family}
+        siblings={siblings}
+      />
 
       {(user.role === "SUPER_ADMIN" || user.role === "BRANCH_ADMIN") && (
         <div className="mt-10 border-t border-wood/15 pt-6">
@@ -139,7 +155,7 @@ function DashboardCard({
   return (
     <Link
       href={href}
-      className="rounded-lg border border-wood/20 bg-cream p-5 transition-colors hover:border-gold/60"
+      className="min-h-11 rounded-lg border border-wood/20 bg-cream p-5 transition-colors hover:border-gold/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
     >
       <div className="font-display text-3xl font-semibold text-forest">
         {value}
@@ -155,7 +171,7 @@ function AdminLink({ href, label }: { href: string; label: string }) {
     <li>
       <Link
         href={href}
-        className="block rounded-lg border border-wood/15 bg-cream px-4 py-3 text-sm font-medium text-forest transition-colors hover:border-gold/60"
+        className="block min-h-11 rounded-lg border border-wood/15 bg-cream px-4 py-3 text-sm font-medium text-forest transition-colors hover:border-gold/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
       >
         {label}
       </Link>
