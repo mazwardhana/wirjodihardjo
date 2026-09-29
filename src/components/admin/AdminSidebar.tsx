@@ -5,22 +5,29 @@ import { usePathname } from "next/navigation";
 import { signOut } from "@/lib/auth-client";
 
 const menu = [
-  { href: "/admin", label: "Overview", icon: "◉" },
-  { href: "/admin/pengajuan", label: "Pengajuan", icon: "⊞" },
-  { href: "/admin/anggota", label: "Data Anggota", icon: "⊡" },
-  { href: "/admin/cabang", label: "Cabang", icon: "⊟" },
-  { href: "/admin/keluarga", label: "Keluarga", icon: "⊞" },
-  { href: "/admin/galeri", label: "Galeri", icon: "⊠" },
-  { href: "/admin/hall-of-fame", label: "Hall of Fame", icon: "★" },
-  { href: "/admin/artikel", label: "Artikel", icon: "▤" },
-  { href: "/admin/impor", label: "Impor Data", icon: "⇧" },
-  { href: "/admin/reuni", label: "Reuni", icon: "☰" },
-  { href: "/admin/pengguna", label: "Pengguna", icon: "☷" },
-  { href: "/admin/audit-log", label: "Audit Log", icon: "☰" },
+  { href: "/admin", label: "Overview", icon: "◉", role: "ALL" as const },
+  { href: "/admin/pengajuan", label: "Pengajuan", icon: "⊞", role: "ALL" as const },
+  { href: "/admin/anggota", label: "Data Anggota", icon: "⊡", role: "ALL" as const },
+  { href: "/admin/cabang", label: "Cabang", icon: "⊟", role: "SUPER_ONLY" as const },
+  { href: "/admin/keluarga", label: "Keluarga", icon: "⊕", role: "ALL" as const },
+  { href: "/admin/galeri", label: "Galeri", icon: "⊠", role: "ALL" as const },
+  { href: "/admin/hall-of-fame", label: "Hall of Fame", icon: "★", role: "ALL" as const },
+  { href: "/admin/artikel", label: "Artikel", icon: "▤", role: "ALL" as const },
+  { href: "/admin/impor", label: "Impor Data", icon: "⇧", role: "SUPER_ONLY" as const },
+  { href: "/admin/reuni", label: "Reuni", icon: "◈", role: "ALL" as const },
+  { href: "/admin/pengguna", label: "Pengguna", icon: "☷", role: "SUPER_ONLY" as const },
+  { href: "/admin/audit-log", label: "Audit Log", icon: "▦", role: "SUPER_ONLY" as const },
 ];
+
+function isActive(pathname: string, href: string): boolean {
+  if (href === "/admin") return pathname === "/admin";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function AdminSidebar({ role, fullName }: { role: string; fullName: string }) {
   const pathname = usePathname();
+  // UI-only: hide links whose page gate redirects BRANCH_ADMIN. The server-side checks stay as-is.
+  const items = menu.filter((item) => item.role === "ALL" || role === "SUPER_ADMIN");
 
   return (
     <aside className="hidden w-64 flex-col border-r border-wood/15 bg-cream lg:flex">
@@ -45,12 +52,12 @@ export function AdminSidebar({ role, fullName }: { role: string; fullName: strin
       {/* Menu */}
       <nav className="flex-1 overflow-y-auto p-3" aria-label="Navigasi admin">
         <ul className="space-y-1">
-          {menu.map((item) => (
+          {items.map((item) => (
             <li key={item.href}>
               <Link
                 href={item.href}
                 className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
-                  pathname === item.href
+                  isActive(pathname, item.href)
                     ? "bg-forest/10 font-semibold text-forest"
                     : "text-muted hover:bg-wood/5 hover:text-forest"
                 }`}

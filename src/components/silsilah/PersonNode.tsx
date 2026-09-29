@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { createContext, memo, useContext } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { getGenerationLabel } from "@/lib/generations";
 import { initials } from "@/lib/utils";
@@ -13,6 +13,14 @@ export type PersonNodeData = {
   collapsed: boolean;
   partnerStatus: "MARRIED" | "DIVORCED" | "WIDOWED" | "UNKNOWN" | null;
 };
+
+/** Aksi tombol info (buka detail) yang diberikan oleh FamilyTreeCanvas. */
+export type PersonNodeActions = {
+  openDetail: (person: PublicPerson) => void;
+};
+
+export const PersonNodeActionsContext =
+  createContext<PersonNodeActions | null>(null);
 
 const statusBadge: Record<string, { label: string; cls: string }> = {
   MARRIED: {
@@ -37,6 +45,18 @@ function PersonNodeComponent({ data, selected }: NodeProps) {
   const d = data as unknown as PersonNodeData;
   const { person, childCount, hasHiddenChildren, partnerStatus } = d;
   const badge = partnerStatus ? statusBadge[partnerStatus] : null;
+  const actions = useContext(PersonNodeActionsContext);
+
+  const birthYear = person.birthDate
+    ? String(new Date(person.birthDate).getFullYear())
+    : null;
+  const shortInfo = [
+    getGenerationLabel(person.generationLevel),
+    birthYear,
+    person.branch?.name ?? null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div
@@ -67,14 +87,43 @@ function PersonNodeComponent({ data, selected }: NodeProps) {
             {initials(person.fullName)}
           </span>
         )}
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold leading-tight text-forest">
             {person.fullName}
           </p>
           <p className="truncate text-[10px] font-medium text-wood">
-            {getGenerationLabel(person.generationLevel)}
+            {shortInfo}
           </p>
         </div>
+
+        {/*
+          Tombol info: memiliki handler eksplisit sehingga membuka detail
+          orang ini tanpa bergantung pada event bubbling ke node wrapper.
+          Diletakkan di luar elemen interaktif lain dan diberi kelas nodrag
+          agar tidak mengganggu React Flow.
+        */}
+        <button
+          type="button"
+          aria-label={`Lihat detail ${person.fullName}`}
+          className="nodrag -mr-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-forest/60 transition-colors hover:bg-forest/10 hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          onClick={() => actions?.openDetail(person)}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="9" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+        </button>
       </div>
 
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">

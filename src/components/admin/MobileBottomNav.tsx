@@ -5,23 +5,30 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/lib/auth-client";
 
-const primaryItems = [
-  { href: "/admin", label: "Overview", icon: "◉" },
-  { href: "/admin/anggota", label: "Anggota", icon: "⊡" },
-  { href: "/admin/artikel", label: "Artikel", icon: "▤" },
-  { href: "/admin/pengajuan", label: "Pengajuan", icon: "⊞" },
+type AdminNavItem = {
+  href: string;
+  label: string;
+  icon: string;
+  role: "ALL" | "SUPER_ONLY";
+};
+
+const primaryItems: AdminNavItem[] = [
+  { href: "/admin", label: "Overview", icon: "◉", role: "ALL" },
+  { href: "/admin/anggota", label: "Data Anggota", icon: "⊡", role: "ALL" },
+  { href: "/admin/artikel", label: "Artikel", icon: "▤", role: "ALL" },
+  { href: "/admin/pengajuan", label: "Pengajuan", icon: "⊞", role: "ALL" },
 ];
 
-const overflowItems = [
-  { href: "/admin/cabang", label: "Cabang", icon: "⊟" },
-  { href: "/admin/keluarga", label: "Keluarga", icon: "⊞" },
-  { href: "/admin/galeri", label: "Galeri", icon: "⊠" },
-  { href: "/admin/hall-of-fame", label: "Hall of Fame", icon: "★" },
-  { href: "/admin/reuni", label: "Reuni", icon: "☰" },
-  { href: "/admin/pengguna", label: "Pengguna", icon: "☷" },
-  { href: "/admin/impor", label: "Impor Data", icon: "⇧" },
-  { href: "/admin/audit-log", label: "Audit Log", icon: "☰" },
-  { href: "/dashboard", label: "Dashboard", icon: "←" },
+const overflowItems: AdminNavItem[] = [
+  { href: "/admin/cabang", label: "Cabang", icon: "⊟", role: "SUPER_ONLY" },
+  { href: "/admin/keluarga", label: "Keluarga", icon: "⊕", role: "ALL" },
+  { href: "/admin/galeri", label: "Galeri", icon: "⊠", role: "ALL" },
+  { href: "/admin/hall-of-fame", label: "Hall of Fame", icon: "★", role: "ALL" },
+  { href: "/admin/reuni", label: "Reuni", icon: "◈", role: "ALL" },
+  { href: "/admin/pengguna", label: "Pengguna", icon: "☷", role: "SUPER_ONLY" },
+  { href: "/admin/impor", label: "Impor Data", icon: "⇧", role: "SUPER_ONLY" },
+  { href: "/admin/audit-log", label: "Audit Log", icon: "▦", role: "SUPER_ONLY" },
+  { href: "/dashboard", label: "Dashboard", icon: "←", role: "ALL" },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -29,12 +36,12 @@ function isActive(pathname: string, href: string) {
   return pathname.startsWith(href);
 }
 
-export function MobileBottomNav() {
+export function MobileBottomNav({ role }: { role: string }) {
   const pathname = usePathname();
-  return <MobileNavigation key={pathname} pathname={pathname} />;
+  return <MobileNavigation key={pathname} pathname={pathname} role={role} />;
 }
 
-function MobileNavigation({ pathname }: { pathname: string }) {
+function MobileNavigation({ pathname, role }: { pathname: string; role: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
@@ -83,7 +90,13 @@ function MobileNavigation({ pathname }: { pathname: string }) {
     };
   }, [menuOpen]);
 
-  const overflowActive = overflowItems.some((item) => isActive(pathname, item.href));
+  // UI-only: hide links whose page gate redirects BRANCH_ADMIN. The server-side checks stay as-is.
+  const visible = (items: AdminNavItem[]) =>
+    items.filter((item) => item.role === "ALL" || role === "SUPER_ADMIN");
+  const overflow = visible(overflowItems);
+  const primary = visible(primaryItems);
+
+  const overflowActive = overflow.some((item) => isActive(pathname, item.href));
 
   return (
     <div ref={menuRef}>
@@ -94,7 +107,7 @@ function MobileNavigation({ pathname }: { pathname: string }) {
           aria-label="Menu admin lainnya"
         >
           <ul className="space-y-1">
-            {overflowItems.map((item) => (
+            {overflow.map((item) => (
               <li key={item.href}>
                 <Link
                   href={item.href}
@@ -128,7 +141,7 @@ function MobileNavigation({ pathname }: { pathname: string }) {
         aria-label="Navigasi admin seluler"
       >
         <ul className="flex items-stretch">
-          {primaryItems.map((item) => {
+          {primary.map((item) => {
             const active = isActive(pathname, item.href);
             return (
               <li key={item.href} className="flex-1">

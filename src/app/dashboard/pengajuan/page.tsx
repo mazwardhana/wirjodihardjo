@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  statusBadgeClass,
+  submissionStatusLabel,
+  submissionTypeLabel,
+} from "./labels";
 
 export default async function DashboardPengajuanPage() {
   const session = await auth();
@@ -18,11 +23,13 @@ export default async function DashboardPengajuanPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-3xl font-semibold text-forest">Pengajuan Saya</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="font-display text-3xl font-semibold text-forest">
+          Pengajuan Saya
+        </h1>
         <Link
           href="/dashboard/pengajuan/baru"
-          className="rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream"
+          className="inline-flex min-h-11 items-center justify-center rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream hover:bg-forest/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           Ajukan Baru
         </Link>
@@ -32,26 +39,47 @@ export default async function DashboardPengajuanPage() {
         <div className="mt-10">
           <EmptyState
             title="Belum ada pengajuan"
-            description="Ajukan penambahan anggota baru atau perbaikan data lewat menu di atas."
+            description="Ajukan penambahan anggota baru atau perbaikan data lewat tombol di atas."
+            action={
+              <Link
+                href="/dashboard/pengajuan/baru"
+                className="inline-flex min-h-11 items-center justify-center rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream hover:bg-forest/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+              >
+                Ajukan Baru
+              </Link>
+            }
           />
         </div>
       ) : (
         <ul className="mt-8 space-y-3">
           {submissions.map((s) => (
-            <li key={s.id} className="rounded-lg border border-wood/15 bg-cream p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-forest">{s.type.replace(/_/g, " ")}</p>
+            <li
+              key={s.id}
+              className="rounded-lg border border-wood/15 bg-cream p-4"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="font-semibold text-forest">
+                    {submissionTypeLabel(s.type)}
+                  </p>
                   {s.targetPerson && (
-                    <p className="text-sm text-muted">Terkait: {s.targetPerson.fullName}</p>
+                    <p className="min-w-0 text-sm text-muted">
+                      Terkait: {s.targetPerson.fullName}
+                    </p>
                   )}
                 </div>
-                <Status status={s.status} />
+                <span
+                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${statusBadgeClass(
+                    s.status,
+                  )}`}
+                >
+                  {submissionStatusLabel(s.status)}
+                </span>
               </div>
               <p className="mt-1 text-xs text-muted">
                 {new Date(s.createdAt).toLocaleDateString("id-ID")}
               </p>
-              {s.status === "REJECTED" && s.reviewNote && (
+              {s.reviewNote && (
                 <p className="mt-2 rounded bg-wood/10 p-2 text-sm text-wood">
                   {s.reviewNote}
                 </p>
@@ -67,19 +95,5 @@ export default async function DashboardPengajuanPage() {
         </ul>
       )}
     </div>
-  );
-}
-
-function Status({ status }: { status: string }) {
-  const colors = {
-    PENDING: "bg-gold/20 text-gold-deep",
-    APPROVED: "bg-forest/10 text-forest",
-    REJECTED: "bg-wood/10 text-wood",
-    CANCELLED: "bg-muted/10 text-muted",
-  };
-  return (
-    <span className={`rounded-full px-3 py-1 text-xs font-medium ${colors[status as keyof typeof colors] ?? colors.CANCELLED}`}>
-      {status}
-    </span>
   );
 }

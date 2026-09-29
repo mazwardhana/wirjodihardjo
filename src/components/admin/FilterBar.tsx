@@ -58,6 +58,20 @@ export function FilterBar({ config }: { config: FilterConfig }) {
     }, 500);
   }
 
+  function applySearchNow() {
+    cancelSearch();
+    if (!searchParam) return;
+    const params = new URLSearchParams(query);
+    if (localSearch.trim()) params.set(searchParam, localSearch.trim());
+    else params.delete(searchParam);
+    navigate(params);
+  }
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    applySearchNow();
+  }
+
   function handleFilterChange(param: string, value: string) {
     cancelSearch();
     const params = new URLSearchParams(query);
@@ -85,16 +99,24 @@ export function FilterBar({ config }: { config: FilterConfig }) {
   return (
     <div className="flex flex-wrap items-center gap-3" role="search" aria-busy={isPending}>
       {config.search && (
-        <div className="relative w-full min-w-0 sm:w-72">
-          <input
-            type="search"
-            value={localSearch}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder={config.search.placeholder}
-            aria-label={config.search.placeholder}
-            className="block min-h-11 w-full rounded-md border border-wood/30 bg-cream px-4 py-2 text-sm text-forest placeholder:text-muted focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/30"
-          />
-        </div>
+        <form onSubmit={handleSubmit} className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+          <div className="relative min-w-0 flex-1 sm:w-72">
+            <input
+              type="search"
+              value={localSearch}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={config.search.placeholder}
+              aria-label={config.search.placeholder}
+              className="block min-h-11 w-full rounded-md border border-wood/30 bg-cream px-4 py-2 text-sm text-forest placeholder:text-muted focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/30"
+            />
+          </div>
+          <button
+            type="submit"
+            className="min-h-11 shrink-0 rounded-md bg-forest px-5 py-2.5 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          >
+            Cari
+          </button>
+        </form>
       )}
       {config.filters?.map((filter) => (
         <label key={filter.param} className="flex max-w-full items-center gap-2 text-sm text-muted">

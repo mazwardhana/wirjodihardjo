@@ -18,18 +18,17 @@ export default async function SilsilahPage({
   const { q, branchId, generation, deceased } = await searchParams;
   const session = await auth();
 
-  // Parse filter
-  const filters = q
-    ? null
-    : {
-        branchId: branchId || undefined,
-        generationLevel: generation ? parseInt(generation) : undefined,
-        isDeceased: deceased !== undefined ? deceased === "true" : undefined,
-      };
+  // Parse filter: `q` hanya memengaruhi daftar hasil pencarian, bukan pohon.
+  // Pohon selalu dirender, disaring hanya oleh cabang, generasi, dan status.
+  const filters = {
+    branchId: branchId || undefined,
+    generationLevel: generation ? parseInt(generation) : undefined,
+    isDeceased: deceased !== undefined ? deceased === "true" : undefined,
+  };
 
   const [results, treeData, branches, genBreakdown] = await Promise.all([
     q ? searchPersons(q) : null,
-    filters !== null ? getFamilyTree(filters) : null,
+    getFamilyTree(filters),
     getBranches(),
     getGenerationBreakdown(),
   ]);
@@ -52,13 +51,11 @@ export default async function SilsilahPage({
         </div>
 
         {/* Filter — client component */}
-        {treeData && (
-          <FilterPanel
-            branches={branches.map((b) => ({ id: b.id, name: b.name }))}
-            generations={genBreakdown.filter((g): g is { level: number; count: number } => g.level !== null)}
-            current={{ branchId, generationLevel: generation ? parseInt(generation) : undefined, isDeceased: deceased }}
-          />
-        )}
+        <FilterPanel
+          branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+          generations={genBreakdown.filter((g): g is { level: number; count: number } => g.level !== null)}
+          current={{ branchId, generationLevel: generation ? parseInt(generation) : undefined, isDeceased: deceased }}
+        />
       </div>
 
       {/* Pencarian */}
@@ -146,17 +143,15 @@ export default async function SilsilahPage({
       )}
 
       {/* Kanvas Silsilah */}
-      {treeData && (
-        <section
-          aria-label="Pohon keluarga interaktif"
-          className="tree-canvas mt-6 min-h-[65vh] overflow-hidden rounded-lg border border-wood/20"
-        >
-          <FamilyTreeCanvas
-            data={treeData}
-            isAuthenticated={!!session?.user}
-          />
-        </section>
-      )}
+      <section
+        aria-label="Pohon keluarga interaktif"
+        className="tree-canvas mt-6 h-[70vh] rounded-lg border border-wood/20"
+      >
+        <FamilyTreeCanvas
+          data={treeData}
+          isAuthenticated={!!session?.user}
+        />
+      </section>
     </div>
   );
 }

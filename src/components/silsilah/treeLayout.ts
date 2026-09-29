@@ -35,7 +35,11 @@ export type PersonNodeData = {
 };
 
 const NODE_W = 230;
+const NODE_H = 130; // tinggi kartu orang
 const COUPLE_SPACING = 200; // jarak antar pasangan
+const GAP_X = 60; // spasi horizontal antar blok / anak di dalam baris grid
+const GAP_Y = 80; // spasi vertikal antar baris grid
+const MAX_ROW_WIDTH = 1800; // anggaran lebar maksimum satu baris sebelum wrap
 
 type TreeNode = {
   id: string; // "personId" atau "personId+partnerId"
@@ -182,37 +186,98 @@ export function buildTreeGraph(
       .filter((n): n is TreeNode => n !== null);
   }
 
-  // === Akar ===
+  // === Akar (forest: tanpa node sintetis) ===
+  // Urutan deterministik: generationLevel lalu id sebagai tiebreaker.
   const roots = data.persons
     .filter((p) => !parentIdsByChild.has(p.id))
-    .sort((a, b) => (a.generationLevel ?? 999) - (b.generationLevel ?? 999));
+    .sort((a, b) => {
+      const levelA = a.generationLevel ?? 999;
+      const levelB = b.generationLevel ?? 999;
+      if (levelA !== levelB) return levelA - levelB;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    });
 
   if (roots.length === 0) return { nodes: [], edges: [] };
 
-  const rootChildren: TreeNode[] = [];
+  const rootTrees: TreeNode[] = [];
   for (const r of roots) {
     if (!seen.has(r.id)) {
       const node = buildNode(r.id);
-      if (node) rootChildren.push(node);
+      if (node) rootTrees.push(node);
     }
   }
 
-  const rootData: TreeNode =
-    rootChildren.length === 1
-      ? rootChildren[0]
-      : { id: "__root", isCouple: false, primaryId: "__root", partnerId: null, children: rootChildren };
+  // === Layout tiap akar sendiri-sendiri ===
+  type RootBlock = {
+    root: HierarchyPointNode<TreeNode>;
+    minX: number;
+    minY: number;
+    width: number;
+    height: number;
+    translateX: number;
+    translateY: number;
+  };
 
-  // === d3-hierarchy layout ===
-  const layoutRoot = hierarchy<TreeNode>(rootData, (d) => d.children);
-  const layout = tree<TreeNode>().nodeSize([NODE_W + 40, 150]);
-  layout(layoutRoot);
+  const blocks: RootBlock[] = [];
+  for (const rootTree of rootTrees) {
+    const layout = tree<TreeNode>().nodeSize([NODE_W + 40, 150]);
+    const laidOut = layout(hierarchy<TreeNode>(rootTree, (d) => d.children));
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const d of laidOut.descendants()) {
+      minX = Math.min(minX, d.x);
+      maxX = Math.max(maxX, d.x);
+      minY = Math.min(minY, d.y);
+      maxY = Math.max(maxY, d.y);
+    }
+
+    blocks.push({
+      root: laidOut,
+      minX,
+      minY,
+      width: maxX - minX + NODE_W,
+      height: maxY - minY + NODE_H,
+      translateX: 0,
+      translateY: 0,
+    });
+  }
+
+  // === Kemas blok ke grid (shelf packing) ===
+  const cols = Math.max(1, Math.ceil(Math.sqrt(blocks.length)));
+  let cursorX = 0;
+  let cursorY = 0;
+  let rowWidth = 0;
+  let rowHeight = 0;
+  let rowCount = 0;
+
+  for (const block of blocks) {
+    const wrapsByCount = rowCount >= cols;
+    const wrapsByWidth = rowCount > 0 && rowWidth + block.width + GAP_X > MAX_ROW_WIDTH;
+
+    if (wrapsByCount || wrapsByWidth) {
+      cursorX = 0;
+      cursorY += rowHeight + GAP_Y;
+      rowWidth = 0;
+      rowHeight = 0;
+      rowCount = 0;
+    }
+
+    // Top-align semua blok dalam satu baris pada cursorY.
+    block.translateX = cursorX + NODE_W / 2 - block.minX;
+    block.translateY = cursorY + NODE_H / 2 - block.minY;
+
+    cursorX += block.width + GAP_X;
+    rowWidth += block.width + GAP_X;
+    rowHeight = Math.max(rowHeight, block.height);
+    rowCount += 1;
+  }
 
   // === Build output ===
   const nodes: Node[] = [];
   const edges: Edge[] = [];
-
-  const allHierarchyNodes = layoutRoot.descendants() as HierarchyPointNode<TreeNode>[];
-  const allHierarchyLinks = layoutRoot.links();
 
   // Index partner edge per pasangan
   const partnerEdgeKey = (a: string, b: string) => [a, b].sort().join("|");
@@ -222,59 +287,63 @@ export function buildTreeGraph(
   }
 
   // === Nodes ===
-  for (const hn of allHierarchyNodes) {
-    const t = hn.data;
-    if (t.id === "__root") continue;
-    const gap = COUPLE_SPACING / 2;
+  for (const block of blocks) {
+    for (const hn of block.root.descendants()) {
+      const t = hn.data;
+      const gap = COUPLE_SPACING / 2;
+      const x = hn.x + block.translateX;
+      const y = hn.y + block.translateY;
 
-    if (t.isCouple && t.partnerId) {
-      const primary = personById.get(t.primaryId)!;
-      const partner = personById.get(t.partnerId)!;
-      const pe = peMap.get(partnerEdgeKey(t.primaryId, t.partnerId));
+      if (t.isCouple && t.partnerId) {
+        const primary = personById.get(t.primaryId)!;
+        const partner = personById.get(t.partnerId)!;
+        const pe = peMap.get(partnerEdgeKey(t.primaryId, t.partnerId));
 
-      addNode(nodes, primary, { x: hn.x - gap, y: hn.y }, (pe?.status ?? null) as PersonNodeData["partnerStatus"], childEdgesByParent, collapsed);
-      addNode(nodes, partner, { x: hn.x + gap, y: hn.y }, (pe?.status ?? null) as PersonNodeData["partnerStatus"], childEdgesByParent, collapsed);
+        addNode(nodes, primary, { x: x - gap, y }, (pe?.status ?? null) as PersonNodeData["partnerStatus"], childEdgesByParent, collapsed);
+        addNode(nodes, partner, { x: x + gap, y }, (pe?.status ?? null) as PersonNodeData["partnerStatus"], childEdgesByParent, collapsed);
 
-      edges.push({
-        id: `partner-${t.id}`,
-        source: t.primaryId,
-        target: t.partnerId,
-        type: "straight",
-        style: partnerLineStyle(pe?.status),
-      });
-    } else {
-      const person = personById.get(t.primaryId);
-      if (person) addNode(nodes, person, { x: hn.x, y: hn.y }, null, childEdgesByParent, collapsed);
+        edges.push({
+          id: `partner-${t.id}`,
+          source: t.primaryId,
+          target: t.partnerId,
+          type: "straight",
+          style: partnerLineStyle(pe?.status),
+        });
+      } else {
+        const person = personById.get(t.primaryId);
+        if (person) addNode(nodes, person, { x, y }, null, childEdgesByParent, collapsed);
+      }
     }
   }
 
   // === Edges orang-tua→anak ===
-  for (const link of allHierarchyLinks) {
-    const p = link.source.data;
-    const c = link.target.data;
-    if (p.id === "__root") continue;
+  for (const block of blocks) {
+    for (const link of block.root.links()) {
+      const p = link.source.data;
+      const c = link.target.data;
 
-    const parentIds: string[] = [p.primaryId];
-    if (p.partnerId) parentIds.push(p.partnerId);
+      const parentIds: string[] = [p.primaryId];
+      if (p.partnerId) parentIds.push(p.partnerId);
 
-    const childIds: string[] = [c.primaryId];
-    if (c.partnerId) childIds.push(c.partnerId);
+      const childIds: string[] = [c.primaryId];
+      if (c.partnerId) childIds.push(c.partnerId);
 
-    for (const pid of parentIds) {
-      for (const cid of childIds) {
-        const ce = childEdgesByParent.get(pid)?.find((e) => e.childId === cid);
-        if (!ce) continue;
-        edges.push({
-          id: `${pid}->${cid}`,
-          source: pid,
-          target: cid,
-          type: "smoothstep",
-          style: ce.isAdopted
-            ? { stroke: "#2c4f3b", strokeWidth: 1.5, strokeDasharray: "1 5" }
-            : ce.isStep
-              ? { stroke: "#8a6238", strokeWidth: 1.5, strokeDasharray: "6 4" }
-              : { stroke: "#6f4a2b", strokeWidth: 1.5, strokeOpacity: 0.7 },
-        });
+      for (const pid of parentIds) {
+        for (const cid of childIds) {
+          const ce = childEdgesByParent.get(pid)?.find((e) => e.childId === cid);
+          if (!ce) continue;
+          edges.push({
+            id: `${pid}->${cid}`,
+            source: pid,
+            target: cid,
+            type: "smoothstep",
+            style: ce.isAdopted
+              ? { stroke: "#2c4f3b", strokeWidth: 1.5, strokeDasharray: "1 5" }
+              : ce.isStep
+                ? { stroke: "#8a6238", strokeWidth: 1.5, strokeDasharray: "6 4" }
+                : { stroke: "#6f4a2b", strokeWidth: 1.5, strokeOpacity: 0.7 },
+          });
+        }
       }
     }
   }
