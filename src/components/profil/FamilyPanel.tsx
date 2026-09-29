@@ -169,7 +169,7 @@ export function FamilyPanel({ data }: { data: RawFamily }) {
       <button
         type="button"
         onClick={() => setShowGraph(true)}
-        className="mt-5 w-full rounded-md border border-wood/20 px-4 py-2 text-sm font-medium text-forest transition-colors hover:bg-parchment/60"
+        className="mt-5 min-h-11 w-full rounded-md border border-wood/20 px-4 py-2 text-sm font-medium text-forest transition-colors hover:bg-parchment/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
       >
         Lihat bagan keluarga
       </button>
@@ -180,7 +180,7 @@ export function FamilyPanel({ data }: { data: RawFamily }) {
             <button
               type="button"
               onClick={() => setDepth(depth === 1 ? 2 : 1)}
-              className="font-medium text-gold-deep underline hover:text-forest"
+              className="min-h-11 font-medium text-gold-deep underline hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
             >
               {depth === 1 ? "Perluas 1 tingkat lagi (tampilkan Simbah & Putu)" : "Persempit ke 1 tingkat"}
             </button>
@@ -202,21 +202,66 @@ function FamilyGraph({ personId, depth }: { personId: string; depth: number }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    setLoading(true);
-    fetch(`/api/family/graph?personId=${personId}&depth=${depth}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setNodes(data.nodes ?? []);
-        setEdges(data.edges ?? []);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [personId, depth, setNodes, setEdges]);
+    const controller = new AbortController();
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`/api/family/graph?personId=${personId}&depth=${depth}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error("Gagal memuat bagan keluarga");
+        const data = (await response.json()) as { nodes?: unknown[]; edges?: unknown[] };
+        if (controller.signal.aborted) return;
+        setNodes((data.nodes ?? []) as never[]);
+        setEdges((data.edges ?? []) as never[]);
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setError(err instanceof Error ? err.message : "Gagal memuat bagan keluarga");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => controller.abort();
+  }, [personId, depth, setNodes, setEdges, reloadKey]);
 
   if (loading) {
-    return <div className="flex h-full items-center justify-center text-sm text-muted">Memuat...</div>;
+    return (
+      <div role="status" className="flex h-full items-center justify-center gap-3 text-sm text-muted">
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-wood/30 border-t-forest" aria-hidden="true" />
+        Memuat bagan keluarga…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div role="alert" className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted">
+        <p>{error}</p>
+        <button
+          type="button"
+          onClick={() => setReloadKey((key) => key + 1)}
+          className="min-h-11 rounded-md border border-wood/40 px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+        >
+          Coba lagi
+        </button>
+      </div>
+    );
+  }
+
+  if (nodes.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center p-6 text-center text-sm text-muted">
+        Belum ada relasi keluarga untuk ditampilkan.
+      </div>
+    );
   }
 
   return (

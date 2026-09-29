@@ -26,7 +26,7 @@ export function KategoriModal({ initial }: { initial: Kategori[] }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-wood/10"
+        className="min-h-11 rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
       >
         Kelola Kategori
       </button>

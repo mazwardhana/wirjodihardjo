@@ -102,7 +102,7 @@ export function JsonDiff({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Before column */}
         <div>
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-wood">Sebelum</h4>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-wood">Sebelum</h2>
           <pre className="max-h-96 overflow-auto rounded-md border border-wood/15 bg-parchment/60 p-3 text-[11px] leading-relaxed">
             {JSON.stringify(before ?? {}, null, 2) || "{}"}
           </pre>
@@ -110,7 +110,7 @@ export function JsonDiff({
 
         {/* After column */}
         <div>
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-forest">Sesudah</h4>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-forest">Sesudah</h2>
           <pre className="max-h-96 overflow-auto rounded-md border border-wood/15 bg-parchment/60 p-3 text-[11px] leading-relaxed">
             {JSON.stringify(after ?? {}, null, 2) || "{}"}
           </pre>

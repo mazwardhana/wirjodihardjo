@@ -32,7 +32,7 @@ export default async function DashboardArtikelPage() {
         </div>
         <Link
           href="/dashboard/artikel/baru"
-          className="rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft"
+          className="inline-flex min-h-11 items-center justify-center rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           Tulis Artikel
         </Link>
@@ -46,7 +46,7 @@ export default async function DashboardArtikelPage() {
             action={
               <Link
                 href="/dashboard/artikel/baru"
-                className="rounded-md bg-gold px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep"
+                className="inline-flex min-h-11 items-center justify-center rounded-md bg-gold px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
               >
                 Tulis Artikel Pertama
               </Link>
@@ -69,7 +69,7 @@ export default async function DashboardArtikelPage() {
               {a.status === "APPROVED" && (
                 <Link
                   href={`/hall-of-fame/artikel/${a.slug}`}
-                  className="mt-2 inline-block text-xs font-medium text-gold-deep underline hover:text-forest"
+                  className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-gold-deep underline hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
                 >
                   Lihat di Hall of Fame
                 </Link>

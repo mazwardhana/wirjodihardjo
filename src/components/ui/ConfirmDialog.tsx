@@ -28,7 +28,7 @@ export function ConfirmDialog({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-md border border-wood/30 px-4 py-2 text-sm font-medium text-muted hover:bg-wood/10"
+          className="min-h-11 rounded-md border border-wood/30 px-4 py-2 text-sm font-medium text-muted hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           {cancelLabel}
         </button>
@@ -38,7 +38,7 @@ export function ConfirmDialog({
             onConfirm();
             onClose();
           }}
-          className={`rounded-md px-4 py-2 text-sm font-semibold text-cream ${
+          className={`min-h-11 rounded-md px-4 py-2 text-sm font-semibold text-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${
             variant === "danger"
               ? "bg-wood hover:bg-wood-soft"
               : "bg-forest hover:bg-forest-soft"

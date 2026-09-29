@@ -34,7 +34,7 @@ export default async function DashboardNotifikasiPage() {
               <p className="font-semibold text-forest">{n.title}</p>
               {n.body && <p className="mt-1 text-sm text-muted">{n.body}</p>}
               {n.link && (
-                <Link href={n.link} className="mt-2 inline-block text-sm font-medium text-gold-deep underline">
+                <Link href={n.link} className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-gold-deep underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
                   Lihat
                 </Link>
               )}

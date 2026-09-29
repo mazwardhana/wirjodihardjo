@@ -72,6 +72,8 @@ export default async function AdminPengajuanPage({
     reviewedAt: s.reviewedAt?.toISOString() ?? null,
   }));
 
+  const filtered = Boolean(q?.trim()) || Boolean(type) || statusFilter === undefined;
+
   const tabs = [
     { key: "PENDING", label: "Tertunda", count: pendingCount },
     { key: "APPROVED", label: "Disetujui" },
@@ -146,7 +148,26 @@ export default async function AdminPengajuanPage({
 
       {submissions.length === 0 ? (
         <div className="mt-10">
-          <EmptyState title="Tidak ada pengajuan" description="Semua pengajuan sudah diproses." />
+          <EmptyState
+            title="Tidak ada pengajuan"
+            description={
+              filtered
+                ? "Tidak ada pengajuan yang cocok dengan filter."
+                : statusFilter === "PENDING"
+                  ? "Belum ada pengajuan yang menunggu review."
+                  : "Tidak ada pengajuan pada status ini."
+            }
+            action={
+              filtered ? (
+                <Link
+                  href="/admin/pengajuan"
+                  className="inline-flex min-h-11 items-center rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+                >
+                  Reset filter
+                </Link>
+              ) : undefined
+            }
+          />
         </div>
       ) : (
         <AdminPengajuanList submissions={serializedSubmissions} />

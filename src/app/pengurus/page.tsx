@@ -14,39 +14,88 @@ export const metadata: Metadata = {
 export default async function PengurusPage() {
   const now = new Date();
 
-  // Query active governance structure with positions and assignments
-  const structure = await prisma.governanceStructure.findFirst({
-    where: { isActive: true },
-    include: {
-      positions: {
-        where: { isBranchRepresentative: false },
-        include: {
-          assignments: {
-            where: {
-              AND: [
-                { person: { deletedAt: null } },
-                { OR: [{ endDate: null }, { endDate: { gte: now } }] },
-              ],
-            },
-            include: {
-              person: {
-                select: {
-                  id: true,
-                  fullName: true,
-                  photoUrl: true,
-                  occupation: true,
-                  branch: { select: { name: true, branchNumber: true } },
+  // Empat pembacaan independen dijalankan bersamaan; sebelumnya berurutan
+  // (structure → branches → branchReps → expiredReps) sehingga menambah tiga
+  // round-trip tanpa alasan.
+  const [structure, branches, branchReps, expiredReps] = await Promise.all([
+    // Query active governance structure with positions and assignments
+    prisma.governanceStructure.findFirst({
+      where: { isActive: true },
+      include: {
+        positions: {
+          where: { isBranchRepresentative: false },
+          include: {
+            assignments: {
+              where: {
+                AND: [
+                  { person: { deletedAt: null } },
+                  { OR: [{ endDate: null }, { endDate: { gte: now } }] },
+                ],
+              },
+              include: {
+                person: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                    photoUrl: true,
+                    occupation: true,
+                    branch: { select: { name: true, branchNumber: true } },
+                  },
                 },
               },
+              orderBy: { startDate: "asc" },
             },
-            orderBy: { startDate: "asc" },
+          },
+          orderBy: [{ level: "asc" }, { name: "asc" }],
+        },
+      },
+      orderBy: { startDate: "desc" },
+    }),
+
+    // Query active branches
+    prisma.branch.findMany({
+      where: { isActive: true },
+      orderBy: { branchNumber: "asc" },
+      select: { id: true, name: true, branchNumber: true },
+    }),
+
+    // Perwakilan cabang aktif. `branch: true` dihapus karena hanya `branchId`
+    // yang dipakai; relasi penuh tidak pernah dirender.
+    prisma.branchRepresentative.findMany({
+      where: {
+        AND: [
+          { person: { deletedAt: null } },
+          { OR: [{ endDate: null }, { endDate: { gte: now } }] },
+        ],
+      },
+      include: {
+        person: {
+          select: {
+            id: true,
+            fullName: true,
+            photoUrl: true,
+            occupation: true,
+            branch: { select: { name: true, branchNumber: true } },
           },
         },
-        orderBy: [{ level: "asc" }, { name: "asc" }],
       },
-    },
-    orderBy: { startDate: "desc" },
-  });
+      orderBy: { slot: "asc" },
+    }),
+
+    // Perwakilan yang sudah berakhir, untuk catatan pada slot kosong.
+    prisma.branchRepresentative.findMany({
+      where: {
+        endDate: { lt: now },
+        person: { deletedAt: null },
+      },
+      select: {
+        branchId: true,
+        slot: true,
+        notes: true,
+      },
+      orderBy: { endDate: "desc" },
+    }),
+  ]);
 
   // Build level-grouped data
   const levels: OrgLevel[] = [];
@@ -75,50 +124,6 @@ export default async function PengurusPage() {
       levels.push({ level, positions });
     }
   }
-
-  // Query active branches and their representatives from BranchRepresentative table
-  const branches = await prisma.branch.findMany({
-    where: { isActive: true },
-    orderBy: { branchNumber: "asc" },
-    select: { id: true, name: true, branchNumber: true },
-  });
-
-  const branchReps = await prisma.branchRepresentative.findMany({
-    where: {
-      AND: [
-        { person: { deletedAt: null } },
-        { OR: [{ endDate: null }, { endDate: { gte: now } }] },
-      ],
-    },
-    include: {
-      person: {
-        select: {
-          id: true,
-          fullName: true,
-          photoUrl: true,
-          occupation: true,
-          branch: { select: { name: true, branchNumber: true } },
-        },
-      },
-      branch: true,
-    },
-    orderBy: { slot: "asc" },
-  });
-
-  // Also query most recent expired representatives for notes on empty slots
-  const expiredReps = await prisma.branchRepresentative.findMany({
-    where: {
-      endDate: { lt: now },
-      person: { deletedAt: null },
-    },
-    select: {
-      branchId: true,
-      slot: true,
-      notes: true,
-      endDate: true,
-    },
-    orderBy: { endDate: "desc" },
-  });
 
   // Build branch data with slots
   const branchData: OrgBranch[] = branches.map((branch) => {

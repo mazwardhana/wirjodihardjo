@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/Avatar";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { getGenerationLabel } from "@/lib/generations";
 import { FilterBar } from "@/components/admin/FilterBar";
 
@@ -51,7 +52,7 @@ export default async function AdminAnggotaPage({
       take: perPage,
       include: {
         branch: { select: { name: true } },
-        user: { select: { id: true, email: true, role: true } },
+        user: { select: { email: true, role: true } },
       },
     }),
   ]);
@@ -92,28 +93,47 @@ export default async function AdminAnggotaPage({
         />
       </div>
 
-      {/* Table */}
       <div className="mt-6 overflow-x-auto rounded-lg border border-wood/15">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-wood/15 bg-parchment/40 text-xs font-medium uppercase tracking-wide text-muted">
-              <th className="px-4 py-3">Anggota</th>
-              <th className="px-4 py-3">Generasi</th>
-              <th className="px-4 py-3">Cabang</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Akun</th>
-              <th className="px-4 py-3">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {persons.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-muted">
-                  Tidak ada anggota ditemukan.
-                </td>
+        {persons.length === 0 ? (
+          <EmptyState
+            title="Tidak ada anggota"
+            description={
+              q
+                ? "Tidak ada anggota yang cocok dengan pencarian."
+                : "Belum ada anggota tercatat pada cabang ini."
+            }
+            action={
+              q ? (
+                <Link
+                  href="/admin/anggota"
+                  className="inline-flex min-h-11 items-center rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+                >
+                  Hapus pencarian
+                </Link>
+              ) : (
+                <Link
+                  href="/admin/anggota/tambah"
+                  className="inline-flex min-h-11 items-center rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+                >
+                  Tambah Anggota
+                </Link>
+              )
+            }
+          />
+        ) : (
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-wood/15 bg-parchment/40 text-xs font-medium uppercase tracking-wide text-muted">
+                <th className="px-4 py-3">Anggota</th>
+                <th className="px-4 py-3">Generasi</th>
+                <th className="px-4 py-3">Cabang</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Akun</th>
+                <th className="px-4 py-3">Aksi</th>
               </tr>
-            ) : (
-              persons.map((p) => (
+            </thead>
+            <tbody>
+              {persons.map((p) => (
                 <tr key={p.id} className={`border-b border-wood/10 ${p.deletedAt ? "opacity-60" : ""}`}>
                   <td className="px-4 py-3">
                     <Link href={`/admin/anggota/${p.id}`} className="flex items-center gap-3">
@@ -144,12 +164,11 @@ export default async function AdminAnggotaPage({
                     </Link>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
-
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="mt-6 flex items-center justify-between text-sm">

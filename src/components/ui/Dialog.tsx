@@ -117,7 +117,7 @@ export function Dialog({
             </svg>
           </button>
         </div>
-        <div className="overflow-y-auto px-5 py-4">{children}</div>
+        <div className="overflow-y-auto px-5 py-4 pb-[max(0px,env(safe-area-inset-bottom))] sm:pb-4">{children}</div>
       </div>
     </div>
   );

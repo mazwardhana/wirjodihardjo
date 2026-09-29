@@ -4,6 +4,12 @@ import { useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getGenerationLabel } from "@/lib/generations";
 
+const selectCls =
+  "min-h-11 rounded-md border border-wood/25 bg-cream px-2.5 py-1.5 text-xs text-forest focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest";
+
+const resetCls =
+  "min-h-11 rounded-md border border-wood/25 px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest";
+
 /**
  * Panel filter silsilah: cabang, generasi, status hidup/meninggal.
  * Setiap perubahan → navigasi ke URL baru, server render ulang tree.
@@ -54,7 +60,7 @@ export function FilterPanel({
           id="filter-branch"
           value={current.branchId ?? ""}
           onChange={(e) => apply({ branchId: e.target.value || undefined })}
-          className="rounded-md border border-wood/25 bg-cream px-2.5 py-1.5 text-xs text-forest focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30"
+          className={selectCls}
         >
           <option value="">Semua cabang</option>
           {branches.map((b) => (
@@ -70,7 +76,7 @@ export function FilterPanel({
           id="filter-gen"
           value={current.generationLevel?.toString() ?? ""}
           onChange={(e) => apply({ generation: e.target.value || undefined })}
-          className="rounded-md border border-wood/25 bg-cream px-2.5 py-1.5 text-xs text-forest focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30"
+          className={selectCls}
         >
           <option value="">Semua generasi</option>
           {generations.map((g) => (
@@ -88,7 +94,7 @@ export function FilterPanel({
           id="filter-status"
           value={current.isDeceased ?? ""}
           onChange={(e) => apply({ deceased: e.target.value || undefined })}
-          className="rounded-md border border-wood/25 bg-cream px-2.5 py-1.5 text-xs text-forest focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30"
+          className={selectCls}
         >
           <option value="">Semua status</option>
           <option value="false">Masih hidup</option>
@@ -100,7 +106,7 @@ export function FilterPanel({
         <button
           type="button"
           onClick={resetFilters}
-          className="rounded-md border border-wood/25 px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-wood/10"
+          className={resetCls}
         >
           Reset filter
         </button>

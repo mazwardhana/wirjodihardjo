@@ -27,40 +27,44 @@ export default async function ReuniSlugPage({
   const reunion = await prisma.reunion.findUnique({ where: { slug } });
   if (!reunion) notFound();
 
-  // Jumlah total orang yang sudah terdaftar (CONFIRMED + WAITLIST)
-  const confirmedAgg = await prisma.reunionRegistration.aggregate({
-    where: { reunionId: reunion.id, status: "CONFIRMED" },
-    _sum: { guestCount: true },
-  });
-  const waitlistAgg = await prisma.reunionRegistration.aggregate({
-    where: { reunionId: reunion.id, status: "WAITLIST" },
-    _sum: { guestCount: true },
-  });
-  const attendeeCount = (confirmedAgg._sum.guestCount ?? 0) + (waitlistAgg._sum.guestCount ?? 0);
-
-  // Pendaftaran pengguna yang sedang login
-  let registration: { status: string; guestCount: number } | null = null;
-  if (session?.user) {
-    const reg = await prisma.reunionRegistration.findUnique({
-      where: {
-        reunionId_userId: { reunionId: reunion.id, userId: session.user.id },
-      },
-      select: { status: true, guestCount: true },
-    });
-    if (reg) registration = reg;
-  }
-
-  // Admin bisa melihat reuni draf
-  const user = session?.user
+  // Periksa peran pengunjung lebih dulu: reuni DRAFT hanya boleh dilihat admin.
+  const viewer = session?.user
     ? await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { role: true },
       })
     : null;
-  const isAdmin =
-    user?.role === "SUPER_ADMIN" || user?.role === "BRANCH_ADMIN";
-
+  const isAdmin = viewer?.role === "SUPER_ADMIN" || viewer?.role === "BRANCH_ADMIN";
   if (reunion.status === "DRAFT" && !isAdmin) notFound();
+
+  // Empat pembacaan independen (jumlah peserta plus pendaftaran diri) dijalankan
+  // paralel; sebelumnya tiga `await` berurutan.
+  const [confirmedAgg, waitlistAgg, ownRegistration] = await Promise.all([
+    prisma.reunionRegistration.aggregate({
+      where: { reunionId: reunion.id, status: "CONFIRMED" },
+      _sum: { guestCount: true },
+    }),
+    prisma.reunionRegistration.aggregate({
+      where: { reunionId: reunion.id, status: "WAITLIST" },
+      _sum: { guestCount: true },
+    }),
+    session?.user
+      ? prisma.reunionRegistration.findUnique({
+          where: {
+            reunionId_userId: { reunionId: reunion.id, userId: session.user.id },
+          },
+          select: { status: true, guestCount: true },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  const attendeeCount =
+    (confirmedAgg._sum.guestCount ?? 0) + (waitlistAgg._sum.guestCount ?? 0);
+
+  // Pendaftaran pengguna yang sedang login
+  const registration = ownRegistration
+    ? { status: ownRegistration.status, guestCount: ownRegistration.guestCount }
+    : null;
 
   return (
     <ReunionDetail

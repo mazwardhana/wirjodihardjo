@@ -39,10 +39,14 @@ function SubmissionCard({ submission }: { submission: Submission }) {
   const [expanded, setExpanded] = useState(false);
   const [reviewNote, setReviewNote] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
   async function review(action: "APPROVE" | "REJECT") {
+    setError(null);
+    setStatusMsg(null);
     if (action === "REJECT" && !reviewNote.trim()) {
-      alert("Berikan alasan penolakan.");
+      setError("Berikan alasan penolakan.");
       return;
     }
     setBusy(action);
@@ -58,9 +62,10 @@ function SubmissionCard({ submission }: { submission: Submission }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error((data as { error?: string }).error ?? "Gagal");
+      setStatusMsg(action === "APPROVE" ? "Pengajuan disetujui." : "Pengajuan ditolak.");
       router.refresh();
     } catch (e) {
-      alert((e as Error).message);
+      setError(e instanceof Error ? e.message : "Gagal memproses pengajuan");
     } finally {
       setBusy(null);
     }
@@ -74,8 +79,8 @@ function SubmissionCard({ submission }: { submission: Submission }) {
 
   return (
     <div className="rounded-lg border border-wood/15 bg-cream p-5">
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="font-semibold text-forest">
             {typeLabels[submission.type] ?? submission.type.replace(/_/g, " ")}
           </p>
@@ -98,14 +103,14 @@ function SubmissionCard({ submission }: { submission: Submission }) {
             })}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColors[submission.status] ?? ""}`}>
             {submission.status === "PENDING" ? "Tertunda" : submission.status === "APPROVED" ? "Disetujui" : "Ditolak"}
           </span>
           <button
             type="button"
             onClick={() => setExpanded(!expanded)}
-            className="text-xs text-muted underline hover:text-forest"
+            className="min-h-11 text-xs text-muted underline hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
             {expanded ? "Tutup" : "Lihat data"}
           </button>
@@ -146,12 +151,24 @@ function SubmissionCard({ submission }: { submission: Submission }) {
                   placeholder="Alasan penolakan atau catatan persetujuan..."
                 />
               </div>
-              <div className="flex gap-3">
+
+              {error && (
+                <p role="alert" className="rounded-md bg-wood/10 px-3 py-2 text-sm text-wood">
+                  {error}
+                </p>
+              )}
+              {statusMsg && (
+                <p role="status" className="rounded-md bg-forest/10 px-3 py-2 text-sm text-forest">
+                  {statusMsg}
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
                   onClick={() => review("APPROVE")}
                   disabled={busy !== null}
-                  className="rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft disabled:opacity-50"
+                  className="min-h-11 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
                 >
                   {busy === "APPROVE" ? "Menyetujui..." : "Setujui"}
                 </button>
@@ -159,7 +176,7 @@ function SubmissionCard({ submission }: { submission: Submission }) {
                   type="button"
                   onClick={() => review("REJECT")}
                   disabled={busy !== null}
-                  className="rounded-md border border-wood/30 px-4 py-2 text-sm font-medium text-wood transition-colors hover:bg-wood/10 disabled:opacity-50"
+                  className="min-h-11 rounded-md border border-wood/30 px-4 py-2 text-sm font-medium text-wood transition-colors hover:bg-wood/10 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
                 >
                   {busy === "REJECT" ? "Menolak..." : "Tolak"}
                 </button>

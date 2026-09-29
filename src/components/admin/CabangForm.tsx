@@ -136,7 +136,7 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
       if (onSuccess) {
         onSuccess();
       } else {
-        router.push("/admin/cabang");
+        router.push("/admin/keluarga/cabang");
         router.refresh();
       }
     } catch (e) {
@@ -174,7 +174,7 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
 
       <div>
         <span className={labelCls}>Foto Sampul</span>
-        <div className="mt-1 flex items-center gap-4">
+        <div className="mt-1 flex flex-wrap items-center gap-4">
           {coverImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -192,7 +192,7 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
-              className="block rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft disabled:opacity-50"
+              className="min-h-11 block rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
             >
               {uploading ? "Mengunggah..." : coverImageUrl ? "Ganti Sampul" : "Unggah Sampul"}
             </button>
@@ -200,7 +200,7 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
               <button
                 type="button"
                 onClick={() => setCoverImageUrl(null)}
-                className="block rounded-md border border-wood/30 px-4 py-2 text-sm text-muted transition-colors hover:bg-wood/10"
+                className="min-h-11 block rounded-md border border-wood/30 px-4 py-2 text-sm text-muted transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
               >
                 Hapus
               </button>
@@ -382,14 +382,14 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
         <button
           type="submit"
           disabled={saving}
-          className="min-h-11 rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50"
+          className="min-h-11 rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           {saving ? "Menyimpan..." : mode === "create" ? "Buat Cabang" : "Simpan Perubahan"}
         </button>
         <button
           type="button"
-          onClick={() => (onCancel ? onCancel() : router.push("/admin/cabang"))}
-          className="min-h-11 rounded-md border border-wood/30 px-5 py-2.5 text-sm text-muted transition-colors hover:bg-wood/10"
+          onClick={() => (onCancel ? onCancel() : router.push("/admin/keluarga/cabang"))}
+          className="min-h-11 rounded-md border border-wood/30 px-5 py-2.5 text-sm text-muted transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           Batal
         </button>

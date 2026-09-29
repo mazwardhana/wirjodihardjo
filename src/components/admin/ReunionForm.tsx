@@ -46,6 +46,7 @@ export function ReunionForm({
   const router = useRouter();
   const [form, setForm] = useState<ReunionFormValues>({ ...empty, ...initial });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [uploadingHero, setUploadingHero] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -73,6 +74,7 @@ export function ReunionForm({
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setSaving(true);
 
     try {
@@ -113,7 +115,7 @@ export function ReunionForm({
         router.refresh();
       }
     } catch (err) {
-      toast("error", (err as Error).message);
+      setError((err as Error).message);
     } finally {
       setSaving(false);
     }
@@ -139,7 +141,7 @@ export function ReunionForm({
             <button
               type="button"
               onClick={() => set("heroImageUrl", null)}
-              className="absolute right-2 top-2 rounded-md bg-ink/50 px-2 py-1 text-xs text-cream hover:bg-ink/70"
+              className="absolute right-2 top-2 min-h-11 rounded-md bg-ink/50 px-2 py-1 text-xs text-cream hover:bg-ink/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
             >
               Hapus
             </button>
@@ -149,7 +151,7 @@ export function ReunionForm({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploadingHero}
-          className="rounded-md border border-wood/30 px-4 py-2 text-sm text-muted transition-colors hover:bg-wood/10 disabled:opacity-50"
+          className="min-h-11 rounded-md border border-wood/30 px-4 py-2 text-sm text-muted transition-colors hover:bg-wood/10 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           {uploadingHero ? "Mengunggah..." : form.heroImageUrl ? "Ganti Gambar" : "Pilih Gambar"}
         </button>
@@ -272,18 +274,24 @@ export function ReunionForm({
         </div>
       </div>
 
+      {error && (
+        <p role="alert" className="rounded-md bg-wood/10 p-3 text-sm text-wood">
+          {error}
+        </p>
+      )}
+
       <div className="flex gap-3">
         <button
           type="submit"
           disabled={saving}
-          className="min-h-11 rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50"
+          className="min-h-11 rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           {saving ? "Menyimpan..." : isEdit ? "Simpan Perubahan" : "Buat Reuni"}
         </button>
         <button
           type="button"
           onClick={() => (onCancel ? onCancel() : router.back())}
-          className="min-h-11 rounded-md border border-wood/30 px-5 py-2.5 text-sm text-muted transition-colors hover:bg-wood/10"
+          className="min-h-11 rounded-md border border-wood/30 px-5 py-2.5 text-sm text-muted transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           Batal
         </button>

@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { ReunionForm } from "@/components/admin/ReunionForm";
 import { ReunionRegistrations } from "@/components/admin/ReunionRegistrations";
-import { formatDate, formatDateTime } from "@/lib/utils";
 
 const statusMeta: Record<string, { label: string; className: string }> = {
   DRAFT: { label: "Draf", className: "bg-muted/10 text-muted" },
@@ -143,7 +142,6 @@ export default async function AdminReuniDetailPage({
                 person: { fullName: r.user.person.fullName },
               },
             }))}
-            reunionId={reunion.id}
           />
         </div>
       </div>

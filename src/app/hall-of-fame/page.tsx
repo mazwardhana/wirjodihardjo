@@ -26,14 +26,17 @@ export default async function HallOfFamePage() {
     }),
   ]);
 
-  const appreciationPanel =
-    entries.length === 0 ? (
-      <EmptyState
-        title="Belum ada entri Hall of Fame"
-        description="Admin keluarga dapat menambahkan entri pertama melalui panel admin."
-      />
-    ) : (
-      <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+  const appreciationPanel = (
+    <>
+      {/* Judul tingkat-2 agar urutan heading tetap h1 → h2 → h3 (kartu memakai h3). */}
+      <h2 className="sr-only">Apresiasi</h2>
+      {entries.length === 0 ? (
+        <EmptyState
+          title="Belum ada entri Hall of Fame"
+          description="Admin keluarga dapat menambahkan entri pertama melalui panel admin."
+        />
+      ) : (
+        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {entries.map((entry) => (
           <li
             key={entry.id}
@@ -87,16 +90,29 @@ export default async function HallOfFamePage() {
             )}
           </li>
         ))}
-      </ul>
-    );
+        </ul>
+      )}
+    </>
+  );
 
-  const articlePanel =
-    articles.length === 0 ? (
-      <EmptyState
-        title="Belum ada artikel & cerita"
-        description="Anggota keluarga dapat menulis cerita melalui dashboard, lalu admin meninjaunya sebelum terbit di sini."
-      />
-    ) : (
+  const articlePanel = (
+    <>
+      {/* Judul tingkat-2 agar urutan heading tetap h1 → h2 → h3 (kartu memakai h3). */}
+      <h2 className="sr-only">Artikel &amp; Cerita</h2>
+      {articles.length === 0 ? (
+        <EmptyState
+          title="Belum ada artikel & cerita"
+          description="Anggota keluarga dapat menulis cerita melalui dashboard, lalu admin meninjaunya sebelum terbit di sini."
+          action={
+            <Link
+              href="/dashboard/artikel/baru"
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-gold px-5 py-2 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+            >
+              Tulis Artikel
+            </Link>
+          }
+        />
+      ) : (
       <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {articles.map((article) => (
           <ArticleCard
@@ -113,8 +129,10 @@ export default async function HallOfFamePage() {
             }}
           />
         ))}
-      </ul>
-    );
+        </ul>
+      )}
+    </>
+  );
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">

@@ -31,9 +31,9 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login");
 
-  // Catat reminder reuni mendatang (idempoten)
-  try { await recordUpcomingReunionReminders(user.id); } catch {}
-
+  // Catat reminder reuni mendatang (idempoten). Diproses paralel dengan
+  // pembacaan lain karena tidak bergantung pada hasilnya; error ditelan
+  // sama seperti sebelumnya agar tidak menggagalkan render dashboard.
   const [pendingCount, reunionCount, notificationCount, family, siblings] =
     await Promise.all([
       prisma.submission.count({
@@ -47,6 +47,7 @@ export default async function DashboardPage() {
       }),
       user.person ? getImmediateFamily(user.person.id) : Promise.resolve(null),
       user.person ? getClassifiedSiblings(user.person.id) : Promise.resolve([]),
+      recordUpcomingReunionReminders(user.id).catch(() => undefined),
     ]);
 
   return (

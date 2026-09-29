@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getActorScope } from "@/lib/rbac";
 import { CabangCard } from "@/app/admin/cabang/CabangCard";
 import { FilterBar } from "@/components/admin/FilterBar";
@@ -60,10 +61,24 @@ export default async function AdminKeluargaCabangPage({
       </div>
 
       {branches.length === 0 ? (
-        <div className="mt-12 rounded-lg border border-dashed border-wood/20 p-12 text-center text-sm text-muted">
-          {q
-            ? "Tidak ada cabang yang cocok dengan pencarian."
-            : "Belum ada cabang. Buat cabang pertama untuk mulai mengelola anggota keluarga berdasarkan cabang."}
+        <div className="mt-12 rounded-lg border border-dashed border-wood/20 bg-parchment/40 p-12 text-center">
+          <p className="text-sm text-muted">
+            {q
+              ? "Tidak ada cabang yang cocok dengan pencarian."
+              : "Belum ada cabang. Buat cabang pertama untuk mulai mengelola anggota keluarga berdasarkan cabang."}
+          </p>
+          <div className="mt-6">
+            {q ? (
+              <Link
+                href="/admin/keluarga/cabang"
+                className="inline-flex min-h-11 items-center rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+              >
+                Hapus pencarian
+              </Link>
+            ) : (
+              <CabangCreateModal />
+            )}
+          </div>
         </div>
       ) : (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

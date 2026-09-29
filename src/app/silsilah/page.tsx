@@ -18,6 +18,18 @@ export default async function SilsilahPage({
   const { q, branchId, generation, deceased } = await searchParams;
   const session = await auth();
 
+  // Tombol Reset di samping kotak cari hanya menghapus kata kunci, sementara
+  // filter cabang/generasi/status tetap dipertahankan (kebalikan dari
+  // "Reset filter" di FilterPanel). Dengan begitu kedua kontrol tidak saling
+  // menghapus tanpa disadari.
+  function clearSearchHref(): string {
+    const params = new URLSearchParams();
+    if (branchId) params.set("branchId", branchId);
+    if (generation) params.set("generation", generation);
+    if (deceased !== undefined) params.set("deceased", deceased);
+    return `/silsilah${params.toString() ? `?${params.toString()}` : ""}`;
+  }
+
   // Parse filter: `q` hanya memengaruhi daftar hasil pencarian, bukan pohon.
   // Pohon selalu dirender, disaring hanya oleh cabang, generasi, dan status.
   const filters = {
@@ -76,36 +88,54 @@ export default async function SilsilahPage({
             type="search"
             defaultValue={q ?? ""}
             placeholder="Cari nama atau nama panggilan…"
-            className="block w-full rounded-md border border-wood/30 bg-cream px-4 py-2.5 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
+            className="block min-h-11 w-full rounded-md border border-wood/30 bg-cream px-4 py-2.5 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
           />
           <button
             type="submit"
-            className="shrink-0 rounded-md bg-forest px-5 py-2.5 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft"
+            className="min-h-11 shrink-0 rounded-md bg-forest px-5 py-2.5 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
             Cari
           </button>
           {q && (
             <Link
-              href="/silsilah"
-              className="shrink-0 rounded-md border border-wood/30 px-5 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-wood/10"
+              href={clearSearchHref()}
+              className="min-h-11 shrink-0 rounded-md border border-wood/30 px-5 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
             >
               Reset
             </Link>
           )}
         </div>
+
+        {/* Filter aktif harus ikut terkirim, supaya pencarian tidak diam-diam
+            menghapus filter cabang/generasi/status yang sudah dipilih. */}
+        {branchId && <input type="hidden" name="branchId" value={branchId} />}
+        {generation && <input type="hidden" name="generation" value={generation} />}
+        {deceased !== undefined && (
+          <input type="hidden" name="deceased" value={deceased} />
+        )}
       </form>
 
       {/* Hasil pencarian */}
       {results !== null && (
         <section aria-label="Hasil pencarian" className="mt-8">
           {results.length === 0 ? (
-            <EmptyState
-              title="Anggota tidak ditemukan"
-              description={`Tidak ada anggota dengan nama "${q}". Coba ejaan lain.`}
-            />
+            <div role="status">
+              <EmptyState
+                title="Anggota tidak ditemukan"
+                description={`Tidak ada anggota dengan nama "${q}". Coba ejaan lain atau lihat seluruh pohon.`}
+                action={
+                  <Link
+                    href={clearSearchHref()}
+                    className="inline-flex min-h-11 items-center justify-center rounded-md bg-forest px-5 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+                  >
+                    Tampilkan seluruh pohon
+                  </Link>
+                }
+              />
+            </div>
           ) : (
             <>
-              <p className="mb-4 text-sm text-muted">
+              <p role="status" className="mb-4 text-sm text-muted">
                 {results.length} hasil untuk &ldquo;{q}&rdquo;
               </p>
               <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

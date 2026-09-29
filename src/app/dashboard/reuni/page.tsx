@@ -27,7 +27,7 @@ export default async function DashboardReuniPage() {
             title="Belum mendaftar reuni"
             description="Lihat jadwal reuni dan daftarkan diri Anda."
             action={
-              <Link href="/reuni" className="rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream">
+              <Link href="/reuni" className="inline-flex min-h-11 items-center justify-center rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
                 Lihat Jadwal Reuni
               </Link>
             }
@@ -52,7 +52,7 @@ export default async function DashboardReuniPage() {
               <li key={r.id} className="rounded-lg border border-wood/15 bg-cream p-4">
                 <Link
                   href={`/reuni/${r.reunion.slug}`}
-                  className="font-semibold text-forest hover:text-gold-deep"
+                  className="inline-flex min-h-11 items-center font-semibold text-forest hover:text-gold-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
                 >
                   {r.reunion.title}
                 </Link>

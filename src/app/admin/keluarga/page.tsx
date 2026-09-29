@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getActorScope } from "@/lib/rbac";
 import { KeluargaDashboard, type BranchOption } from "./KeluargaDashboard";
 
@@ -54,8 +55,16 @@ export default async function AdminKeluargaPage({
     return (
       <div className="p-8">
         <h1 className="font-display text-2xl font-semibold text-forest">Keluarga</h1>
-        <div className="mt-6 rounded-lg border border-dashed border-wood/30 p-12 text-center text-sm text-muted">
-          Belum ada cabang. Buat cabang terlebih dahulu untuk mulai mengelola anggota keluarga.
+        <div className="mt-6 rounded-lg border border-dashed border-wood/30 p-12 text-center">
+          <p className="text-sm text-muted">
+            Belum ada cabang. Buat cabang terlebih dahulu untuk mulai mengelola anggota keluarga.
+          </p>
+          <Link
+            href="/admin/keluarga/cabang"
+            className="mt-6 inline-flex min-h-11 items-center rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          >
+            Buat Cabang
+          </Link>
         </div>
       </div>
     );

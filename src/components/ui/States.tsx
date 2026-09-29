@@ -60,7 +60,7 @@ export function ErrorState({
         <button
           type="button"
           onClick={onRetry}
-          className="mt-6 rounded-md border border-forest/30 px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-forest hover:text-cream"
+          className="mt-6 min-h-11 rounded-md border border-forest/30 px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-forest hover:text-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           Coba lagi
         </button>

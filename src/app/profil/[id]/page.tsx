@@ -30,17 +30,32 @@ export default async function ProfilPage({ params }: { params: Promise<{ id: str
   });
   if (!person) notFound();
 
-  // City is public by product policy; never fetch other private fields for guests.
-  const cityData = await prisma.personPrivate.findUnique({ where: { personId: id }, select: { city: true } });
-  const profile = projectPublicProfile({ ...person, city: cityData?.city ?? null });
-  const privateData = isMember ? await prisma.personPrivate.findUnique({
-    where: { personId: id }, select: { phone: true, whatsapp: true, addressLine: true, email: true, visibleToMembers: true },
-  }) : null;
-  const member = projectMemberProfile({ ...person, city: cityData?.city ?? null, private: privateData }, viewer?.role);
-  const contacts = isMember && privateData?.visibleToMembers ? {
-    phone: member.phone, whatsapp: member.whatsapp, addressLine: member.addressLine, email: member.email,
-  } : null;
+  // Kota tetap publik (kebijakan produk). Field kontak hanya di-query bila
+  // pengunjung sudah login sebagai anggota, sehingga data sensitif tak pernah
+  // menyentuh query untuk guest (kontrak: lapisan publik tak menyentuh
+  // PersonPrivate). Bacaan kota dan bacaan kontak tetap terpisah sesuai kontrak
+  // (select kontak sengaja tanpa `city`), namun keduanya kini dijalankan paralel
+  // lewat Promise.all agar dua round-trip sebelumnya jadi satu masa tunggu.
+  const [cityData, privateData] = await Promise.all([
+    prisma.personPrivate.findUnique({ where: { personId: id }, select: { city: true } }),
+    isMember
+      ? prisma.personPrivate.findUnique({
+          where: { personId: id },
+          select: { phone: true, whatsapp: true, addressLine: true, email: true, visibleToMembers: true },
+        })
+      : Promise.resolve(null),
+  ]);
 
+  const profile = projectPublicProfile({ ...person, city: cityData?.city ?? null });
+  const member = projectMemberProfile(
+    { ...person, city: cityData?.city ?? null, private: privateData },
+    viewer?.role,
+  );
+  const contacts = isMember && privateData?.visibleToMembers
+    ? { phone: member.phone, whatsapp: member.whatsapp, addressLine: member.addressLine, email: member.email }
+    : null;
+
+  // Kedua kalkulasi keluarga independen — tetap paralel.
   const [immediateFamily, siblings] = await Promise.all([getImmediateFamily(id), getClassifiedSiblings(id)]);
   const familyData = immediateFamily ? {
     ...immediateFamily, siblings,

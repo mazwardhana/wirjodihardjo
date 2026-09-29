@@ -36,7 +36,7 @@ export function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-[400] flex flex-col gap-2">
+    <div className="fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[400] flex flex-col gap-2 sm:bottom-4">
       {toasts.map((t) => {
         const bg =
           t.type === "success"
@@ -44,11 +44,14 @@ export function ToastContainer() {
             : t.type === "error"
               ? "bg-wood text-cream"
               : "bg-gold-deep text-cream";
+        // error → penting (alert, assertive); success/info → status ringan.
+        const role = t.type === "error" ? "alert" : "status";
+        const live = t.type === "error" ? "assertive" : "polite";
         return (
           <div
             key={t.id}
-            role="alert"
-            aria-live="polite"
+            role={role}
+            aria-live={live}
             className={`rounded-md px-4 py-3 text-sm shadow-lg ${bg}`}
           >
             {t.message}

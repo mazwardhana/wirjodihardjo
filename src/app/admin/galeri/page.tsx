@@ -24,7 +24,7 @@ export default async function AdminGaleriPage({
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, role: true },
+    select: { role: true },
   });
   if (!user || (user.role !== "SUPER_ADMIN" && user.role !== "BRANCH_ADMIN")) {
     redirect("/dashboard");
@@ -46,21 +46,21 @@ export default async function AdminGaleriPage({
   else if (statusFilter === "draft") where.isPublished = false;
   if (first(sp.tab) === "pending") where.media = { some: { status: "PENDING" } };
 
-  const albums = await prisma.album.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    include: {
-      _count: { select: { media: true } },
-      createdBy: { select: { person: { select: { fullName: true } } } },
-      publishedBy: { select: { person: { select: { fullName: true } } } },
-    },
-  });
-
-  const pendingCount = await prisma.galleryMedia.count({
-    where: { status: "PENDING" },
-  });
-
-  const total = await prisma.album.count();
+  const [albums, pendingCount, total] = await Promise.all([
+    prisma.album.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: { select: { media: true } },
+        createdBy: { select: { person: { select: { fullName: true } } } },
+        publishedBy: { select: { person: { select: { fullName: true } } } },
+      },
+    }),
+    prisma.galleryMedia.count({
+      where: { status: "PENDING" },
+    }),
+    prisma.album.count(),
+  ]);
   const filtering = q !== "" || statusFilter !== "";
 
   return (
@@ -112,10 +112,24 @@ export default async function AdminGaleriPage({
       </div>
 
       {albums.length === 0 ? (
-        <div className="mt-10 rounded-lg border border-dashed border-wood/25 bg-cream px-4 py-12 text-center text-sm text-muted">
-          {filtering
-            ? "Tidak ada album yang cocok dengan filter."
-            : "Belum ada album. Buat album pertama untuk mengelola foto keluarga."}
+        <div className="mt-10 rounded-lg border border-dashed border-wood/25 bg-cream px-4 py-12 text-center">
+          <p className="text-sm text-muted">
+            {filtering
+              ? "Tidak ada album yang cocok dengan filter."
+              : "Belum ada album. Buat album pertama untuk mengelola foto keluarga."}
+          </p>
+          <div className="mt-6">
+            {filtering ? (
+              <Link
+                href="/admin/galeri"
+                className="inline-flex min-h-11 items-center rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+              >
+                Reset filter
+              </Link>
+            ) : (
+              <AlbumCreateModal />
+            )}
+          </div>
         </div>
       ) : (
         <ul className="mt-8 space-y-4">

@@ -19,10 +19,8 @@ type Registration = {
 
 export function ReunionRegistrations({
   registrations,
-  reunionId,
 }: {
   registrations: Registration[];
-  reunionId: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -122,7 +120,7 @@ export function ReunionRegistrations({
                     type="button"
                     disabled={busy === reg.id}
                     onClick={() => handleCancel(reg.id)}
-                    className="text-xs text-wood underline hover:text-wood-soft disabled:opacity-50"
+                    className="min-h-11 text-xs text-wood underline hover:text-wood-soft disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
                   >
                     {busy === reg.id ? "..." : "Batalkan"}
                   </button>
@@ -132,7 +130,7 @@ export function ReunionRegistrations({
                     type="button"
                     disabled={busy === reg.id}
                     onClick={() => handleConfirm(reg.id)}
-                    className="text-xs text-forest underline hover:text-gold-deep disabled:opacity-50"
+                    className="min-h-11 text-xs text-forest underline hover:text-gold-deep disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
                   >
                     {busy === reg.id ? "..." : "Konfirmasi"}
                   </button>

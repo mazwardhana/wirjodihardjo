@@ -75,13 +75,16 @@ export async function notifyAdminsOfNewSubmission(submissionId: string, type: st
     select: { id: true },
   });
   const typeLabel = submissionTypeLabel(type);
-  for (const admin of admins) {
-    await createNotification({
-      userId: admin.id,
-      type: "SUBMISSION_NEW",
-      title: "Pengajuan baru menunggu",
-      body: `Ada pengajuan ${typeLabel} yang perlu ditinjau.`,
-      link: "/admin/pengajuan",
+  // Satu batch INSERT untuk seluruh admin (sebelumnya satu query per admin).
+  if (admins.length > 0) {
+    await prisma.notification.createMany({
+      data: admins.map((admin) => ({
+        userId: admin.id,
+        type: "SUBMISSION_NEW",
+        title: "Pengajuan baru menunggu",
+        body: `Ada pengajuan ${typeLabel} yang perlu ditinjau.`,
+        link: "/admin/pengajuan",
+      })),
     });
   }
 }

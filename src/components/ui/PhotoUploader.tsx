@@ -21,10 +21,12 @@ export function PhotoUploader({
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
 
   const handleFile = async (file: File | null) => {
     setError(null);
+    setSuccess(null);
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
@@ -53,6 +55,7 @@ export function PhotoUploader({
 
       const data = await res.json();
       onPhotoChange(data.url);
+      setSuccess("Foto profil berhasil diperbarui.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal mengunggah");
       setPreview(null);
@@ -69,11 +72,14 @@ export function PhotoUploader({
 
   const handleRemove = async () => {
     if (!confirm("Hapus foto profil?")) return;
+    setError(null);
+    setSuccess(null);
     try {
       const res = await fetch("/api/upload", { method: "DELETE" });
       if (!res.ok) throw new Error("Gagal menghapus");
       onPhotoChange(null);
       setPreview(null);
+      setSuccess("Foto profil dihapus.");
     } catch {
       setError("Gagal menghapus foto.");
     }
@@ -112,7 +118,7 @@ export function PhotoUploader({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft disabled:opacity-50"
+          className="min-h-11 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest disabled:opacity-50"
           disabled={uploading}
         >
           {uploading ? "Mengunggah..." : "Pilih Foto"}
@@ -121,7 +127,7 @@ export function PhotoUploader({
           <button
             type="button"
             onClick={handleRemove}
-            className="ml-2 rounded-md border border-wood/30 px-4 py-2 text-sm text-muted transition-colors hover:bg-wood/10"
+            className="ml-2 min-h-11 rounded-md border border-wood/30 px-4 py-2 text-sm text-muted transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
             Hapus
           </button>
@@ -129,6 +135,11 @@ export function PhotoUploader({
         {error && (
           <p className="mt-2 text-sm font-medium text-wood" role="alert">
             {error}
+          </p>
+        )}
+        {success && (
+          <p className="mt-2 text-sm font-medium text-forest" role="status">
+            {success}
           </p>
         )}
       </div>

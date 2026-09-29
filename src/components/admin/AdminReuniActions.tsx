@@ -20,11 +20,9 @@ const statusLabels: Record<string, string> = {
 export function AdminReuniActions({
   id,
   status,
-  editHref,
 }: {
   id: string;
   status: string;
-  editHref: string;
 }) {
   const router = useRouter();
 
@@ -67,7 +65,7 @@ export function AdminReuniActions({
           key={next}
           type="button"
           onClick={() => changeStatus(next)}
-          className="rounded-md border border-wood/20 px-3 py-1.5 text-xs font-medium text-forest transition-colors hover:bg-wood/10"
+          className="min-h-11 rounded-md border border-wood/20 px-3 py-1.5 text-xs font-medium text-forest transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           {statusLabels[next]}
         </button>
@@ -75,7 +73,7 @@ export function AdminReuniActions({
       <button
         type="button"
         onClick={deleteReuni}
-        className="rounded-md border border-wood/20 px-3 py-1.5 text-xs text-wood transition-colors hover:bg-wood/10"
+        className="min-h-11 rounded-md border border-wood/20 px-3 py-1.5 text-xs text-wood transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
       >
         Hapus
       </button>

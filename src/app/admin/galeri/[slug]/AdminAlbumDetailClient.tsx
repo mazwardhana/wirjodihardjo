@@ -75,12 +75,12 @@ export function AdminAlbumDetailClient({
   if (editing) {
     return (
       <div>
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <h1 className="font-display text-2xl font-semibold text-forest">Edit Album</h1>
           <button
             type="button"
             onClick={() => setEditing(false)}
-            className="rounded-md border border-wood/30 px-4 py-2 text-sm text-muted transition-colors hover:bg-wood/10"
+            className="min-h-11 rounded-md border border-wood/30 px-4 py-2 text-sm text-muted transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
             Kembali
           </button>
@@ -103,7 +103,7 @@ export function AdminAlbumDetailClient({
 
   return (
     <>
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
             <Link
@@ -140,11 +140,11 @@ export function AdminAlbumDetailClient({
             </p>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={togglePublish}
-            className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
+            className={`min-h-11 rounded-md px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${
               album.isPublished
                 ? "border border-wood/30 text-wood hover:bg-wood/10"
                 : "bg-forest text-cream hover:bg-forest-soft"
@@ -155,7 +155,7 @@ export function AdminAlbumDetailClient({
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="rounded-md border border-wood/30 px-4 py-2 text-sm font-medium text-muted transition-colors hover:bg-wood/10"
+            className="min-h-11 rounded-md border border-wood/30 px-4 py-2 text-sm font-medium text-muted transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
             Edit
           </button>
@@ -163,7 +163,7 @@ export function AdminAlbumDetailClient({
             type="button"
             onClick={() => setConfirmDelete(true)}
             disabled={deleteBusy}
-            className="rounded-md border border-wood/20 px-4 py-2 text-sm text-muted transition-colors hover:bg-wood/10 disabled:opacity-50"
+            className="min-h-11 rounded-md border border-wood/20 px-4 py-2 text-sm text-muted transition-colors hover:bg-wood/10 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
             Hapus
           </button>
@@ -180,7 +180,7 @@ export function AdminAlbumDetailClient({
               <button
                 type="button"
                 onClick={() => setShowUploader(false)}
-                className="rounded-md border border-wood/30 px-3 py-1.5 text-xs text-muted transition-colors hover:bg-wood/10"
+                className="min-h-11 rounded-md border border-wood/30 px-3 py-1.5 text-xs text-muted transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
               >
                 Tutup
               </button>
@@ -191,7 +191,7 @@ export function AdminAlbumDetailClient({
           <button
             type="button"
             onClick={() => setShowUploader(true)}
-            className="rounded-md bg-gold px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep"
+            className="min-h-11 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
             + Unggah Media
           </button>

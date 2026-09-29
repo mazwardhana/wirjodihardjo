@@ -71,13 +71,31 @@ export function DataTable<T extends { id: string }>({
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={cn("pb-3 pr-4", col.sortable && "cursor-pointer select-none hover:text-forest", col.className)}
-                onClick={() => col.sortable && handleSort(col.key)}
+                className={cn("pb-3 pr-4", col.className)}
                 aria-sort={sortKey === col.key ? (sortDir === "asc" ? "ascending" : "descending") : undefined}
               >
-                {col.label}
-                {col.sortable && sortKey === col.key && (
-                  <span className="ml-1">{sortDir === "asc" ? "▲" : "▼"}</span>
+                {col.sortable ? (
+                  // Tombol sungguhan: bisa dijangkau keyboard, bukan <th> yang
+                  // hanya bisa diklik mouse.
+                  <button
+                    type="button"
+                    onClick={() => handleSort(col.key)}
+                    className="inline-flex min-h-11 items-center gap-1 text-left transition-colors hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+                  >
+                    {col.label}
+                    <span aria-hidden="true" className="ml-1">
+                      {sortKey === col.key ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                    </span>
+                    <span className="sr-only">
+                      {sortKey === col.key
+                        ? sortDir === "asc"
+                          ? "diurutkan naik"
+                          : "diurutkan turun"
+                        : "urutkan kolom ini"}
+                    </span>
+                  </button>
+                ) : (
+                  col.label
                 )}
               </th>
             ))}
@@ -119,14 +137,14 @@ export function DataTable<T extends { id: string }>({
             <button
               disabled={page <= 1}
               onClick={() => onPageChange(page - 1)}
-              className="rounded border border-wood/30 px-3 py-1 text-xs disabled:opacity-30"
+              className="min-h-11 rounded-md border border-wood/30 px-3 py-2 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest disabled:opacity-30"
             >
               ← Sebelumnya
             </button>
             <button
               disabled={page >= totalPages}
               onClick={() => onPageChange(page + 1)}
-              className="rounded border border-wood/30 px-3 py-1 text-xs disabled:opacity-30"
+              className="min-h-11 rounded-md border border-wood/30 px-3 py-2 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest disabled:opacity-30"
             >
               Berikutnya →
             </button>

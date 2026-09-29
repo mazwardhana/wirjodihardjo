@@ -104,6 +104,18 @@ export default async function AdminReuniPage({
                 ? "Tidak ada reuni yang cocok dengan filter. Ubah pencarian atau reset filter."
                 : "Buat acara reuni pertama agar anggota keluarga bisa mulai mendaftar."
             }
+            action={
+              hasFilters ? (
+                <Link
+                  href="/admin/reuni"
+                  className="inline-flex min-h-11 items-center rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+                >
+                  Reset filter
+                </Link>
+              ) : (
+                <ReunionCreateModal />
+              )
+            }
           />
         </div>
       ) : (
@@ -141,7 +153,6 @@ export default async function AdminReuniPage({
                     <AdminReuniActions
                       id={r.id}
                       status={r.status}
-                      editHref={`/admin/reuni/${r.id}`}
                     />
                   </div>
                 </div>

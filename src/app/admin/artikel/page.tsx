@@ -61,9 +61,11 @@ export default async function AdminArtikelPage({
     prisma.article.count({ where: { status: "PENDING" } }),
   ]);
 
+  const filtering = q !== "" || categoryFilter !== "" || statusFilter !== "PENDING";
+
   return (
     <div className="p-8">
-      <div className="flex items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-semibold text-forest">
             Moderasi Artikel
@@ -72,7 +74,7 @@ export default async function AdminArtikelPage({
             {pendingCount} artikel menunggu review
           </p>
         </div>
-        <KategoriModal initial={categories} />
+        {user.role === "SUPER_ADMIN" && <KategoriModal initial={categories} />}
       </div>
 
       <FilterBar
@@ -102,9 +104,19 @@ export default async function AdminArtikelPage({
           <EmptyState
             title="Tidak ada artikel"
             description={
-              statusFilter === "PENDING"
-                ? "Belum ada artikel yang menunggu review."
-                : "Tidak ada artikel yang cocok dengan filter."
+              filtering
+                ? "Tidak ada artikel yang cocok dengan filter."
+                : "Belum ada artikel yang menunggu review."
+            }
+            action={
+              filtering ? (
+                <Link
+                  href="/admin/artikel"
+                  className="inline-flex min-h-11 items-center rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+                >
+                  Reset filter
+                </Link>
+              ) : undefined
             }
           />
         </div>

@@ -90,10 +90,10 @@ export function CabangCard({ branch }: { branch: Branch }) {
           </p>
         </div>
       </div>
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         <Link
-          href={`/admin/cabang/${branch.id}`}
-          className="rounded-md bg-forest px-3 py-1.5 text-xs font-semibold text-cream transition-colors hover:bg-forest-soft"
+          href={`/admin/keluarga/cabang/${branch.id}`}
+          className="inline-flex min-h-11 items-center rounded-md bg-forest px-3 py-1.5 text-xs font-semibold text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           Kelola
         </Link>
@@ -101,7 +101,7 @@ export function CabangCard({ branch }: { branch: Branch }) {
           <button
             type="button"
             onClick={handleDeactivate}
-            className="rounded-md border border-wood/30 px-3 py-1.5 text-xs text-muted transition-colors hover:bg-wood/10"
+            className="min-h-11 rounded-md border border-wood/30 px-3 py-1.5 text-xs text-muted transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
             Nonaktifkan
           </button>
@@ -109,7 +109,7 @@ export function CabangCard({ branch }: { branch: Branch }) {
           <button
             type="button"
             onClick={handleActivate}
-            className="rounded-md border border-forest/30 px-3 py-1.5 text-xs text-forest transition-colors hover:bg-forest/10"
+            className="min-h-11 rounded-md border border-forest/30 px-3 py-1.5 text-xs text-forest transition-colors hover:bg-forest/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
             Aktifkan
           </button>

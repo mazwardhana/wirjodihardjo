@@ -33,7 +33,7 @@ export function ProfileEditModal({ open, onClose, initialData, onSave, platforms
 
   return <Dialog open={open} onClose={close} title="Edit profil" description="Data publik dan kontak keluarga dikelola terpisah." size="lg">
     <div className="space-y-5 text-forest">
-      <div className="flex flex-wrap gap-2" aria-label="Bagian editor">
+      <div role="group" className="flex flex-wrap gap-2" aria-label="Bagian editor">
         {([["basic", "Info dasar"], ["education", "Pendidikan"], ["social", "Sosial media"]] as const).map(([key, label]) => <button type="button" key={key} disabled={busy} aria-pressed={section === key} className={`${buttonClass} ${section === key ? "bg-gold !text-ink" : ""}`} onClick={() => setSection(key)}>{label}</button>)}
       </div>
       <div hidden={section !== "basic"}>

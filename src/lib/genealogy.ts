@@ -134,21 +134,22 @@ export async function getClassifiedSiblings(personId: string): Promise<SiblingGr
   const fatherIds = parents.filter((p) => p.parentRole === "FATHER").map((p) => p.parentId);
   const motherIds = parents.filter((p) => p.parentRole === "MOTHER").map((p) => p.parentId);
 
-  // Semua anak dari semua ayah
-  const paternal = fatherIds.length > 0
-    ? await prisma.personChild.findMany({
-        where: { parentId: { in: fatherIds }, childId: { not: personId } },
-        select: { childId: true, isStep: true, isAdopted: true, parentRole: true },
-      })
-    : [];
-
-  // Semua anak dari semua ibu
-  const maternal = motherIds.length > 0
-    ? await prisma.personChild.findMany({
-        where: { parentId: { in: motherIds }, childId: { not: personId } },
-        select: { childId: true, isStep: true, isAdopted: true, parentRole: true },
-      })
-    : [];
+  // Semua anak dari semua ayah dan semua ibu: dua query independen, jalankan
+  // bersamaan (sebelumnya berurutan).
+  const [paternal, maternal] = await Promise.all([
+    fatherIds.length > 0
+      ? prisma.personChild.findMany({
+          where: { parentId: { in: fatherIds }, childId: { not: personId } },
+          select: { childId: true, isStep: true, isAdopted: true, parentRole: true },
+        })
+      : Promise.resolve([]),
+    motherIds.length > 0
+      ? prisma.personChild.findMany({
+          where: { parentId: { in: motherIds }, childId: { not: personId } },
+          select: { childId: true, isStep: true, isAdopted: true, parentRole: true },
+        })
+      : Promise.resolve([]),
+  ]);
 
   // Klasifikasikan
   const paternalMap = new Map(paternal.map((p) => [p.childId, p]));
@@ -185,23 +186,28 @@ export async function getClassifiedSiblings(personId: string): Promise<SiblingGr
     groups.MATERNAL_HALF.ids.push(childId);
   }
 
-  // Ambil data detail
-  const result: SiblingGroup[] = [];
-  for (const g of Object.values(groups)) {
-    if (g.ids.length === 0) continue;
-    const members = await prisma.person.findMany({
-      where: { id: { in: g.ids } },
-      select: { id: true, fullName: true, nickname: true, photoUrl: true, gender: true, generationLevel: true, isDeceased: true },
-    });
-    result.push({
-      type: g.type,
-      label: getSiblingLabelJawa(g.type),
-      description: getSiblingDescription(g.type),
-      members: members as FamilyMember[],
-    });
-  }
+  // Ambil data detail semua kelompok sekaligus. Sebelumnya satu `findMany`
+  // per kelompok di dalam loop — hingga lima round-trip berturut-turut.
+  const activeGroups = Object.values(groups).filter((g) => g.ids.length > 0);
+  if (activeGroups.length === 0) return [];
 
-  return result;
+  const allIds = [...new Set(activeGroups.flatMap((g) => g.ids))];
+  const persons = await prisma.person.findMany({
+    where: { id: { in: allIds } },
+    select: { id: true, fullName: true, nickname: true, photoUrl: true, gender: true, generationLevel: true, isDeceased: true },
+  });
+  const personById = new Map<string, FamilyMember>(
+    persons.map((person) => [person.id, person as FamilyMember]),
+  );
+
+  return activeGroups.map((g) => ({
+    type: g.type,
+    label: getSiblingLabelJawa(g.type),
+    description: getSiblingDescription(g.type),
+    members: g.ids
+      .map((id) => personById.get(id))
+      .filter((member): member is FamilyMember => member !== undefined),
+  }));
 }
 
 /**

@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { HallOfFameList } from "@/components/admin/HallOfFameList";
 import { Prisma } from "@prisma/client";
 import { FilterBar } from "@/components/admin/FilterBar";
@@ -47,22 +49,22 @@ export default async function AdminHallOfFamePage({
   else if (statusFilter === "draft") where.isPublished = false;
   if (entryTypeFilter) where.entryType = entryTypeFilter;
 
-  const entries = await prisma.hallOfFameEntry.findMany({
-    where,
-    orderBy: [{ year: "desc" }, { createdAt: "desc" }],
-    include: {
-      person: { select: { id: true, fullName: true, photoUrl: true } },
-    },
-  });
-
-  const allCategories = await prisma.hallOfFameEntry.findMany({
-    select: { category: true },
-    distinct: ["category"],
-    orderBy: { category: "asc" },
-  });
+  const [entries, allCategories, total] = await Promise.all([
+    prisma.hallOfFameEntry.findMany({
+      where,
+      orderBy: [{ year: "desc" }, { createdAt: "desc" }],
+      include: {
+        person: { select: { id: true, fullName: true } },
+      },
+    }),
+    prisma.hallOfFameEntry.findMany({
+      select: { category: true },
+      distinct: ["category"],
+      orderBy: { category: "asc" },
+    }),
+    prisma.hallOfFameEntry.count(),
+  ]);
   const categories = allCategories.map((c) => c.category).filter(Boolean);
-
-  const total = await prisma.hallOfFameEntry.count();
   const filtering = q !== "" || categoryFilter !== "" || statusFilter !== "" || entryTypeFilter !== undefined;
 
   return (
@@ -112,11 +114,28 @@ export default async function AdminHallOfFamePage({
       </div>
 
       {entries.length === 0 ? (
-        <p className="mt-10 rounded-lg border border-dashed border-wood/25 bg-cream px-4 py-12 text-center text-muted">
-          {filtering
-            ? "Tidak ada entri yang cocok dengan filter."
-            : "Belum ada entri. Tambahkan entri pertama."}
-        </p>
+        <div className="mt-10">
+          <EmptyState
+            title={filtering ? "Tidak ada entri" : "Belum ada entri"}
+            description={
+              filtering
+                ? "Tidak ada entri yang cocok dengan filter. Ubah pencarian atau reset filter."
+                : "Tambahkan entri pertama untuk mengapresiasi anggota keluarga."
+            }
+            action={
+              filtering ? (
+                <Link
+                  href="/admin/hall-of-fame"
+                  className="inline-flex min-h-11 items-center rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+                >
+                  Reset filter
+                </Link>
+              ) : (
+                <HallOfFameCreateModal />
+              )
+            }
+          />
+        </div>
       ) : (
         <div className="mt-6 overflow-x-auto rounded-lg border border-wood/15">
           <HallOfFameList
@@ -132,10 +151,10 @@ export default async function AdminHallOfFamePage({
               person: {
                 id: e.person.id,
                 fullName: e.person.fullName,
-                photoUrl: e.person.photoUrl,
               },
             }))}
             total={total}
+            isSuperAdmin={user.role === "SUPER_ADMIN"}
           />
         </div>
       )}

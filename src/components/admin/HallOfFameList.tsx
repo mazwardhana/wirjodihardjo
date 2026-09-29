@@ -16,7 +16,7 @@ export type HallOfFameEntry = {
   photoUrl: string | null;
   entryType: "ACHIEVEMENT" | "IN_MEMORIAM";
   isPublished: boolean;
-  person: { id: string; fullName: string; photoUrl: string | null };
+  person: { id: string; fullName: string };
 };
 
 const entryTypeLabels: Record<HallOfFameEntry["entryType"], string> = {
@@ -27,9 +27,11 @@ const entryTypeLabels: Record<HallOfFameEntry["entryType"], string> = {
 export function HallOfFameList({
   entries,
   total,
+  isSuperAdmin,
 }: {
   entries: HallOfFameEntry[];
   total: number;
+  isSuperAdmin: boolean;
 }) {
   const router = useRouter();
   const [deleteTarget, setDeleteTarget] = useState<HallOfFameEntry | null>(null);
@@ -141,7 +143,7 @@ export function HallOfFameList({
                 <div className="flex flex-wrap items-center gap-3">
                   <Link
                     href={`/admin/hall-of-fame/${entry.id}`}
-                    className="text-xs font-medium text-gold-deep underline hover:text-forest"
+                    className="inline-flex min-h-11 items-center text-xs font-medium text-gold-deep underline hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
                   >
                     Ubah
                   </Link>
@@ -149,7 +151,7 @@ export function HallOfFameList({
                     type="button"
                     onClick={() => togglePublish(entry)}
                     disabled={busyId === entry.id}
-                    className="text-xs font-medium text-muted underline hover:text-forest disabled:opacity-50"
+                    className="min-h-11 text-xs font-medium text-muted underline hover:text-forest disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
                   >
                     {busyId === entry.id
                       ? "Memproses..."
@@ -157,13 +159,15 @@ export function HallOfFameList({
                         ? "Sembunyikan"
                         : "Terbitkan"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteTarget(entry)}
-                    className="text-xs font-medium text-wood underline hover:text-wood-soft"
-                  >
-                    Hapus
-                  </button>
+                  {isSuperAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(entry)}
+                      className="min-h-11 text-xs font-medium text-wood underline hover:text-wood-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+                    >
+                      Hapus
+                    </button>
+                  )}
                 </div>
               </td>
             </tr>
