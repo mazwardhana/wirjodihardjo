@@ -11,7 +11,8 @@ const editSchema = z.object({
     .trim()
     .min(1, "Nama lengkap wajib diisi")
     .max(200, "Nama lengkap maksimal 200 karakter"),
-  nickname: z.string().trim().max(100, "Nama panggilan maksimal 100 karakter").nullish(),
+  nickname: z.string().trim().max(100, "Nickname maksimal 100 karakter").nullish(),
+  namaPanggilan: z.string().trim().max(100, "Nama panggilan maksimal 100 karakter").nullish(),
   gender: z.enum(["MALE", "FEMALE", "OTHER"], "Jenis kelamin tidak valid"),
   birthPlace: z.string().trim().max(200, "Tempat lahir maksimal 200 karakter").nullish(),
   birthDate: z.string().trim().nullish(),
@@ -60,6 +61,7 @@ export async function PUT(
         id: true,
         fullName: true,
         nickname: true,
+        namaPanggilan: true,
         gender: true,
         birthDate: true,
         birthPlace: true,
@@ -80,6 +82,7 @@ export async function PUT(
       data: {
         fullName: data.fullName,
         nickname: data.nickname?.trim() || null,
+        namaPanggilan: data.namaPanggilan?.trim() || null,
         gender: data.gender,
         birthPlace: data.birthPlace?.trim() || null,
         birthDate,

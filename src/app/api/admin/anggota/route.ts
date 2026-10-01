@@ -39,6 +39,7 @@ export async function POST(request: Request) {
       data: {
         fullName: data.fullName,
         nickname: data.nickname || null,
+        namaPanggilan: data.namaPanggilan || null,
         gender: data.gender as any,
         birthDate: data.birthDate ? new Date(data.birthDate) : null,
         birthPlace: data.birthPlace || null,
@@ -87,7 +88,7 @@ export async function PUT(request: Request) {
 
     const existing = await prisma.person.findUnique({
       where: { id: id as string },
-      select: { id: true, branchId: true, fullName: true, nickname: true, gender: true, birthDate: true, birthPlace: true, isDeceased: true, deathDate: true, bio: true, photoUrl: true, generationLevel: true },
+      select: { id: true, branchId: true, fullName: true, nickname: true, namaPanggilan: true, gender: true, birthDate: true, birthPlace: true, isDeceased: true, deathDate: true, bio: true, photoUrl: true, generationLevel: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "Anggota tidak ditemukan" }, { status: 404 });
@@ -109,6 +110,7 @@ export async function PUT(request: Request) {
       data: {
         ...(body.fullName !== undefined && { fullName: body.fullName as string }),
         ...(body.nickname !== undefined && { nickname: (body.nickname as string) || null }),
+        ...(body.namaPanggilan !== undefined && { namaPanggilan: (body.namaPanggilan as string) || null }),
         ...(body.gender !== undefined && { gender: body.gender as any }),
         ...(body.birthDate !== undefined && { birthDate: body.birthDate ? new Date(body.birthDate as string) : null }),
         ...(body.birthPlace !== undefined && { birthPlace: (body.birthPlace as string) || null }),

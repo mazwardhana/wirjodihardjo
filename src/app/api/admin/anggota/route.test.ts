@@ -11,6 +11,8 @@ type Role = "SUPER_ADMIN" | "BRANCH_ADMIN" | "MEMBER";
 type CreateArgs = {
   data: {
     fullName: string;
+    nickname?: string | null;
+    namaPanggilan?: string | null;
     branch?: { connect: { id: string } } | { disconnect: boolean };
   };
 };
@@ -55,6 +57,7 @@ function anggotaFixture() {
       branchId: null,
       fullName: "Anggota Lama",
       nickname: null,
+      namaPanggilan: null,
       gender: "MALE",
       birthDate: null,
       birthPlace: null,
@@ -226,4 +229,28 @@ test("PUT mengabaikan generationLevel dari body (200)", async () => {
   assert.equal(response.status, 200);
   assert.equal(f.state.updateCalls.length, 1);
   assert.equal("generationLevel" in f.state.updateCalls[0].data, false);
+});
+
+test("POST menyimpan nickname dan namaPanggilan secara terpisah (201)", async () => {
+  const f = anggotaFixture();
+  const route = loadAnggotaRoute(f);
+  const response = await route.POST!(
+    postRequest({ ...bodyWithoutBranch("Anggota Baru"), nickname: "budi", namaPanggilan: "Budi Manis" }),
+  );
+  assert.equal(response.status, 201);
+  assert.equal(f.state.createCalls.length, 1);
+  assert.equal(f.state.createCalls[0].data.nickname, "budi");
+  assert.equal(f.state.createCalls[0].data.namaPanggilan, "Budi Manis");
+});
+
+test("PUT menyimpan nickname dan namaPanggilan secara terpisah (200)", async () => {
+  const f = anggotaFixture();
+  const route = loadAnggotaRoute(f);
+  const response = await route.PUT!(
+    putRequest({ id: "person-1", nickname: "budi", namaPanggilan: "Budi Manis" }),
+  );
+  assert.equal(response.status, 200);
+  assert.equal(f.state.updateCalls.length, 1);
+  assert.equal(f.state.updateCalls[0].data.nickname, "budi");
+  assert.equal(f.state.updateCalls[0].data.namaPanggilan, "Budi Manis");
 });

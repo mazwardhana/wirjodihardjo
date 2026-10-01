@@ -19,6 +19,7 @@ function memberRow(id: string, fullName: string, gender: string): TreeMember {
     id,
     fullName,
     nickname: null,
+    namaPanggilan: null,
     photoUrl: null,
     gender,
     generationLevel: null,

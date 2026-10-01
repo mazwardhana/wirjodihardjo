@@ -19,6 +19,7 @@ export type TreeMember = {
   id: string;
   fullName: string;
   nickname: string | null;
+  namaPanggilan: string | null;
   photoUrl: string | null;
   gender: string;
   generationLevel: number | null;
@@ -100,6 +101,7 @@ type PersonRow = {
   id: string;
   fullName: string;
   nickname: string | null;
+  namaPanggilan?: string | null;
   photoUrl: string | null;
   gender: unknown;
   generationLevel: number | null;
@@ -159,6 +161,7 @@ const TREE_SELECT = {
   id: true,
   fullName: true,
   nickname: true,
+  namaPanggilan: true,
   photoUrl: true,
   gender: true,
   generationLevel: true,
@@ -173,6 +176,7 @@ function toMember(row: PersonRow): TreeMember {
     id: row.id,
     fullName: row.fullName,
     nickname: row.nickname,
+    namaPanggilan: row.namaPanggilan ?? null,
     photoUrl: row.photoUrl,
     gender: typeof row.gender === "string" ? row.gender : String(row.gender),
     generationLevel: row.generationLevel,

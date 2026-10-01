@@ -3,6 +3,7 @@ import { z } from "zod";
 export const personSchema = z.object({
   fullName: z.string().min(1, "Nama lengkap wajib diisi").max(200),
   nickname: z.string().max(100).optional().or(z.literal("")),
+  namaPanggilan: z.string().max(100).optional().or(z.literal("")),
   gender: z.enum(["MALE", "FEMALE", "OTHER"]),
   birthDate: z.string().optional().or(z.literal("")),
   birthPlace: z.string().max(200).optional().or(z.literal("")),

@@ -7,6 +7,7 @@ import { toast } from "@/components/ui/Toast";
 type EditForm = {
   fullName: string;
   nickname: string;
+  namaPanggilan: string;
   gender: string;
   birthPlace: string;
   birthDate: string;
@@ -42,6 +43,7 @@ export function MemberEditModal({
         setForm({
           fullName: data.fullName ?? "",
           nickname: data.nickname ?? "",
+          namaPanggilan: data.namaPanggilan ?? "",
           gender: data.gender ?? "MALE",
           birthPlace: data.birthPlace ?? "",
           birthDate: data.birthDate ? String(data.birthDate).slice(0, 10) : "",
@@ -83,6 +85,7 @@ export function MemberEditModal({
         body: JSON.stringify({
           fullName: form.fullName.trim(),
           nickname: form.nickname.trim() || null,
+          namaPanggilan: form.namaPanggilan.trim() || null,
           gender: form.gender,
           birthPlace: form.birthPlace.trim() || null,
           birthDate: form.birthDate || null,
@@ -129,16 +132,30 @@ export function MemberEditModal({
             />
           </div>
 
-          <div>
-            <label htmlFor="edit-nickname" className={labelCls}>
-              Nickname
-            </label>
-            <input
-              id="edit-nickname"
-              value={form?.nickname ?? ""}
-              onChange={(event) => update("nickname", event.target.value)}
-              className={inputCls}
-            />
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label htmlFor="edit-namaPanggilan" className={labelCls}>
+                Nama panggilan
+              </label>
+              <input
+                id="edit-namaPanggilan"
+                value={form?.namaPanggilan ?? ""}
+                onChange={(event) => update("namaPanggilan", event.target.value)}
+                className={inputCls}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="edit-nickname" className={labelCls}>
+                Nickname (username)
+              </label>
+              <input
+                id="edit-nickname"
+                value={form?.nickname ?? ""}
+                onChange={(event) => update("nickname", event.target.value)}
+                className={inputCls}
+              />
+            </div>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">

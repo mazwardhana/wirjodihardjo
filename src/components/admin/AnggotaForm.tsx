@@ -8,6 +8,7 @@ type FormState = {
   id?: string;
   fullName: string;
   nickname: string;
+  namaPanggilan: string;
   gender: "MALE" | "FEMALE" | "OTHER";
   birthDate: string;
   birthPlace: string;
@@ -21,6 +22,7 @@ type FormState = {
 const empty: FormState = {
   fullName: "",
   nickname: "",
+  namaPanggilan: "",
   gender: "MALE",
   birthDate: "",
   birthPlace: "",
@@ -67,6 +69,7 @@ export function AnggotaForm({
           id: form.id,
           fullName: form.fullName,
           nickname: form.nickname || undefined,
+          namaPanggilan: form.namaPanggilan || undefined,
           gender: form.gender,
           birthDate: form.birthDate || undefined,
           birthPlace: form.birthPlace || undefined,
@@ -108,9 +111,16 @@ export function AnggotaForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label htmlFor="nickname" className={labelCls}>Nama Panggilan</label>
+          <label htmlFor="namaPanggilan" className={labelCls}>Nama panggilan</label>
+          <input id="namaPanggilan" value={form.namaPanggilan} onChange={(e) => set("namaPanggilan", e.target.value)} className={inputCls} />
+        </div>
+        <div>
+          <label htmlFor="nickname" className={labelCls}>Nickname (username)</label>
           <input id="nickname" value={form.nickname} onChange={(e) => set("nickname", e.target.value)} className={inputCls} />
         </div>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
         <div>
           <label htmlFor="gender" className={labelCls}>Jenis Kelamin</label>
           <select id="gender" value={form.gender} onChange={(e) => set("gender", e.target.value as FormState["gender"])} className={inputCls}>

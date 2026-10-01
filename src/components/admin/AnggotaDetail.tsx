@@ -19,6 +19,7 @@ export type PersonDetail = {
   id: string;
   fullName: string;
   nickname: string | null;
+  namaPanggilan: string | null;
   gender: string;
   birthDate: string | null;
   birthPlace: string | null;
@@ -106,7 +107,8 @@ export function AdminAnggotaDetail({
           <h1 className="font-display text-2xl font-semibold text-forest">
             {person.fullName}
           </h1>
-          {person.nickname && <p className="text-sm text-muted">{person.nickname}</p>}
+          {person.namaPanggilan && <p className="text-sm text-muted">{person.namaPanggilan}</p>}
+          {person.nickname && <p className="text-xs text-muted">Nickname: {person.nickname}</p>}
           <p className="mt-1 text-sm text-wood">
             {person.branch?.name ?? "Tanpa keluarga cabang"}
             {person.isDeceased && " · Almarhum/Almarhumah"}

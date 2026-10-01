@@ -13,6 +13,7 @@ type TreeMember = {
   id: string;
   fullName: string;
   nickname: string | null;
+  namaPanggilan: string | null;
   photoUrl: string | null;
   gender: string;
   generationLevel: number | null;
@@ -226,7 +227,7 @@ export function MemberDetailModal({ personId, onClose }: MemberDetailModalProps)
             <h3 className={sectionTitleCls}>Profil</h3>
             <dl className={`mt-3 ${cardCls}`}>
               <InfoRow label="Nama lengkap">{person.fullName}</InfoRow>
-              <InfoRow label="Nama panggilan">{person.nickname || "-"}</InfoRow>
+              <InfoRow label="Nama panggilan">{person.namaPanggilan || "-"}</InfoRow>
               <InfoRow label="Jenis kelamin">{genderText(person.gender)}</InfoRow>
               <InfoRow label="Usia">{ageText(person)}</InfoRow>
               <InfoRow label="Tempat lahir">{person.birthPlace || "-"}</InfoRow>
