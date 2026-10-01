@@ -144,7 +144,7 @@ function anggota(namaLengkap: string, extra: Partial<ImportRowAnggota> = {}): Im
   return {
     cabangKe: "1",
     namaLengkap,
-    namaPanggilan: "budi",
+    nickname: "budi",
     passwordHash: "$2a$12$storedhashstoredhashstoredhashstoredhashstoredhashstoredhash",
     jenisKelamin: "MALE",
     ...extra,
@@ -213,12 +213,12 @@ test("commit creates Person, PersonPrivate, and User with correct branch and use
   const input = data(["Budi Santoso", "Siti Aminah"]);
   input.anggota[0] = anggota("Budi Santoso", {
     cabangKe: "1",
-    namaPanggilan: "Budi",
+    nickname: "Budi",
     nomorTelepon: "081234567890",
     alamatDomisili: "Jl. Merdeka 1",
     kotaDomisili: "Jakarta",
   });
-  input.anggota[1] = anggota("Siti Aminah", { cabangKe: "2", namaPanggilan: "Siti" });
+  input.anggota[1] = anggota("Siti Aminah", { cabangKe: "2", nickname: "Siti" });
   batch(input);
   actor();
 
@@ -338,7 +338,7 @@ test("analyzeImportData plans usernames, private upserts, and skips", async () =
   const input: ParsedData = {
     anggota: [
       anggota("Budi Santoso", { branchId: "branch-1", branchNumber: 1 }),
-      anggota("Siti Aminah", { branchId: "branch-1", branchNumber: 1, namaPanggilan: "Siti", nomorTelepon: "0812" }),
+      anggota("Siti Aminah", { branchId: "branch-1", branchNumber: 1, nickname: "Siti", nomorTelepon: "0812" }),
     ],
   };
   const plan = await importer.analyzeImportData(input);
@@ -354,7 +354,7 @@ test("analyzeImportData returns the planned usernames keyed by row", async () =>
   const input: ParsedData = {
     anggota: [
       anggota("Budi Santoso", { branchId: "branch-1", branchNumber: 1 }),
-      anggota("Siti Aminah", { branchId: "branch-1", branchNumber: 1, namaPanggilan: "Siti" }),
+      anggota("Siti Aminah", { branchId: "branch-1", branchNumber: 1, nickname: "Siti" }),
     ],
   };
 

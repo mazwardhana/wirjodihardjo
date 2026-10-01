@@ -8,6 +8,7 @@ import type { Gender } from "../src/lib/import/types";
 const NEW_HEADERS = [
   "kode cabang keluarga*",
   "nickname*",
+  "nama panggilan",
   "password*",
   "nama lengkap*",
   "gender",
@@ -41,7 +42,7 @@ function asText(values: unknown[]): string[] {
   });
 }
 
-test("template XLSX has 10 new headers, one example row, and a Petunjuk sheet", async () => {
+test("template XLSX has 11 new headers, one example row, and a Petunjuk sheet", async () => {
   const buf = await generateTemplateXLSX();
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buf as unknown as ExcelJS.Buffer);
@@ -51,15 +52,16 @@ test("template XLSX has 10 new headers, one example row, and a Petunjuk sheet", 
   );
 
   const data = wb.getWorksheet("Data")!;
-  const headers = asText([...Array(10)].map((_, i) => data.getRow(1).getCell(i + 1).value));
+  const headers = asText([...Array(11)].map((_, i) => data.getRow(1).getCell(i + 1).value));
   assert.deepEqual(headers, NEW_HEADERS);
 
   const exampleRow = data.getRow(2);
-  const example = asText([...Array(10)].map((_, i) => exampleRow.getCell(i + 1).value));
-  assert.ok(example[3].toUpperCase().startsWith("CONTOH"), "baris contoh memakai CONTOH di nama lengkap");
+  const example = asText([...Array(11)].map((_, i) => exampleRow.getCell(i + 1).value));
+  assert.ok(example[4].toUpperCase().startsWith("CONTOH"), "baris contoh memakai CONTOH di nama lengkap");
   assert.equal(example[0], "1");
   assert.equal(example[1], "contoh");
-  assert.ok(example[2].length >= 8, "contoh password memenuhi minimal 8 karakter");
+  assert.equal(example[2], "Contoh Panggilan");
+  assert.ok(example[3].length >= 8, "contoh password memenuhi minimal 8 karakter");
 
   const petunjuk = wb.getWorksheet("Petunjuk")!;
   assert.ok(String(petunjuk.getCell("A1").value ?? "").length > 0);
@@ -70,13 +72,13 @@ test("template XLSX applies a gender dropdown to the gender column", async () =>
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buf as unknown as ExcelJS.Buffer);
   const data = wb.getWorksheet("Data")!;
-  const gender = data.getCell("E2").dataValidation;
+  const gender = data.getCell("F2").dataValidation;
   assert.ok(gender);
   assert.equal(gender.type, "list");
   assert.match(gender.formulae![0], /MALE/);
 });
 
-test("template CSV has the 10 new headers with BOM and one CONTOH example row", () => {
+test("template CSV has the 11 new headers with BOM and one CONTOH example row", () => {
   const csv = generateTemplateCSV().toString("utf-8");
   assert.ok(csv.startsWith("\uFEFF"));
   const lines = csv.replace(/^\uFEFF/, "").trim().split("\n");
@@ -85,13 +87,13 @@ test("template CSV has the 10 new headers with BOM and one CONTOH example row", 
   assert.match(lines[1], /CONTOH/i);
 });
 
-test("parseCSV parses the 10 columns and skips CONTOH", () => {
+test("parseCSV parses the 11 columns and skips CONTOH", () => {
   const data = parseCSV(
     Buffer.from(
       [
         NEW_HEADERS.join(","),
-        "1,contoh,contohpw,CONTOH Wirjodihardjo,MALE,Jakarta,1950-01-15,0812,Jl. Contoh,Nocontoh",
-        "2,budi,rahasia123,Nama Satu,Laki-laki,Depok,15/06/1990,081234567890,Jl. Merdeka,Bandung",
+        "1,contoh,Contoh Panggilan,contohpw,CONTOH Wirjodihardjo,MALE,Jakarta,1950-01-15,0812,Jl. Contoh,Nocontoh",
+        "2,budi,Budi Panggilan,rahasia123,Nama Satu,Laki-laki,Depok,15/06/1990,081234567890,Jl. Merdeka,Bandung",
       ].join("\n") + "\n",
     ),
   );
@@ -99,7 +101,8 @@ test("parseCSV parses the 10 columns and skips CONTOH", () => {
   const row = data.anggota[0];
   assert.equal(row.cabangKe, "2");
   assert.equal(row.namaLengkap, "Nama Satu");
-  assert.equal(row.namaPanggilan, "budi");
+  assert.equal(row.nickname, "budi");
+  assert.equal(row.namaPanggilan, "Budi Panggilan");
   assert.equal(row.password, "rahasia123");
   assert.equal(row.jenisKelamin, "Laki-laki");
   assert.equal(row.tempatLahir, "Depok");
@@ -112,11 +115,12 @@ test("parseCSV parses the 10 columns and skips CONTOH", () => {
 test("header parsing ignores asterisk, spacing, and underscore variants", () => {
   const data = parseCSV(
     Buffer.from(
-      "Kode_Cabang_Keluarga*,NICKNAME*,Password*,Nama Lengkap,Gender,Tempat Kelahiran,Tanggal Lahir,Nomor Telepon,Alamat Domisili,Kota Domisili\n1,budi,rahasia123,Budi Santoso,Male,Jakarta,1990-01-01,0812,Jl. A,Jakarta\n",
+      "Kode_Cabang_Keluarga*,NICKNAME*,Nama_Panggilan,Password*,Nama Lengkap,Gender,Tempat Kelahiran,Tanggal Lahir,Nomor Telepon,Alamat Domisili,Kota Domisili\n1,budi,Budi Panggilan,rahasia123,Budi Santoso,Male,Jakarta,1990-01-01,0812,Jl. A,Jakarta\n",
     ),
   );
   assert.equal(data.anggota.length, 1);
-  assert.equal(data.anggota[0].namaPanggilan, "budi");
+  assert.equal(data.anggota[0].nickname, "budi");
+  assert.equal(data.anggota[0].namaPanggilan, "Budi Panggilan");
   assert.equal(data.anggota[0].cabangKe, "1");
   assert.equal(data.anggota[0].alamatDomisili, "Jl. A");
 });
@@ -145,15 +149,15 @@ test("reordered columns still map by header name", () => {
     Buffer.from("nama lengkap,password,nickname,kode cabang keluarga\nBudi Santoso,rahasia123,budi,3\n"),
   );
   assert.equal(data.anggota[0].cabangKe, "3");
-  assert.equal(data.anggota[0].namaPanggilan, "budi");
+  assert.equal(data.anggota[0].nickname, "budi");
   assert.equal(data.anggota[0].password, "rahasia123");
   assert.equal(data.anggota[0].namaLengkap, "Budi Santoso");
 });
 
 test("physical row numbers are exact, including skipped CONTOH rows", async () => {
   const buf = await buildXLSX(NEW_HEADERS, [
-    ["1", "budi", "rahasia123", "CONTOH Skip Me", "MALE"],
-    ["1", "budi", "rahasia123", "Real", "MALE"],
+    ["1", "budi", "Panggilan", "rahasia123", "CONTOH Skip Me", "MALE"],
+    ["1", "budi", "Panggilan", "rahasia123", "Real", "MALE"],
   ]);
   const data = await parseXLSX(buf);
   assert.equal(data.anggota.length, 1);
@@ -164,7 +168,7 @@ test("parser rejects formula cells in XLSX", async () => {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Data");
   ws.addRow(NEW_HEADERS);
-  ws.addRow(["1", "budi", "rahasia123", "Nama", "MALE"]);
+  ws.addRow(["1", "budi", "Panggilan", "rahasia123", "Nama", "MALE"]);
   ws.getCell("D3").value = { formula: "SUM(A1:A2)", result: 1 };
   const buf = Buffer.from(await wb.xlsx.writeBuffer());
   await assert.rejects(() => parseXLSX(buf), /formula|objek/);
