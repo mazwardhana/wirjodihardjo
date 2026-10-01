@@ -9,14 +9,17 @@ function person(id: string, generationLevel: number | null): PublicPerson {
     id,
     fullName: `Orang ${id}`,
     nickname: null,
+    namaPanggilan: null,
     gender: "MALE",
     birthDate: null,
+    deathDate: null,
     birthPlace: null,
     isDeceased: false,
     bio: null,
     photoUrl: null,
     generationLevel,
     branch: null,
+    socialLinks: [],
   };
 }
 

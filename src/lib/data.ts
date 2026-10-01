@@ -7,32 +7,52 @@ import type { Prisma } from "@prisma/client";
  * Data sensitif hanya boleh diambil lewat query ber-autentikasi (lihat auth-guard).
  */
 
+export type PublicSocialLink = {
+  id: string;
+  url: string;
+  username: string | null;
+  platform: { name: string; iconName: string | null };
+};
+
 export type PublicPerson = {
   id: string;
   fullName: string;
   nickname: string | null;
+  namaPanggilan: string | null;
   gender: string;
   birthDate: Date | null;
+  deathDate: Date | null;
   birthPlace: string | null;
   isDeceased: boolean;
   bio: string | null;
   photoUrl: string | null;
   generationLevel: number | null;
   branch: { id: string; name: string; slug: string } | null;
+  socialLinks: PublicSocialLink[];
 };
 
 const publicPersonSelect = {
   id: true,
   fullName: true,
   nickname: true,
+  namaPanggilan: true,
   gender: true,
   birthDate: true,
+  deathDate: true,
   birthPlace: true,
   isDeceased: true,
   bio: true,
   photoUrl: true,
   generationLevel: true,
   branch: { select: { id: true, name: true, slug: true } },
+  socialLinks: {
+    select: {
+      id: true,
+      url: true,
+      username: true,
+      platform: { select: { name: true, iconName: true } },
+    },
+  },
 } as const;
 
 export async function getFounders() {
@@ -121,6 +141,7 @@ export async function searchPersons(query: string, limit = 20) {
       OR: [
         { fullName: { contains: q, mode: "insensitive" } },
         { nickname: { contains: q, mode: "insensitive" } },
+        { namaPanggilan: { contains: q, mode: "insensitive" } },
       ],
     },
     select: publicPersonSelect,
