@@ -146,8 +146,9 @@ model Person {
   branch       Branch? @relation("PersonBranch", fields: [branchId], references: [id])
   rootedBranch Branch? @relation("BranchRoot")
 
-  private PersonPrivate?
-  user    User?
+  private  PersonPrivate?
+  user     User?
+  statuses PersonStatus[]
 
   parents  PersonChild[] @relation("AsChild")
   children PersonChild[] @relation("AsParent")
@@ -188,6 +189,18 @@ model PersonPrivate {
   familyNotes      String?
   visibleToMembers Boolean  @default(true)
   updatedAt        DateTime @updatedAt
+}
+
+// Riwayat status singkat seseorang, misalnya kabar terkini.
+model PersonStatus {
+  id        String   @id @default(uuid())
+  message   String
+  createdAt DateTime @default(now())
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([personId, createdAt])
 }
 
 model PersonChild {
