@@ -27,6 +27,7 @@ export type PublicPerson = {
   bio: string | null;
   photoUrl: string | null;
   generationLevel: number | null;
+  isMarriedInto: boolean;
   branch: { id: string; name: string; slug: string } | null;
   socialLinks: PublicSocialLink[];
 };
@@ -44,6 +45,7 @@ const publicPersonSelect = {
   bio: true,
   photoUrl: true,
   generationLevel: true,
+  isMarriedInto: true,
   branch: { select: { id: true, name: true, slug: true } },
   socialLinks: {
     select: {

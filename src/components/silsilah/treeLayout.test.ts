@@ -18,6 +18,7 @@ function person(id: string, generationLevel: number | null): PublicPerson {
     bio: null,
     photoUrl: null,
     generationLevel,
+    isMarriedInto: false,
     branch: null,
     socialLinks: [],
   };
