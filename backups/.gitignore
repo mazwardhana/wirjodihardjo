@@ -1,0 +1,10 @@
+# Jangan pernah commit dump penuh: isinya data pribadi keluarga asli
+# dan hash password bcrypt. Simpan dump penuh di luar repo.
+*.dump
+*.dump.sql
+
+# Yang boleh masuk repo hanya skema, panduan, dan berkas ini.
+!skema-*.sql
+!CARA-IMPOR.md
+!README.md
+!.gitignore
