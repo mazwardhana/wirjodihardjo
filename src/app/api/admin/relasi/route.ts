@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { recalculateGenerationLevel } from "@/lib/genealogy";
+import { nextChildOrderIndex, type ChildOrderDb } from "@/lib/child-order";
 import { requireAdminScope, assertPersonAccess, AuthorizationError } from "@/lib/rbac";
 
 const MAX_PARENTS = 2;
@@ -113,6 +114,7 @@ export async function POST(request: Request) {
             parentId: targetPersonId,
             childId: personId,
             parentRole: (role as any) ?? "UNKNOWN",
+            orderIndex: await nextChildOrderIndex([targetPersonId], prisma as unknown as ChildOrderDb),
           },
         });
         // Satu panggilan cukup: rekalkulasi menghitung seluruh komponen.
@@ -133,6 +135,7 @@ export async function POST(request: Request) {
             parentId: personId,
             childId: targetPersonId,
             parentRole: (role as any) ?? "UNKNOWN",
+            orderIndex: await nextChildOrderIndex([personId], prisma as unknown as ChildOrderDb),
           },
         });
         // Satu panggilan cukup: rekalkulasi menghitung seluruh komponen.
@@ -260,11 +263,21 @@ export async function POST(request: Request) {
 
           if (relationType === "parent") {
             await tx.personChild.create({
-              data: { parentId: created.id, childId: personId, parentRole: parentRole as any },
+              data: {
+                parentId: created.id,
+                childId: personId,
+                parentRole: parentRole as any,
+                orderIndex: await nextChildOrderIndex([created.id], tx as ChildOrderDb),
+              },
             });
           } else if (relationType === "child") {
             await tx.personChild.create({
-              data: { parentId: personId, childId: created.id, parentRole: parentRole as any },
+              data: {
+                parentId: personId,
+                childId: created.id,
+                parentRole: parentRole as any,
+                orderIndex: await nextChildOrderIndex([personId], tx as ChildOrderDb),
+              },
             });
           } else {
             await tx.personPartner.create({

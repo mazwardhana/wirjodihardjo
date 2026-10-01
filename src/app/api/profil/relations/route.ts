@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAncestorLabel, getDescendantLabel } from "@/lib/generations";
+import { nextChildOrderIndex, type ChildOrderDb } from "@/lib/child-order";
 import { z } from "zod";
 
 type PartnerStatus = "MARRIED" | "DIVORCED" | "WIDOWED" | "UNKNOWN";
@@ -351,7 +352,12 @@ export async function POST(request: Request) {
     const edge = await prisma.personChild.upsert({
       where: { parentId_childId: { parentId: data.personId, childId: personId } },
       update: { parentRole: data.role },
-      create: { parentId: data.personId, childId: personId, parentRole: data.role },
+      create: {
+        parentId: data.personId,
+        childId: personId,
+        parentRole: data.role,
+        orderIndex: await nextChildOrderIndex([data.personId], prisma as unknown as ChildOrderDb),
+      },
     });
 
     await prisma.auditLog.create({

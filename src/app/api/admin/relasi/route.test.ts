@@ -130,6 +130,7 @@ function loadRelasiRoute(state: RelasiState): { POST?: Handler } {
     },
     personChild: {
       count: async () => state.parentCount,
+      findMany: async () => [],
       create: async (args: { data: { parentId: string; childId: string; parentRole: string } }) => {
         state.personChildCreate.push(args);
         return { id: "pc-baru" };

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { notifySubmissionStatus } from "@/lib/notifications";
 import { recalculateGenerationLevel } from "@/lib/genealogy";
+import { nextChildOrderIndex, type ChildOrderDb } from "@/lib/child-order";
 
 /** Cek duplikasi sebelum menyetujui. */
 async function cekDuplikasi(payload: Record<string, unknown>, type: string): Promise<string | null> {
@@ -129,6 +130,7 @@ async function applyEditRelation(payload: Record<string, unknown>): Promise<stri
           parentRole: (role as any) ?? "UNKNOWN",
           isStep: (payload.isStep as boolean) ?? false,
           isAdopted: (payload.isAdopted as boolean) ?? false,
+          orderIndex: await nextChildOrderIndex([parentId], prisma as unknown as ChildOrderDb),
         },
       });
       try { await recalculateGenerationLevel(childId); } catch { /* non-bloking */ }
@@ -401,6 +403,7 @@ async function applySubmission(
             parentRole: parentRole as any,
             isStep: (payload.isStep as boolean) ?? false,
             isAdopted: (payload.isAdopted as boolean) ?? false,
+            orderIndex: await nextChildOrderIndex([parentId], tx as ChildOrderDb),
             ...(submissionId ? { sourceSubmissionId: submissionId } : {}),
           },
         });
@@ -424,6 +427,7 @@ async function applySubmission(
                 parentId: otherParentId,
                 childId: child.id,
                 parentRole: otherRole as any,
+                orderIndex: await nextChildOrderIndex([otherParentId], tx as ChildOrderDb),
                 ...(submissionId ? { sourceSubmissionId: submissionId } : {}),
               },
             });

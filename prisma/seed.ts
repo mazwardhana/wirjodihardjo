@@ -129,6 +129,7 @@ async function main() {
         parentId: founderHusband.id,
         childId: child.id,
         parentRole: 'FATHER',
+        orderIndex: i,
       },
     })
 
@@ -138,6 +139,7 @@ async function main() {
         parentId: founderWife.id,
         childId: child.id,
         parentRole: 'MOTHER',
+        orderIndex: i,
       },
     })
 
