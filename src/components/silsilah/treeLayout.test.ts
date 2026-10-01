@@ -207,6 +207,26 @@ test("buildTreeGraph deterministik pada pemanggilan berulang", () => {
   assert.deepEqual(second.edges, first.edges);
 });
 
+test("buildTreeGraph memancarkan edge orang tua dari pasangan yang menikah masuk", () => {
+  const data: FamilyTreeData = {
+    persons: [
+      person("A1", 1), person("A2", 2), person("B1", 1), person("B2", 2),
+    ],
+    childEdges: [
+      { parentId: "A1", childId: "A2", parentRole: "FATHER", isStep: false, isAdopted: false },
+      { parentId: "B1", childId: "B2", parentRole: "FATHER", isStep: false, isAdopted: false },
+    ],
+    partnerEdges: [
+      { partnerAId: "A2", partnerBId: "B2", status: "MARRIED", marriageDate: null, divorceDate: null, orderIndex: 0 },
+    ],
+  };
+  const { nodes, edges } = buildTreeGraph(data, new Set());
+  const ids = new Set(nodes.map((n) => n.id));
+  for (const id of ["A1", "A2", "B1", "B2"]) assert.ok(ids.has(id), `node ${id} hilang`);
+  assert.ok(edges.some((e) => e.id === "A1->A2"), "edge A1->A2 hilang");
+  assert.ok(edges.some((e) => e.id === "B1->B2"), "edge B1->B2 hilang");
+});
+
 test("buildTreeGraph menyembunyikan anak saat induknya collapsed", () => {
   const { nodes, edges } = buildTreeGraph(fixture(), new Set(["A01"]));
 

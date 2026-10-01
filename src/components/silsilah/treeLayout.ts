@@ -344,6 +344,28 @@ export function buildTreeGraph(
     }
   }
 
+  // Sapuan global: pasangan yang menikah masuk bisa terserap ke baris keluarga
+  // lain sehingga edge dari orang tuanya tidak pernah tercatat saat traversal.
+  // Pancarkan semua edge orang tua-anak yang kedua ujungnya tampil sebagai node,
+  // lalu dedupe berdasarkan id agar tidak dobel dengan hasil traversal.
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  const edgeIds = new Set(edges.map((e) => e.id));
+  for (const ce of data.childEdges) {
+    if (!nodeIds.has(ce.parentId) || !nodeIds.has(ce.childId)) continue;
+    // Induk yang dikuncupkan menyembunyikan garis ke anaknya.
+    if (collapsed.has(ce.parentId)) continue;
+    const id = `${ce.parentId}->${ce.childId}`;
+    if (edgeIds.has(id)) continue;
+    edgeIds.add(id);
+    edges.push({
+      id,
+      source: ce.parentId,
+      target: ce.childId,
+      type: "smoothstep",
+      style: childLineStyle(ce),
+    });
+  }
+
   return { nodes, edges };
 }
 
