@@ -344,43 +344,52 @@ export async function POST(request: Request) {
       );
     }
 
-    // Satu peran hanya satu orang tua: hapus penunjuk lama yang berbeda.
-    await prisma.personChild.deleteMany({
-      where: {
-        childId: personId,
-        parentRole: data.role,
-        parentId: { not: data.personId },
-      },
-    });
+    const parentPersonId = data.personId;
+    const parentRole = data.role;
 
-    // Himpunan orang tua LENGKAP anak setelah penyetelan ini, supaya nomor
-    // urut dihitung dari grup saudara sebenarnya.
-    const existingParents = await prisma.personChild.findMany({
-      where: { childId: personId },
-      select: { parentId: true },
-    });
-    const parentIds = [
-      ...new Set([...existingParents.map((row) => row.parentId), data.personId]),
-    ];
+    // Penghapusan penunjuk lama, perhitungan nomor, upsert baris baru, dan
+    // penyamaan baris LAMA dibungkus satu transaksi supaya seluruh baris anak
+    // selalu bernomor sama.
+    const edge = await prisma.$transaction(async (tx) => {
+      // Satu peran hanya satu orang tua: hapus penunjuk lama yang berbeda.
+      await tx.personChild.deleteMany({
+        where: {
+          childId: personId,
+          parentRole,
+          parentId: { not: parentPersonId },
+        },
+      });
 
-    // Nomor dihitung sekali dari himpunan orang tua lengkap, lalu baris baru
-    // dibuat dan baris LAMA anak disamakan.
-    const nomor = await orderIndexForChild(
-      personId,
-      parentIds,
-      prisma as unknown as ChildOrderDb,
-    );
-    const edge = await prisma.personChild.upsert({
-      where: { parentId_childId: { parentId: data.personId, childId: personId } },
-      update: { parentRole: data.role },
-      create: {
-        parentId: data.personId,
-        childId: personId,
-        parentRole: data.role,
-        orderIndex: nomor,
-      },
+      // Himpunan orang tua LENGKAP anak setelah penyetelan ini, supaya nomor
+      // urut dihitung dari grup saudara sebenarnya.
+      const existingParents = await tx.personChild.findMany({
+        where: { childId: personId },
+        select: { parentId: true },
+      });
+      const parentIds = [
+        ...new Set([...existingParents.map((row) => row.parentId), parentPersonId]),
+      ];
+
+      // Nomor dihitung sekali dari himpunan orang tua lengkap, lalu baris baru
+      // dibuat dan baris LAMA anak disamakan.
+      const nomor = await orderIndexForChild(
+        personId,
+        parentIds,
+        tx as unknown as ChildOrderDb,
+      );
+      const created = await tx.personChild.upsert({
+        where: { parentId_childId: { parentId: parentPersonId, childId: personId } },
+        update: { parentRole },
+        create: {
+          parentId: parentPersonId,
+          childId: personId,
+          parentRole,
+          orderIndex: nomor,
+        },
+      });
+      await setChildOrderIndex(personId, nomor, tx as unknown as ChildOrderDb);
+      return created;
     });
-    await setChildOrderIndex(personId, nomor, prisma as unknown as ChildOrderDb);
 
     await prisma.auditLog.create({
       data: {

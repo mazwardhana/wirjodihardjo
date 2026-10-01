@@ -110,29 +110,33 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: invalid }, { status: 409 });
         }
         // Himpunan orang tua LENGKAP anak, supaya nomor urut dihitung dari
-        // grup saudara sebenarnya, bukan hanya dari satu orang tua.
-        const existingParents = await prisma.personChild.findMany({
-          where: { childId: personId },
-          select: { parentId: true },
+        // grup saudara sebenarnya, bukan hanya dari satu orang tua. Baca dan
+        // kedua tulis dibungkus satu transaksi supaya baris anak selalu
+        // bernomor sama.
+        await prisma.$transaction(async (tx) => {
+          const existingParents = await tx.personChild.findMany({
+            where: { childId: personId },
+            select: { parentId: true },
+          });
+          const parentIds = [
+            ...new Set([...existingParents.map((row) => row.parentId), targetPersonId]),
+          ];
+          const nomor = await orderIndexForChild(
+            personId,
+            parentIds,
+            tx as unknown as ChildOrderDb,
+          );
+          await tx.personChild.create({
+            data: {
+              parentId: targetPersonId,
+              childId: personId,
+              parentRole: (role as any) ?? "UNKNOWN",
+              orderIndex: nomor,
+            },
+          });
+          // Baris LAMA anak ikut bernomor sama supaya invariant per-edge terjaga.
+          await setChildOrderIndex(personId, nomor, tx as unknown as ChildOrderDb);
         });
-        const parentIds = [
-          ...new Set([...existingParents.map((row) => row.parentId), targetPersonId]),
-        ];
-        const nomor = await orderIndexForChild(
-          personId,
-          parentIds,
-          prisma as unknown as ChildOrderDb,
-        );
-        await prisma.personChild.create({
-          data: {
-            parentId: targetPersonId,
-            childId: personId,
-            parentRole: (role as any) ?? "UNKNOWN",
-            orderIndex: nomor,
-          },
-        });
-        // Baris LAMA anak ikut bernomor sama supaya invariant per-edge terjaga.
-        await setChildOrderIndex(personId, nomor, prisma as unknown as ChildOrderDb);
         // Satu panggilan cukup: rekalkulasi menghitung seluruh komponen.
         try { await recalculateGenerationLevel(personId); } catch {}
       } else if (relationType === "child") {
@@ -147,29 +151,33 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: invalid }, { status: 409 });
         }
         // Himpunan orang tua LENGKAP anak, supaya nomor urut dihitung dari
-        // grup saudara sebenarnya, bukan hanya dari satu orang tua.
-        const existingParents = await prisma.personChild.findMany({
-          where: { childId: targetPersonId },
-          select: { parentId: true },
+        // grup saudara sebenarnya, bukan hanya dari satu orang tua. Baca dan
+        // kedua tulis dibungkus satu transaksi supaya baris anak selalu
+        // bernomor sama.
+        await prisma.$transaction(async (tx) => {
+          const existingParents = await tx.personChild.findMany({
+            where: { childId: targetPersonId },
+            select: { parentId: true },
+          });
+          const parentIds = [
+            ...new Set([...existingParents.map((row) => row.parentId), personId]),
+          ];
+          const nomor = await orderIndexForChild(
+            targetPersonId,
+            parentIds,
+            tx as unknown as ChildOrderDb,
+          );
+          await tx.personChild.create({
+            data: {
+              parentId: personId,
+              childId: targetPersonId,
+              parentRole: (role as any) ?? "UNKNOWN",
+              orderIndex: nomor,
+            },
+          });
+          // Baris LAMA anak ikut bernomor sama supaya invariant per-edge terjaga.
+          await setChildOrderIndex(targetPersonId, nomor, tx as unknown as ChildOrderDb);
         });
-        const parentIds = [
-          ...new Set([...existingParents.map((row) => row.parentId), personId]),
-        ];
-        const nomor = await orderIndexForChild(
-          targetPersonId,
-          parentIds,
-          prisma as unknown as ChildOrderDb,
-        );
-        await prisma.personChild.create({
-          data: {
-            parentId: personId,
-            childId: targetPersonId,
-            parentRole: (role as any) ?? "UNKNOWN",
-            orderIndex: nomor,
-          },
-        });
-        // Baris LAMA anak ikut bernomor sama supaya invariant per-edge terjaga.
-        await setChildOrderIndex(targetPersonId, nomor, prisma as unknown as ChildOrderDb);
         // Satu panggilan cukup: rekalkulasi menghitung seluruh komponen.
         try { await recalculateGenerationLevel(targetPersonId); } catch {}
       } else if (relationType === "partner") {

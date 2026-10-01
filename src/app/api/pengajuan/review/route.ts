@@ -124,30 +124,34 @@ async function applyEditRelation(payload: Record<string, unknown>): Promise<stri
       if (invalid) throw new Error(invalid);
 
       // Himpunan orang tua LENGKAP anak, supaya nomor urut dihitung dari
-      // grup saudara sebenarnya, bukan hanya dari satu orang tua.
-      const existingParents = await prisma.personChild.findMany({
-        where: { childId },
-        select: { parentId: true },
-      });
-      const parentIds = [...new Set([...existingParents.map((row) => row.parentId), parentId])];
+      // grup saudara sebenarnya, bukan hanya dari satu orang tua. Baca dan
+      // kedua tulis dibungkus satu transaksi supaya baris anak selalu
+      // bernomor sama.
+      await prisma.$transaction(async (tx) => {
+        const existingParents = await tx.personChild.findMany({
+          where: { childId },
+          select: { parentId: true },
+        });
+        const parentIds = [...new Set([...existingParents.map((row) => row.parentId), parentId])];
 
-      const nomor = await orderIndexForChild(
-        childId,
-        parentIds,
-        prisma as unknown as ChildOrderDb,
-      );
-      await prisma.personChild.create({
-        data: {
-          parentId,
+        const nomor = await orderIndexForChild(
           childId,
-          parentRole: (role as any) ?? "UNKNOWN",
-          isStep: (payload.isStep as boolean) ?? false,
-          isAdopted: (payload.isAdopted as boolean) ?? false,
-          orderIndex: nomor,
-        },
+          parentIds,
+          tx as unknown as ChildOrderDb,
+        );
+        await tx.personChild.create({
+          data: {
+            parentId,
+            childId,
+            parentRole: (role as any) ?? "UNKNOWN",
+            isStep: (payload.isStep as boolean) ?? false,
+            isAdopted: (payload.isAdopted as boolean) ?? false,
+            orderIndex: nomor,
+          },
+        });
+        // Baris LAMA anak ikut bernomor sama supaya invariant per-edge terjaga.
+        await setChildOrderIndex(childId, nomor, tx as unknown as ChildOrderDb);
       });
-      // Baris LAMA anak ikut bernomor sama supaya invariant per-edge terjaga.
-      await setChildOrderIndex(childId, nomor, prisma as unknown as ChildOrderDb);
       try { await recalculateGenerationLevel(childId); } catch { /* non-bloking */ }
       return personId;
     }
