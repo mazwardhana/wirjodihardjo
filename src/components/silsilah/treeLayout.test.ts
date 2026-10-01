@@ -26,6 +26,8 @@ function person(id: string, generationLevel: number | null): PublicPerson {
 
 const ROOT_IDS = Array.from({ length: 16 }, (_, i) => `A${String(i + 1).padStart(2, "0")}`);
 const CHILD_IDS = ["B1", "B2", "B3", "B4", "B5", "B6"];
+// A07..A16 tidak muncul di relasi mana pun.
+const DISCONNECTED_IDS = ROOT_IDS.slice(6);
 
 // generationLevel sengaja campur (termasuk null) supaya urutan akar
 // ditentukan oleh tiebreaker id, bukan urutan input.
@@ -59,11 +61,107 @@ const PARTNER_EDGES = [
   },
 ];
 
+const CONNECTED_IDS = ["A01", "A02", "A03", "A04", "A05", "A06", "B1", "B2", "B3", "B4", "B5", "B6"];
+
 function fixture(): FamilyTreeData {
   return {
     persons: PERSONS,
     childEdges: CHILD_EDGES,
     partnerEdges: PARTNER_EDGES,
+  };
+}
+
+// ── fixture: satu orang tua dengan dua anak ─────────────────────────────
+function singleParentFixture(): FamilyTreeData {
+  return {
+    persons: [person("X", 0), person("Y1", 1), person("Y2", 1)],
+    childEdges: [
+      { parentId: "X", childId: "Y1", parentRole: "FATHER", isStep: false, isAdopted: false },
+      { parentId: "X", childId: "Y2", parentRole: "FATHER", isStep: false, isAdopted: false },
+    ],
+    partnerEdges: [],
+  };
+}
+
+// ── fixture: sepasang orang tua dengan dua anak ─────────────────────────
+function coupleChildrenFixture(): FamilyTreeData {
+  return {
+    persons: [person("A", 0), person("B", 0), person("Y1", 1), person("Y2", 1)],
+    childEdges: [
+      { parentId: "A", childId: "Y1", parentRole: "FATHER", isStep: false, isAdopted: false },
+      { parentId: "B", childId: "Y1", parentRole: "MOTHER", isStep: false, isAdopted: false },
+      { parentId: "A", childId: "Y2", parentRole: "FATHER", isStep: false, isAdopted: false },
+      { parentId: "B", childId: "Y2", parentRole: "MOTHER", isStep: false, isAdopted: false },
+    ],
+    partnerEdges: [
+      { partnerAId: "A", partnerBId: "B", status: "MARRIED", marriageDate: null, divorceDate: null, orderIndex: 0 },
+    ],
+  };
+}
+
+// ── fixture: subtree berat sebelah ──────────────────────────────────────
+// X punya dua anak: Y1 (daun) dan Y2 (punya lima anak). Bentang subtree Y2
+// jauh lebih lebar dari kartu Y2 sendiri, sehingga pusat bentang subtree tidak
+// sama dengan pusat kartu anak-anak langsungnya.
+function lopsidedSubtreeFixture(): FamilyTreeData {
+  const leafIds = ["Z1", "Z2", "Z3", "Z4", "Z5"];
+  return {
+    persons: [
+      person("X", 0),
+      person("Y1", 1),
+      person("Y2", 1),
+      ...leafIds.map((id) => person(id, 2)),
+    ],
+    childEdges: [
+      { parentId: "X", childId: "Y1", parentRole: "FATHER", isStep: false, isAdopted: false },
+      { parentId: "X", childId: "Y2", parentRole: "FATHER", isStep: false, isAdopted: false },
+      ...leafIds.map((id) => ({
+        parentId: "Y2",
+        childId: id,
+        parentRole: "FATHER",
+        isStep: false,
+        isAdopted: false,
+      })),
+    ],
+    partnerEdges: [],
+  };
+}
+
+// ── fixture: saudara dengan subtree lebar dan daun ──────────────────────
+// P punya dua anak: A (menikah AP, punya lima anak) dan B (daun). Subtree A
+// sangat lebar. B harus dipak di baris yang sama dekat kontur A, bukan
+// dilempar ke kanan setelah seluruh subtree A.
+function wideSiblingFixture(): FamilyTreeData {
+  const grandchildIds = ["K1", "K2", "K3", "K4", "K5"];
+  return {
+    persons: [
+      person("P", 0),
+      person("A", 1),
+      person("AP", 1),
+      person("B", 1),
+      ...grandchildIds.map((id) => person(id, 2)),
+    ],
+    childEdges: [
+      { parentId: "P", childId: "A", parentRole: "FATHER", isStep: false, isAdopted: false },
+      { parentId: "P", childId: "B", parentRole: "FATHER", isStep: false, isAdopted: false },
+      ...grandchildIds.map((id) => ({
+        parentId: "A",
+        childId: id,
+        parentRole: "FATHER",
+        isStep: false,
+        isAdopted: false,
+      })),
+      ...grandchildIds.map((id) => ({
+        parentId: "AP",
+        childId: id,
+        parentRole: "MOTHER",
+        isStep: false,
+        isAdopted: false,
+      })),
+    ],
+    partnerEdges: [
+      { partnerAId: "A", partnerBId: "AP", status: "MARRIED", marriageDate: null, divorceDate: null, orderIndex: 0 },
+    ],
   };
 }
 
@@ -96,6 +194,59 @@ function yossiFixture(): FamilyTreeData {
   return { persons, childEdges, partnerEdges };
 }
 
+// ── helper ──────────────────────────────────────────────────────────────
+
+/** Komponen terhubung berdasarkan relasi orang tua-anak dan pasangan. */
+function connectedComponents(data: FamilyTreeData): string[][] {
+  const parent = new Map<string, string>();
+  for (const p of data.persons) parent.set(p.id, p.id);
+  const find = (id: string): string => {
+    let root = id;
+    while (parent.get(root) !== root) root = parent.get(root)!;
+    let cur = id;
+    while (parent.get(cur) !== root) {
+      const next = parent.get(cur)!;
+      parent.set(cur, root);
+      cur = next;
+    }
+    return root;
+  };
+  const union = (a: string, b: string) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent.set(ra, rb);
+  };
+  for (const e of data.childEdges) {
+    if (parent.has(e.parentId) && parent.has(e.childId)) union(e.parentId, e.childId);
+  }
+  for (const e of data.partnerEdges) {
+    if (parent.has(e.partnerAId) && parent.has(e.partnerBId)) union(e.partnerAId, e.partnerBId);
+  }
+  const groups = new Map<string, string[]>();
+  for (const p of data.persons) {
+    const root = find(p.id);
+    const arr = groups.get(root) ?? [];
+    arr.push(p.id);
+    groups.set(root, arr);
+  }
+  return [...groups.values()];
+}
+
+/** Setiap relasi orang tua-anak yang tampil harus menurun ke bawah. */
+function assertChildrenBelowParents(data: FamilyTreeData) {
+  const { nodes, edges } = buildTreeGraph(data, new Set());
+  const yById = new Map(nodes.map((n) => [n.id, n.position.y]));
+  for (const e of edges) {
+    if (e.type !== "smoothstep") continue;
+    const parentY = yById.get(e.source);
+    const childY = yById.get(e.target);
+    if (parentY === undefined || childY === undefined) continue;
+    assert.ok(childY > parentY, `anak ${e.target} harus di bawah orang tua ${e.source}`);
+  }
+}
+
+// ── tes ─────────────────────────────────────────────────────────────────
+
 test("buildTreeGraph menampilkan semua pasangan dan semua anak dari tiap pernikahan", () => {
   const data = yossiFixture();
   const { nodes, edges } = buildTreeGraph(data, new Set());
@@ -111,59 +262,170 @@ test("buildTreeGraph menampilkan semua pasangan dan semua anak dari tiap pernika
   assert.equal(partnerEdges.length, 3, "harus ada 3 garis pernikahan");
 });
 
-test("kartu pada baris yang sama tidak bertumpuk", () => {
-  const { nodes } = buildTreeGraph(yossiFixture(), new Set());
-  const byRow = new Map<number, { id: string; x: number }[]>();
-  for (const n of nodes) {
-    const row = byRow.get(n.position.y) ?? [];
-    row.push({ id: n.id, x: n.position.x });
-    byRow.set(n.position.y, row);
+test("buildTreeGraph menumbuhkan anak ke bawah dari orang tuanya", () => {
+  assertChildrenBelowParents(fixture());
+  assertChildrenBelowParents(yossiFixture());
+  assertChildrenBelowParents(coupleChildrenFixture());
+});
+
+test("buildTreeGraph menaruh orang tua di tengah rentang anak-anaknya", () => {
+  const xOf = (nodes: { id: string; position: { x: number } }[], id: string) =>
+    nodes.find((n) => n.id === id)!.position.x;
+
+  const single = buildTreeGraph(singleParentFixture(), new Set());
+  const parentX = xOf(single.nodes, "X");
+  const singleKids = ["Y1", "Y2"].map((id) => xOf(single.nodes, id));
+  const singleMid = (Math.min(...singleKids) + Math.max(...singleKids)) / 2;
+  assert.ok(
+    Math.abs(parentX - singleMid) <= NODE_MIN_GAP,
+    `orang tua X harus di tengah anak, x=${parentX} titik tengah anak=${singleMid}`,
+  );
+
+  const couple = buildTreeGraph(coupleChildrenFixture(), new Set());
+  const coupleMid = (xOf(couple.nodes, "A") + xOf(couple.nodes, "B")) / 2;
+  const coupleKids = ["Y1", "Y2"].map((id) => xOf(couple.nodes, id));
+  const coupleKidsMid = (Math.min(...coupleKids) + Math.max(...coupleKids)) / 2;
+  assert.ok(
+    Math.abs(coupleMid - coupleKidsMid) <= NODE_MIN_GAP,
+    `pasangan A/B harus di tengah anak, titik tengah pasangan=${coupleMid} anak=${coupleKidsMid}`,
+  );
+});
+
+test("buildTreeGraph memusatkan orang tua pada bentang penuh subtree anak", () => {
+  // X punya anak Y1 (daun) dan Y2 (subtree lebar berisi 5 anak). Pusat kartu
+  // Y1/Y2 akan membuat X bergeser, padahal X harus di tengah bentang penuh
+  // kedua subtree anaknya.
+  const { nodes } = buildTreeGraph(lopsidedSubtreeFixture(), new Set());
+  const xOf = (id: string) => nodes.find((n) => n.id === id)!.position.x;
+
+  const x = xOf("X");
+  const leftEdge = Math.min(xOf("Y1"), xOf("Y2"), ...["Z1", "Z2", "Z3", "Z4", "Z5"].map(xOf));
+  const rightEdge = Math.max(
+    xOf("Y1") + 260,
+    xOf("Y2") + 260,
+    ...["Z1", "Z2", "Z3", "Z4", "Z5"].map((id) => xOf(id) + 260),
+  );
+  const subtreeCenter = (leftEdge + rightEdge) / 2;
+  const parentCenter = x + 260 / 2;
+
+  assert.ok(
+    Math.abs(parentCenter - subtreeCenter) <= NODE_MIN_GAP,
+    `X harus di tengah bentang subtree anak, pusat X=${parentCenter} pusat subtree=${subtreeCenter}`,
+  );
+});
+
+test("buildTreeGraph memak saudara daun di kontur baris, bukan setelah subtree lebar", () => {
+  // A menikah AP dan punya lima anak (subtree lebar). B adalah daun. B harus
+  // dipak di baris yang sama dekat tepi kanan kartu A/AP, bukan terlempar ke
+  // kanan setelah seluruh subtree A.
+  const { nodes } = buildTreeGraph(wideSiblingFixture(), new Set());
+  const xOf = (id: string) => nodes.find((n) => n.id === id)!.position.x;
+  const yOf = (id: string) => nodes.find((n) => n.id === id)!.position.y;
+
+  // A dan AP berada di baris yang sama; B juga harus di baris yang sama.
+  assert.equal(yOf("B"), yOf("A"), "B harus sebaris dengan A dan AP");
+  assert.equal(yOf("B"), yOf("AP"), "B harus sebaris dengan A dan AP");
+
+  const aRowRight = Math.max(xOf("A"), xOf("AP")) + 260;
+  const gap = xOf("B") - aRowRight;
+  const GAP_X = 60;
+  const COUPLE_SPACING = 260 + 40;
+  assert.ok(
+    gap >= GAP_X && gap <= GAP_X + COUPLE_SPACING,
+    `B harus dekat kontur baris A, jarak=${Math.round(gap)} (harus ${GAP_X}..${GAP_X + COUPLE_SPACING})`,
+  );
+});
+
+test("buildTreeGraph menyebar anak ke kiri dan kanan orang tua", () => {
+  const { nodes } = buildTreeGraph(singleParentFixture(), new Set());
+  const parentX = nodes.find((n) => n.id === "X")!.position.x;
+  const kids = ["Y1", "Y2"].map((id) => nodes.find((n) => n.id === id)!.position.x);
+  assert.ok(kids.some((x) => x < parentX), "harus ada anak di kiri orang tua");
+  assert.ok(kids.some((x) => x > parentX), "harus ada anak di kanan orang tua");
+});
+
+test("buildTreeGraph menempatkan pasangan bersebelahan pada y yang sama", () => {
+  const { nodes } = buildTreeGraph(fixture(), new Set());
+  const a05 = nodes.find((n) => n.id === "A05")!;
+  const a06 = nodes.find((n) => n.id === "A06")!;
+  assert.equal(a05.position.y, a06.position.y, "pasangan harus sejajar horizontal");
+  assert.notEqual(a05.position.x, a06.position.x, "pasangan harus terpisah horizontal");
+});
+
+test("buildTreeGraph menyembunyikan orang tanpa relasi secara default", () => {
+  const { nodes, edges } = buildTreeGraph(fixture(), new Set());
+  const ids = new Set(nodes.map((n) => n.id));
+  assert.equal(nodes.length, CONNECTED_IDS.length, "hanya orang terhubung yang tampil");
+  for (const id of DISCONNECTED_IDS) {
+    assert.ok(!ids.has(id), `${id} tanpa relasi harus disembunyikan`);
   }
-  for (const [y, row] of byRow) {
-    row.sort((a, b) => a.x - b.x);
-    for (let i = 1; i < row.length; i++) {
-      assert.ok(
-        row[i].x - row[i - 1].x >= NODE_MIN_GAP,
-        `kartu ${row[i - 1].id} dan ${row[i].id} bertumpuk di y=${y}`,
-      );
+  for (const e of edges) {
+    assert.ok(ids.has(e.source) && ids.has(e.target), `edge ${e.id} menyentuh node tersembunyi`);
+  }
+});
+
+test("buildTreeGraph menampilkan orang tanpa relasi bila showDisconnected true", () => {
+  const { nodes } = buildTreeGraph(fixture(), new Set(), { showDisconnected: true });
+  const ids = new Set(nodes.map((n) => n.id));
+  assert.equal(nodes.length, PERSONS.length, "semua orang tampil");
+  for (const p of PERSONS) assert.ok(ids.has(p.id), `${p.id} harus tampil`);
+});
+
+test("buildTreeGraph menumpuk komponen terhubung dari atas ke bawah tanpa wrap", () => {
+  const data = fixture();
+  const { nodes } = buildTreeGraph(data, new Set());
+  const pos = new Map(nodes.map((n) => [n.id, n.position]));
+  const groups = connectedComponents(data).filter((g) => g.some((id) => pos.has(id)));
+  assert.ok(groups.length >= 2, "fixture harus punya beberapa komponen terhubung");
+
+  const ranges = groups
+    .map((g) => {
+      const ys = g.filter((id) => pos.has(id)).map((id) => pos.get(id)!.y);
+      return { min: Math.min(...ys), max: Math.max(...ys) };
+    })
+    .sort((a, b) => a.min - b.min);
+
+  for (let i = 1; i < ranges.length; i++) {
+    assert.ok(
+      ranges[i].min >= ranges[i - 1].max,
+      `komponen ke-${i} harus berada di bawah komponen sebelumnya, ${ranges[i].min} < ${ranges[i - 1].max}`,
+    );
+  }
+});
+
+test("kartu pada baris yang sama tidak bertumpuk", () => {
+  for (const data of [fixture(), yossiFixture(), coupleChildrenFixture()]) {
+    const { nodes } = buildTreeGraph(data, new Set());
+    const byRow = new Map<number, { id: string; x: number }[]>();
+    for (const n of nodes) {
+      const row = byRow.get(n.position.y) ?? [];
+      row.push({ id: n.id, x: n.position.x });
+      byRow.set(n.position.y, row);
+    }
+    for (const [y, row] of byRow) {
+      row.sort((a, b) => a.x - b.x);
+      for (let i = 1; i < row.length; i++) {
+        assert.ok(
+          row[i].x - row[i - 1].x >= NODE_MIN_GAP,
+          `kartu ${row[i - 1].id} dan ${row[i].id} bertumpuk di y=${y}`,
+        );
+      }
     }
   }
 });
 
-// ── layout grid: akar tidak lagi berbaris pada satu y ────────────────────
-
-test("buildTreeGraph menyebar akar ke beberapa baris grid", () => {
-  const { nodes } = buildTreeGraph(fixture(), new Set());
-  const rootIds = new Set(ROOT_IDS);
-
-  const rootNodes = nodes.filter((n) => rootIds.has(n.id));
-  assert.equal(rootNodes.length, 16, "semua orang tanpa orang tua tetap tampil");
-
-  const distinctY = new Set(rootNodes.map((n) => n.position.y));
-  assert.ok(
-    distinctY.size >= 2,
-    `akar harus tersebar di >= 2 baris, dapat ${distinctY.size} y berbeda`,
-  );
-
-  const distinctRows = [...distinctY].sort((a, b) => a - b);
-  assert.ok(
-    distinctRows[1] - distinctRows[0] > 100,
-    `baris grid harus punya jarak vertikal jelas, y = ${distinctRows.join(", ")}`,
-  );
-});
-
-test("buildTreeGraph memancarkan tepat satu node per orang", () => {
+test("buildTreeGraph memancarkan tepat satu node per orang terhubung", () => {
   const { nodes } = buildTreeGraph(fixture(), new Set());
 
   const ids = nodes.map((n) => n.id);
-  assert.equal(ids.length, PERSONS.length, "jumlah node = jumlah orang");
+  assert.equal(ids.length, CONNECTED_IDS.length, "jumlah node = jumlah orang terhubung");
   assert.equal(new Set(ids).size, ids.length, "tidak ada node ganda");
 
-  for (const p of PERSONS) {
+  for (const id of CONNECTED_IDS) {
     assert.equal(
-      ids.filter((id) => id === p.id).length,
+      ids.filter((x) => x === id).length,
       1,
-      `orang ${p.id} harus muncul tepat satu kali`,
+      `orang ${id} harus muncul tepat satu kali`,
     );
   }
   for (const n of nodes) {
@@ -189,12 +451,6 @@ test("buildTreeGraph memancarkan semua edge orang tua-anak dan pasangan", () => 
   assert.ok(edgeIds.has("partner-A05+A06"), "edge pasangan A05+A06 hilang");
   const partnerEdge = edges.find((e) => e.id === "partner-A05+A06")!;
   assert.ok(nodeIds.has(partnerEdge.source) && nodeIds.has(partnerEdge.target));
-
-  // pasangan tetap bersebelahan pada y yang sama
-  const a05 = nodes.find((n) => n.id === "A05")!;
-  const a06 = nodes.find((n) => n.id === "A06")!;
-  assert.equal(a05.position.y, a06.position.y, "pasangan harus sejajar horizontal");
-  assert.notEqual(a05.position.x, a06.position.x, "pasangan harus terpisah horizontal");
 
   assert.equal(ROOT_IDS.includes(getRootId(fixture()) ?? ""), true);
 });

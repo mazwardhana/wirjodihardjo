@@ -37,8 +37,7 @@ const NODE_W = 260;
 const NODE_H = 130; // tinggi kartu orang
 const COUPLE_SPACING = NODE_W + 40; // jarak kartu primary ke kartu pasangan
 const GAP_X = 60; // spasi horizontal antar blok / anak di dalam baris
-const GAP_Y = 80; // spasi vertikal antar baris grid
-const MAX_ROW_WIDTH = 1800; // anggaran lebar maksimum satu baris sebelum wrap
+const GAP_Y = 80; // spasi vertikal antar baris dan antar komponen
 
 /** Jarak minimum antar kartu pada baris yang sama, dipakai jaminan anti tumpuk. */
 export const NODE_MIN_GAP = 16;
@@ -53,13 +52,25 @@ type PlacedNode = {
 type PartnerLink = { a: string; b: string; edge: PartnerEdge };
 type ChildLink = { parentId: string; childId: string };
 
-/** Hasil layout satu keluarga, koordinat relatif terhadap kartu primary di (0,0). */
+/**
+ * Hasil layout satu keluarga, koordinat relatif terhadap kartu primary di (0,0).
+ * `left` dan `right` adalah batas kiri/kanan relatif terhadap kartu primary,
+ * dipakai saat blok ini ditempel sebagai anak di baris berikutnya.
+ */
 type FamilyLayout = {
   positions: PlacedNode[];
   partnerLinks: PartnerLink[];
   childLinks: ChildLink[];
-  width: number;
+  left: number;
+  right: number;
   height: number;
+  /**
+   * Kontur kiri/kanan per kedalaman lokal (0 = baris primary blok). Dipakai
+   * untuk mengemas blok saudara berdasarkan bentuk tiap baris, bukan lebar
+   * penuh subtree, supaya baris yang masih longgar tidak terdorong jauh.
+   */
+  leftContour: number[];
+  rightContour: number[];
 };
 
 /**
@@ -75,6 +86,9 @@ type FamilyLayout = {
  * lalu tiap komponen memilih satu akar (prioritas bukan menikah-ke-dalam,
  * generationLevel terkecil, lalu id) dan dikemas berurutan.
  *
+ * Orang tanpa relasi apa pun disembunyikan secara default. Set
+ * `options.showDisconnected` menjadi true untuk menampilkannya kembali.
+ *
  * Garis tepi:
  *   - kandung   → coklat solid 1.5px
  *   - tiri      → dash "6 4"
@@ -84,8 +98,35 @@ type FamilyLayout = {
 export function buildTreeGraph(
   data: FamilyTreeData,
   collapsed: Set<string>,
+  options: { showDisconnected?: boolean } = {},
 ): { nodes: Node[]; edges: Edge[] } {
-  const personById = new Map(data.persons.map((p) => [p.id, p]));
+  const showDisconnected = options.showDisconnected ?? false;
+
+  // Orang tanpa satu pun relasi tidak ikut tampil kecuali diminta.
+  const allIds = new Set(data.persons.map((p) => p.id));
+  const connected = new Set<string>();
+  for (const e of data.childEdges) {
+    if (allIds.has(e.parentId) && allIds.has(e.childId)) {
+      connected.add(e.parentId);
+      connected.add(e.childId);
+    }
+  }
+  for (const e of data.partnerEdges) {
+    if (allIds.has(e.partnerAId) && allIds.has(e.partnerBId)) {
+      connected.add(e.partnerAId);
+      connected.add(e.partnerBId);
+    }
+  }
+  const visiblePersons = showDisconnected
+    ? data.persons
+    : data.persons.filter((p) => connected.has(p.id));
+  const visibleData: FamilyTreeData = {
+    persons: visiblePersons,
+    childEdges: data.childEdges,
+    partnerEdges: data.partnerEdges,
+  };
+
+  const personById = new Map(visiblePersons.map((p) => [p.id, p]));
 
   // Map parent → semua ChildEdge dari parent itu
   const childEdgesByParent = new Map<string, ChildEdge[]>();
@@ -151,7 +192,6 @@ export function buildTreeGraph(
     // pasangan) berjajar ke kanan mengikuti BFS, sehingga pernikahan berantai
     // tetap satu pohon dan tidak ada pasangan yang hilang.
     const row: { id: string; x: number }[] = [{ id: pid, x: 0 }];
-    const xById = new Map<string, number>([[pid, 0]]);
     const queue: string[] = [pid];
     let primaryStatus: PersonNodeData["partnerStatus"] = null;
 
@@ -162,7 +202,6 @@ export function buildTreeGraph(
         seen.add(pr.id);
         const x = row.length * COUPLE_SPACING;
         row.push({ id: pr.id, x });
-        xById.set(pr.id, x);
         queue.push(pr.id);
         partnerLinks.push({ a: current, b: pr.id, edge: pr.edge });
         if (current === pid && primaryStatus === null) {
@@ -183,12 +222,11 @@ export function buildTreeGraph(
     // Susun blok anak, lalu rekursi tiap anak.
     const blocks: {
       childId: string;
-      centerX: number;
       parentIds: string[];
       layout: FamilyLayout;
     }[] = [];
 
-    const pushChildBlock = (childId: string, centerX: number, parentIds: string[]) => {
+    const pushChildBlock = (childId: string, parentIds: string[]) => {
       if (seen.has(childId) || claimed.has(childId)) return;
       // Collapse per individu: bila salah satu orang tua dikuncupkan, anak
       // dari pernikahan itu ikut disembunyikan.
@@ -197,41 +235,80 @@ export function buildTreeGraph(
         return;
       }
       claimed.add(childId);
-      blocks.push({ childId, centerX, parentIds, layout: layoutFamily(childId) });
+      blocks.push({ childId, parentIds, layout: layoutFamily(childId) });
     };
 
-    // Anak dari tiap pernikahan digantung di tengah segmen pasangan itu.
+    // Anak dari tiap pernikahan disusun berurutan.
     for (const link of partnerLinks) {
-      const centerX = ((xById.get(link.a) ?? 0) + (xById.get(link.b) ?? 0) + NODE_W) / 2;
       for (const cid of coupleChildren.get(coupleKey(link.a, link.b)) ?? []) {
-        pushChildBlock(cid, centerX, [link.a, link.b]);
+        pushChildBlock(cid, [link.a, link.b]);
       }
     }
     // Anak dengan satu orang tua (atau dua orang tua yang bukan pasangan
     // tercatat) digantung di bawah kartu orang tuanya.
     for (const card of row) {
-      const centerX = card.x + NODE_W / 2;
       for (const cid of singleChildren.get(card.id) ?? []) {
-        pushChildBlock(cid, centerX, [card.id]);
+        pushChildBlock(cid, [card.id]);
       }
       for (const [key, kids] of coupleChildren) {
         const parents = key.split("|");
         if (!parents.includes(card.id)) continue;
         for (const cid of kids) {
-          pushChildBlock(cid, centerX, parents);
+          pushChildBlock(cid, parents);
         }
       }
     }
 
-    let cursor = 0;
+    // Blok anak dikemas berdasarkan kontur per kedalaman. Kedalaman lokal d
+    // blok anak dipetakan ke kedalaman lokal induk d+1 karena anak berada satu
+    // baris di bawah orang tua. Baris yang masih longgar tidak didorong oleh
+    // subtree lebar di baris lain, berbeda dengan pengemasan lebar penuh.
+    const childY = NODE_H + GAP_Y;
+    const cardsWidth = (row.length - 1) * COUPLE_SPACING + NODE_W;
+    const placements: { offset: number; block: (typeof blocks)[number] }[] = [];
+    // Batas kanan terpakai per kedalaman lokal induk. Baris orang tua sendiri
+    // (kedalaman 0) sudah terpakai mulai dari 0 sampai cardsWidth.
+    const occupied = new Map<number, number>([[0, cardsWidth]]);
     let childHeight = 0;
     for (const block of blocks) {
-      const desiredX = block.centerX - block.layout.width / 2;
-      const blockX = Math.max(desiredX, cursor);
-      const blockY = NODE_H + GAP_Y;
+      let offset = 0;
+      for (let d = 0; d < block.layout.leftContour.length; d++) {
+        const limit = occupied.get(d + 1);
+        if (limit === undefined) continue;
+        const candidate = limit + GAP_X - block.layout.leftContour[d];
+        if (candidate > offset) offset = candidate;
+      }
+      placements.push({ offset, block });
+      for (let d = 0; d < block.layout.rightContour.length; d++) {
+        const limit = occupied.get(d + 1);
+        const right = offset + block.layout.rightContour[d];
+        if (limit === undefined || right > limit) occupied.set(d + 1, right);
+      }
+      childHeight = Math.max(childHeight, block.layout.height);
+    }
+    // Geser baris anak supaya titik tengah baris orang tua tepat di atas
+    // titik tengah bentang penuh subtree tiap anak, bukan hanya kartu anak
+    // langsungnya. Anak dengan subtree lebar membuat pusat kartunya menyesatkan.
+    const childrenLeft =
+      placements.length > 0
+        ? Math.min(...placements.map((p) => p.offset + p.block.layout.left))
+        : cardsWidth / 2;
+    const childrenRight =
+      placements.length > 0
+        ? Math.max(...placements.map((p) => p.offset + p.block.layout.right))
+        : cardsWidth / 2;
+    const childrenCenter = (childrenLeft + childrenRight) / 2;
+    const shift = cardsWidth / 2 - childrenCenter;
 
+    let left = 0;
+    let right = cardsWidth;
+    for (const { offset, block } of placements) {
       for (const p of block.layout.positions) {
-        positions.push({ ...p, x: p.x + blockX, y: p.y + blockY });
+        const x = p.x + offset + shift;
+        const y = p.y + childY;
+        positions.push({ ...p, x, y });
+        left = Math.min(left, x);
+        right = Math.max(right, x + NODE_W);
       }
       partnerLinks.push(...block.layout.partnerLinks);
       childLinks.push(...block.layout.childLinks);
@@ -241,21 +318,26 @@ export function buildTreeGraph(
           childLinks.push({ parentId, childId: block.childId });
         }
       }
-
-      cursor = blockX + block.layout.width + GAP_X;
-      childHeight = Math.max(childHeight, block.layout.height);
     }
 
-    const childrenEnd = blocks.length > 0 ? cursor - GAP_X : 0;
-    const cardsWidth = (row.length - 1) * COUPLE_SPACING + NODE_W;
-    const width = Math.max(cardsWidth, childrenEnd, NODE_W);
-    const height = blocks.length > 0 ? NODE_H + GAP_Y + childHeight : NODE_H;
+    const height = blocks.length > 0 ? childY + childHeight : NODE_H;
 
-    return { positions, partnerLinks, childLinks, width, height };
+    // Kontur per kedalaman dari seluruh posisi blok ini (sudah termasuk
+    // pergeseran `shift`). y semua node blok adalah kelipatan childY, jadi
+    // kedalaman lokal = y / childY.
+    const leftContour: number[] = [];
+    const rightContour: number[] = [];
+    for (const p of positions) {
+      const d = p.y / childY;
+      leftContour[d] = Math.min(leftContour[d] ?? Infinity, p.x);
+      rightContour[d] = Math.max(rightContour[d] ?? -Infinity, p.x + NODE_W);
+    }
+
+    return { positions, partnerLinks, childLinks, left, right, height, leftContour, rightContour };
   }
 
   // === Akar per komponen terhubung (union-find) ===
-  const roots = orderedComponentRoots(data, personById, parentIdsByChild);
+  const roots = orderedComponentRoots(visibleData, personById, parentIdsByChild);
   if (roots.length === 0) return { nodes: [], edges: [] };
 
   const blocks: FamilyLayout[] = [];
@@ -264,36 +346,18 @@ export function buildTreeGraph(
   }
   // Jaring pengaman: anggota komponen yang belum tersentuh (mis. pernikahan
   // berantai) tetap tampil sebagai blok sendiri, tidak ada orang yang hilang.
-  for (const p of data.persons) {
+  for (const p of visiblePersons) {
     if (!seen.has(p.id) && !hidden.has(p.id)) blocks.push(layoutFamily(p.id));
   }
 
-  // === Kemas blok ke grid (shelf packing) ===
-  const cols = Math.max(1, Math.ceil(Math.sqrt(blocks.length)));
-  let cursorX = 0;
-  let cursorY = 0;
-  let rowWidth = 0;
-  let rowHeight = 0;
-  let rowCount = 0;
+  // === Tumpuk komponen dari atas ke bawah, rata kiri ===
+  // Tidak ada wrap horizontal: setiap komponen menempati pita vertikalnya
+  // sendiri, jadi pohon tumbuh ke bawah bukan memanjang ke kanan.
   const offsets: { x: number; y: number }[] = [];
-
+  let cursorY = 0;
   for (const block of blocks) {
-    const wrapsByCount = rowCount >= cols;
-    const wrapsByWidth = rowCount > 0 && rowWidth + block.width + GAP_X > MAX_ROW_WIDTH;
-
-    if (wrapsByCount || wrapsByWidth) {
-      cursorX = 0;
-      cursorY += rowHeight + GAP_Y;
-      rowWidth = 0;
-      rowHeight = 0;
-      rowCount = 0;
-    }
-
-    offsets.push({ x: cursorX, y: cursorY });
-    cursorX += block.width + GAP_X;
-    rowWidth += block.width + GAP_X;
-    rowHeight = Math.max(rowHeight, block.height);
-    rowCount += 1;
+    offsets.push({ x: -block.left, y: cursorY });
+    cursorY += block.height + GAP_Y;
   }
 
   // Setiap orang dipancarkan tepat sekali dengan posisi final. Bila kartu
