@@ -40,6 +40,9 @@ const GAP_X = 60; // spasi horizontal antar blok / anak di dalam baris
 const GAP_Y = 80; // spasi vertikal antar baris grid
 const MAX_ROW_WIDTH = 1800; // anggaran lebar maksimum satu baris sebelum wrap
 
+/** Jarak minimum antar kartu pada baris yang sama, dipakai jaminan anti tumpuk. */
+export const NODE_MIN_GAP = 16;
+
 type PlacedNode = {
   id: string;
   x: number;
@@ -293,10 +296,13 @@ export function buildTreeGraph(
     rowCount += 1;
   }
 
-  // === Build output ===
+  // Setiap orang dipancarkan tepat sekali dengan posisi final. Bila kartu
+  // berbagi baris yang sama namun terlalu rapat (mis. baris pasangan melintang
+  // antar keluarga), geser ke kanan agar selalu ada jarak minimum NODE_MIN_GAP.
   const nodes: Node[] = [];
   const edges: Edge[] = [];
   const emitted = new Set<string>();
+  const rowRight = new Map<number, number>();
 
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];
@@ -307,14 +313,13 @@ export function buildTreeGraph(
       emitted.add(placed.id);
       const person = personById.get(placed.id);
       if (!person) continue;
-      addNode(
-        nodes,
-        person,
-        { x: placed.x + offset.x, y: placed.y + offset.y },
-        placed.partnerStatus,
-        childEdgesByParent,
-        collapsed,
-      );
+
+      const y = placed.y + offset.y;
+      const minX = rowRight.get(y);
+      const x = minX === undefined ? placed.x + offset.x : Math.max(placed.x + offset.x, minX);
+      rowRight.set(y, x + NODE_W + NODE_MIN_GAP);
+
+      addNode(nodes, person, { x, y }, placed.partnerStatus, childEdgesByParent, collapsed);
     }
 
     for (const link of block.partnerLinks) {

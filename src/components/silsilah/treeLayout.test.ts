@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildTreeGraph, getRootId, type FamilyTreeData } from "./treeLayout";
+import { buildTreeGraph, getRootId, NODE_MIN_GAP, type FamilyTreeData } from "./treeLayout";
 import type { PublicPerson } from "@/lib/data";
 
 // ── fixture: 16 orang tanpa orang tua + 6 anak ──────────────────────────
@@ -109,6 +109,25 @@ test("buildTreeGraph menampilkan semua pasangan dan semua anak dari tiap pernika
   // tiga garis pernikahan
   const partnerEdges = edges.filter((e) => e.id.startsWith("partner-"));
   assert.equal(partnerEdges.length, 3, "harus ada 3 garis pernikahan");
+});
+
+test("kartu pada baris yang sama tidak bertumpuk", () => {
+  const { nodes } = buildTreeGraph(yossiFixture(), new Set());
+  const byRow = new Map<number, { id: string; x: number }[]>();
+  for (const n of nodes) {
+    const row = byRow.get(n.position.y) ?? [];
+    row.push({ id: n.id, x: n.position.x });
+    byRow.set(n.position.y, row);
+  }
+  for (const [y, row] of byRow) {
+    row.sort((a, b) => a.x - b.x);
+    for (let i = 1; i < row.length; i++) {
+      assert.ok(
+        row[i].x - row[i - 1].x >= NODE_MIN_GAP,
+        `kartu ${row[i - 1].id} dan ${row[i].id} bertumpuk di y=${y}`,
+      );
+    }
+  }
 });
 
 // ── layout grid: akar tidak lagi berbaris pada satu y ────────────────────
