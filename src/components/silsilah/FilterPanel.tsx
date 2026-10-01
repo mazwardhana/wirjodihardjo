@@ -53,16 +53,16 @@ export function FilterPanel({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {/* Cabang */}
+      {/* Keluarga Cabang */}
       <div className="flex items-center gap-1.5">
-        <label htmlFor="filter-branch" className="sr-only">Cabang</label>
+        <label htmlFor="filter-branch" className="sr-only">Keluarga Cabang</label>
         <select
           id="filter-branch"
           value={current.branchId ?? ""}
           onChange={(e) => apply({ branchId: e.target.value || undefined })}
           className={selectCls}
         >
-          <option value="">Semua cabang</option>
+          <option value="">Semua Keluarga Cabang</option>
           {branches.map((b) => (
             <option key={b.id} value={b.id}>{b.name}</option>
           ))}

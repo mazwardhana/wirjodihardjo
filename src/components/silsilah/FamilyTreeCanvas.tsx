@@ -115,7 +115,7 @@ export function FamilyTreeCanvas({
 
       <p className="pointer-events-none absolute left-3 top-3 rounded-md bg-cream/90 px-3 py-1.5 text-xs text-muted shadow-sm">
         Gulir untuk memperbesar, klik simpul atau tombol info untuk detail,
-        klik ganda untuk melipat cabang
+        klik ganda untuk melipat cabang keluarga
       </p>
 
       {selected && (

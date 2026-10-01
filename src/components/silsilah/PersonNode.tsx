@@ -58,7 +58,10 @@ const socialIcons: Record<string, ComponentType<{ className?: string }>> = {
 /** Label umur, memakai deathDate sebagai acuan bila orangnya sudah wafat. */
 function ageLabel(person: PublicPerson): string | null {
   if (!person.birthDate) return null;
-  if (person.isDeceased && person.deathDate) {
+  if (person.isDeceased) {
+    // Tanpa deathDate umur tidak bisa dihitung, jadi jangan tampilkan usia
+    // yang terus bertambah; penanda wafat sudah ada di kartu.
+    if (!person.deathDate) return null;
     const age = calculateAge(person.birthDate, person.deathDate);
     return age === null ? null : `wafat usia ${age} tahun`;
   }

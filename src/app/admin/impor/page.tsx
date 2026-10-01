@@ -35,7 +35,7 @@ export default async function AdminImporPage() {
       <div className="mb-8 rounded-lg border border-wood/20 bg-parchment/40 p-4">
         <h2 className="text-sm font-semibold text-forest">Petunjuk</h2>
         <ul className="mt-2 space-y-1 text-sm text-muted">
-          <li>1. Unduh template XLSX (atau CSV) berisi 10 kolom: kode cabang keluarga, nickname, password, nama lengkap, gender, tempat kelahiran, tanggal lahir, nomor telepon, alamat domisili, kota domisili</li>
+          <li>1. Unduh template XLSX (atau CSV) berisi 11 kolom: kode cabang keluarga, nickname, nama panggilan, password, nama lengkap, gender, tempat kelahiran, tanggal lahir, nomor telepon, alamat domisili, kota domisili</li>
           <li>2. Isi sheet Data sesuai petunjuk. Kolom bertanda * wajib diisi</li>
           <li>3. Setiap baris membuat akun login anggota (peran MEMBER) beserta datanya</li>
           <li>4. Unggah file yang sudah diisi untuk validasi (XLSX atau CSV)</li>

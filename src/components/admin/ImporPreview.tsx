@@ -35,6 +35,7 @@ export function ImporPreview({ batchId, filename, errors, warnings, counts, cred
       String(row.cabangKe),
       row.namaLengkap,
       row.jenisKelamin,
+      row.nickname || "-",
       row.namaPanggilan || "-",
       row.tanggalLahir || "-",
       row.kotaDomisili || "-",
@@ -42,7 +43,7 @@ export function ImporPreview({ batchId, filename, errors, warnings, counts, cred
     ],
   }));
   
-  const columns = ["Keluarga Cabang", "Nama Lengkap", "Jenis Kelamin", "Nickname", "Tanggal Lahir", "Kota Domisili", "No. Telepon"];
+  const columns = ["Keluarga Cabang", "Nama Lengkap", "Jenis Kelamin", "Nickname", "Nama Panggilan", "Tanggal Lahir", "Kota Domisili", "No. Telepon"];
   const invalidRows = new Set(errors.map((entry) => entry.row));
   const pageSize = 20;
 

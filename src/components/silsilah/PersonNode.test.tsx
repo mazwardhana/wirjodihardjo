@@ -94,6 +94,15 @@ test("kartu menampilkan wafat usia memakai deathDate sebagai acuan", () => {
   assert.ok(markup.includes(`wafat usia ${age} tahun`), `umur wafat tampil: ${markup}`);
 });
 
+test("kartu tidak menampilkan usia yang terus bertambah untuk wafat tanpa deathDate", () => {
+  const dead = person({ isDeceased: true, deathDate: null });
+  const markup = renderToStaticMarkup(
+    PersonNodeCard({ data: data({ person: dead }) }),
+  );
+  assert.ok(!/usia \d+ tahun/.test(markup), `usia hidup tidak boleh tampil: ${markup}`);
+  assert.ok(markup.includes("Almarhum"), "penanda wafat tetap tampil");
+});
+
 test("kartu memakai titik fallback bila iconName tidak dikenal", () => {
   const markup = renderToStaticMarkup(
     PersonNodeCard({
