@@ -1,0 +1,92 @@
+name: wd-dev
+
+# Lingkungan pengembangan terisolasi untuk aplikasi Wirjodihardjo.
+# Tidak menyentuh stack produksi (wirjodihardjo-*) maupun docker-compose.yml
+# produksi. Semua ikatan port loopback 127.0.0.1 dengan port yang tidak
+# bertabrakan dengan produksi.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: wd-dev-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3101:3000"
+    volumes:
+      # Bind mount kode supaya hot reload bekerja, node_modules tetap milik
+      # image lewat volume anonim agar tidak tertimpa node_modules host.
+      - .:/app
+      - /app/node_modules
+      - ./uploads:/app/uploads
+    environment:
+      DATABASE_URL: postgresql://wirjo:wirjo_secret@wd-dev-db:5432/wirjodihardjo
+      NEXTAUTH_URL: https://wd.teknoloka.id
+      NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:?NEXTAUTH_SECRET harus diisi, lihat .env.dev}"
+      AUTH_TRUST_HOST: "true"
+      UPLOAD_DIR: /app/uploads
+      REDIS_URL: redis://wd-dev-redis:6379
+      UPLOADTHING_SECRET: "${UPLOADTHING_SECRET:-}"
+      UPLOADTHING_APP_ID: "${UPLOADTHING_APP_ID:-}"
+      # Hot reload andal di dalam Docker.
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - teknoloka-network
+
+  db:
+    image: postgres:17-alpine
+    container_name: wd-dev-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wirjodihardjo
+      POSTGRES_USER: wirjo
+      POSTGRES_PASSWORD: wirjo_secret
+    volumes:
+      - wd-dev-pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wirjo -d wirjodihardjo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - teknoloka-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: wd-dev-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - wd-dev-redisdata:/data
+    ports:
+      - "127.0.0.1:6382:6379"
+    networks:
+      - teknoloka-network
+
+  adminer:
+    image: adminer:4
+    container_name: wd-dev-adminer
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: wd-dev-db
+    ports:
+      - "127.0.0.1:8082:8080"
+    networks:
+      - teknoloka-network
+
+volumes:
+  wd-dev-pgdata:
+  wd-dev-redisdata:
+
+networks:
+  teknoloka-network:
+    external: true

@@ -1,0 +1,21 @@
+# Image pengembangan untuk aplikasi Wirjodihardjo.
+# Berbeda dari Dockerfile produksi: image ini tidak melakukan build dan
+# menjalankan `next dev`, sementara kode di-bind mount dari host.
+FROM node:20-alpine
+
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Pasang dependensi termasuk devDependencies (butuh tsx, eslint, dll).
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Prisma client di-generate tanpa koneksi DB.
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+RUN npx prisma generate
+
+EXPOSE 3000
+
+# Dengarkan di semua antarmuka agar bisa dijangkau nginx di network Docker.
+CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0"]
