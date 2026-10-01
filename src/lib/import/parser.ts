@@ -17,7 +17,7 @@ function normalizeHeader(value: string): string {
 const HEADER_MAP: Record<string, string> = {
   kode_cabang_keluarga: "cabangKe",
   cabang_ke: "cabangKe",
-  nickname: "namaPanggilan",
+  nickname: "nickname",
   nama_panggilan: "namaPanggilan",
   password: "password",
   nama_lengkap: "namaLengkap",
@@ -32,12 +32,12 @@ const HEADER_MAP: Record<string, string> = {
 };
 
 /** Kolom wajib ada pada header file. */
-const REQUIRED = ["cabangKe", "namaPanggilan", "password", "namaLengkap"];
+const REQUIRED = ["cabangKe", "nickname", "password", "namaLengkap"];
 
 /** Label tampilan (untuk pesan error) mengikuti judul kolom template baru. */
 const REQUIRED_LABEL: Record<string, string> = {
   cabangKe: "kode cabang keluarga",
-  namaPanggilan: "nickname",
+  nickname: "nickname",
   password: "password",
   namaLengkap: "nama lengkap",
 };
@@ -109,6 +109,7 @@ function appendRow(data: ParsedData, columns: (string | undefined)[], cells: str
     _row: row,
     cabangKe: values.cabangKe ?? "",
     namaLengkap: values.namaLengkap ?? "",
+    nickname: values.nickname || undefined,
     namaPanggilan: values.namaPanggilan || undefined,
     password: values.password || undefined,
     jenisKelamin: (values.jenisKelamin ?? "") as Gender,

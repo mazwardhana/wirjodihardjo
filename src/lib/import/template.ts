@@ -7,6 +7,7 @@ const VALIDATION_LAST_ROW = 1000;
 const HEADERS = [
   "kode cabang keluarga*",
   "nickname*",
+  "nama panggilan",
   "password*",
   "nama lengkap*",
   "gender",
@@ -17,16 +18,17 @@ const HEADERS = [
   "kota domisili",
 ] as const;
 
-const WIDTHS = [22, 20, 18, 30, 16, 20, 16, 20, 34, 20];
+const WIDTHS = [22, 20, 24, 18, 30, 16, 20, 16, 20, 34, 20];
 
 /** Kolom dropdown (0-based). */
 const DROPDOWNS = [
-  { column: 4, options: ["MALE", "FEMALE", "OTHER", "L", "P", "LAKI-LAKI", "PEREMPUAN"] },
+  { column: 5, options: ["MALE", "FEMALE", "OTHER", "L", "P", "LAKI-LAKI", "PEREMPUAN"] },
 ];
 
 const EXAMPLE_ROW = [
   "1",
   "contoh",
+  "Contoh Panggilan",
   "rahasiacontoh",
   "CONTOH Tn. Wirjodihardjo",
   "MALE",
@@ -70,18 +72,19 @@ export async function generateTemplateXLSX(): Promise<Buffer> {
     "",
     "Setiap baris membuat akun login anggota (role MEMBER) beserta datanya.",
     "",
-    "Sheet 'Data' (10 kolom, urut sesuai template):",
+    "Sheet 'Data' (11 kolom, urut sesuai template):",
     "   1. kode cabang keluarga*: nomor cabang (1-10) ATAU nama cabang (wajib)",
     "   2. nickname*: 2-50 karakter, dipakai untuk menurunkan username (wajib)",
-    "   3. password*: minimal 8 karakter, akan di-hash (wajib)",
-    "   4. nama lengkap*: nama lengkap anggota (wajib)",
-    "   5. gender: MALE/FEMALE/OTHER atau L/P/Laki-laki/Perempuan (opsional)",
+    "   3. nama panggilan: nama sehari-hari untuk ditampilkan, maks 100 karakter (opsional)",
+    "   4. password*: minimal 8 karakter, akan di-hash (wajib)",
+    "   5. nama lengkap*: nama lengkap anggota (wajib)",
+    "   6. gender: MALE/FEMALE/OTHER atau L/P/Laki-laki/Perempuan (opsional)",
     "      - kosong diisi OTHER",
-    "   6. tempat kelahiran: (opsional)",
-    "   7. tanggal lahir: format YYYY-MM-DD atau DD/MM/YYYY (opsional)",
-    "   8. nomor telepon: (opsional)",
-    "   9. alamat domisili: (opsional)",
-    "   10. kota domisili: (opsional)",
+    "   7. tempat kelahiran: (opsional)",
+    "   8. tanggal lahir: format YYYY-MM-DD atau DD/MM/YYYY (opsional)",
+    "   9. nomor telepon: (opsional)",
+    "   10. alamat domisili: (opsional)",
+    "   11. kota domisili: (opsional)",
     "",
     "Aturan lain:",
     "- Baris dengan nama lengkap diawali 'CONTOH' akan diabaikan",

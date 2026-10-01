@@ -103,7 +103,7 @@ async function loadTakenUsernames(
   rows: ParsedData["anggota"],
 ): Promise<Set<string>> {
   const bases = Array.from(
-    new Set(rows.map((row) => deriveBaseUsername(row.namaPanggilan ?? "", row.namaLengkap))),
+    new Set(rows.map((row) => deriveBaseUsername(row.nickname ?? "", row.namaLengkap))),
   );
   if (bases.length === 0) return new Set();
   const users = await db.user.findMany({
@@ -143,7 +143,7 @@ export async function analyzeImportData(data: ParsedData) {
       continue;
     }
 
-    const username = deriveUniqueUsername(row.namaPanggilan ?? "", row.namaLengkap, taken);
+    const username = deriveUniqueUsername(row.nickname ?? "", row.namaLengkap, taken);
     taken.add(username);
 
     counts.personsCreated++;
@@ -224,7 +224,8 @@ async function applyData(
       data: {
         fullName: row.namaLengkap,
         gender: row.jenisKelamin,
-        nickname: row.namaPanggilan || undefined,
+        nickname: row.nickname || undefined,
+        namaPanggilan: row.namaPanggilan || undefined,
         birthDate: date(row.tanggalLahir),
         birthPlace: row.tempatLahir || undefined,
         branchId: row.branchId,
@@ -253,7 +254,7 @@ async function applyData(
     const planned = plannedUsernames?.[key];
     const username = planned && !taken.has(planned)
       ? planned
-      : deriveUniqueUsername(row.namaPanggilan ?? "", row.namaLengkap, taken);
+      : deriveUniqueUsername(row.nickname ?? "", row.namaLengkap, taken);
     taken.add(username);
 
     await tx.user.create({

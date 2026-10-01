@@ -5,10 +5,11 @@ export type UserRole = "SUPER_ADMIN" | "BRANCH_ADMIN" | "MEMBER";
 export type RelationKind = "ORANG_TUA" | "PASANGAN";
 
 /**
- * Satu baris data anggota dari template impor 10 kolom.
+ * Satu baris data anggota dari template impor 11 kolom.
  *
- * Kolom: kode cabang keluarga*, nickname*, password*, nama lengkap*, gender,
- * tempat kelahiran, tanggal lahir, nomor telepon, alamat domisili, kota domisili.
+ * Kolom: kode cabang keluarga*, nickname*, nama panggilan, password*,
+ * nama lengkap*, gender, tempat kelahiran, tanggal lahir, nomor telepon,
+ * alamat domisili, kota domisili.
  */
 export type ImportRowAnggota = {
   _row?: number;
@@ -17,6 +18,8 @@ export type ImportRowAnggota = {
   /** Kolom "nama lengkap" (wajib). */
   namaLengkap: string;
   /** Kolom "nickname" (wajib); dipakai untuk menurunkan username. */
+  nickname?: string;
+  /** Kolom "nama panggilan" (opsional); nama sehari-hari untuk ditampilkan. */
   namaPanggilan?: string;
   /** Kolom "gender"; kosong → OTHER + warning. */
   jenisKelamin: Gender;

@@ -43,7 +43,8 @@ function anggota(row: Partial<ImportRowAnggota> = {}): ImportRowAnggota {
   return {
     cabangKe: "1",
     namaLengkap: "Budi Santoso",
-    namaPanggilan: "budi",
+    nickname: "budi",
+    namaPanggilan: "Budi Manis",
     password: "rahasia123",
     jenisKelamin: "MALE" as Gender,
     ...row,
@@ -144,15 +145,31 @@ test("rejects missing branch code", async () => {
 });
 
 test("nickname must be 2-50 characters and is trimmed", async () => {
-  const short = await validate({ anggota: [anggota({ namaPanggilan: "a" })] });
+  const short = await validate({ anggota: [anggota({ nickname: "a" })] });
   assert.ok(short.errors.some((error) => error.field === "nickname" && /2-50/.test(error.message)));
 
-  const long = await validate({ anggota: [anggota({ namaPanggilan: "x".repeat(51) })] });
+  const long = await validate({ anggota: [anggota({ nickname: "x".repeat(51) })] });
   assert.ok(long.errors.some((error) => error.field === "nickname" && /2-50/.test(error.message)));
 
-  const ok = await validate({ anggota: [anggota({ namaPanggilan: "  budi  " })] });
+  const ok = await validate({ anggota: [anggota({ nickname: "  budi  " })] });
   assert.strictEqual(ok.valid, true, JSON.stringify(ok.errors));
-  assert.strictEqual(ok.data.anggota[0].namaPanggilan, "budi");
+  assert.strictEqual(ok.data.anggota[0].nickname, "budi");
+});
+
+test("namaPanggilan opsional, di-trim, dan maksimal 100 karakter", async () => {
+  const kosong = await validate({ anggota: [anggota({ namaPanggilan: undefined })] });
+  assert.strictEqual(kosong.valid, true, JSON.stringify(kosong.errors));
+  assert.strictEqual(kosong.data.anggota[0].namaPanggilan, undefined);
+
+  const trimmed = await validate({ anggota: [anggota({ namaPanggilan: "  Budi Manis  " })] });
+  assert.strictEqual(trimmed.valid, true, JSON.stringify(trimmed.errors));
+  assert.strictEqual(trimmed.data.anggota[0].namaPanggilan, "Budi Manis");
+
+  const tooLong = await validate({ anggota: [anggota({ namaPanggilan: "x".repeat(101) })] });
+  assert.strictEqual(tooLong.valid, false);
+  assert.ok(
+    tooLong.errors.some((error) => error.field === "nama panggilan" && /100/.test(error.message)),
+  );
 });
 
 test("password must be at least 8 characters and never leaks into messages", async () => {
