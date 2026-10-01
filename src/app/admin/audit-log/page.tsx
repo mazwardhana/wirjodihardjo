@@ -29,6 +29,7 @@ const actionLabels: Record<string, string> = {
   SUBMISSION_REJECT: "Tolak Pengajuan",
   BRANCH_CREATE: "Tambah Keluarga Cabang",
   BRANCH_UPDATE: "Ubah Keluarga Cabang",
+  CREATE_STATUS: "Perbarui Status",
   LOGIN: "Login",
 };
 
