@@ -99,6 +99,59 @@ function coupleChildrenFixture(): FamilyTreeData {
   };
 }
 
+// ── fixture: urutan anak menurut orderIndex, urutan masukan diacak ──────
+// orderIndex sengaja terbalik dari nama anak (C3=0, C2=1, C1=2) dan urutan
+// baris diacak, supaya urutan array masukan tidak menentukan posisi.
+function orderedSingleChildrenFixture(): FamilyTreeData {
+  return {
+    persons: [person("C2", 1), person("P", 0), person("C3", 1), person("C1", 1)],
+    childEdges: [
+      { parentId: "P", childId: "C2", parentRole: "FATHER", isStep: false, isAdopted: false, orderIndex: 1 },
+      { parentId: "P", childId: "C1", parentRole: "FATHER", isStep: false, isAdopted: false, orderIndex: 2 },
+      { parentId: "P", childId: "C3", parentRole: "FATHER", isStep: false, isAdopted: false, orderIndex: 0 },
+    ],
+    partnerEdges: [],
+  };
+}
+
+function orderedCoupleChildrenFixture(): FamilyTreeData {
+  const edge = (parentId: string, childId: string, parentRole: string, orderIndex: number) => ({
+    parentId,
+    childId,
+    parentRole,
+    isStep: false,
+    isAdopted: false,
+    orderIndex,
+  });
+  return {
+    persons: [person("B", 0), person("C1", 1), person("A", 0), person("C3", 1), person("C2", 1)],
+    childEdges: [
+      edge("B", "C2", "MOTHER", 1),
+      edge("A", "C1", "FATHER", 2),
+      edge("B", "C1", "MOTHER", 2),
+      edge("A", "C3", "FATHER", 0),
+      edge("B", "C3", "MOTHER", 0),
+      edge("A", "C2", "FATHER", 1),
+    ],
+    partnerEdges: [
+      { partnerAId: "A", partnerBId: "B", status: "MARRIED", marriageDate: null, divorceDate: null, orderIndex: 0 },
+    ],
+  };
+}
+
+// ── fixture: anak tanpa orderIndex harus tetap deterministik ────────────
+function noOrderIndexFixture(): FamilyTreeData {
+  return {
+    persons: [person("C3", 1), person("P", 0), person("C1", 1), person("C2", 1)],
+    childEdges: [
+      { parentId: "P", childId: "C2", parentRole: "FATHER", isStep: false, isAdopted: false },
+      { parentId: "P", childId: "C1", parentRole: "FATHER", isStep: false, isAdopted: false },
+      { parentId: "P", childId: "C3", parentRole: "FATHER", isStep: false, isAdopted: false },
+    ],
+    partnerEdges: [],
+  };
+}
+
 // ── fixture: subtree berat sebelah ──────────────────────────────────────
 // X punya dua anak: Y1 (daun) dan Y2 (punya lima anak). Bentang subtree Y2
 // jauh lebih lebar dari kartu Y2 sendiri, sehingga pusat bentang subtree tidak
@@ -494,6 +547,33 @@ test("buildTreeGraph menyembunyikan anak saat induknya collapsed", () => {
   const a01 = nodes.find((n) => n.id === "A01")!;
   assert.equal((a01.data as { collapsed: boolean }).collapsed, true);
   assert.equal((a01.data as { hasHiddenChildren: boolean }).hasHiddenChildren, true);
+});
+
+test("buildTreeGraph mengurutkan anak menurut orderIndex, bukan urutan masukan", () => {
+  const xOf = (nodes: { id: string; position: { x: number } }[], id: string) =>
+    nodes.find((n) => n.id === id)!.position.x;
+
+  for (const [nama, data] of [
+    ["satu orang tua", orderedSingleChildrenFixture()],
+    ["sepasang orang tua", orderedCoupleChildrenFixture()],
+  ] as const) {
+    const { nodes } = buildTreeGraph(data, new Set());
+    const x3 = xOf(nodes, "C3");
+    const x2 = xOf(nodes, "C2");
+    const x1 = xOf(nodes, "C1");
+    assert.ok(
+      x3 < x2 && x2 < x1,
+      `${nama}: orderIndex 0,1,2 harus kiri ke kanan, x(C3)=${x3} x(C2)=${x2} x(C1)=${x1}`,
+    );
+  }
+});
+
+test("buildTreeGraph tetap deterministik saat orderIndex tidak ada", () => {
+  const data = noOrderIndexFixture();
+  const first = buildTreeGraph(data, new Set());
+  const second = buildTreeGraph(data, new Set());
+  assert.deepEqual(second.nodes, first.nodes);
+  assert.deepEqual(second.edges, first.edges);
 });
 
 test("buildTreeGraph berhenti dan memancarkan kedua node saat silsilah melingkar", () => {

@@ -7,6 +7,7 @@ export type ChildEdge = {
   parentRole: string;
   isStep: boolean;
   isAdopted: boolean;
+  orderIndex?: number;
 };
 
 export type PartnerEdge = {
@@ -139,6 +140,25 @@ export function buildTreeGraph(
     appendTo(parentIdsByChild, edge.childId, edge.parentId);
   }
 
+  // Nomor urut anak (terkecil bila ada beberapa baris untuk anak yang sama).
+  // Dipakai agar urutan tampil tidak bergantung pada urutan array masukan.
+  const orderIndexByChild = new Map<string, number>();
+  for (const edge of data.childEdges) {
+    if (edge.orderIndex === undefined) continue;
+    const current = orderIndexByChild.get(edge.childId);
+    if (current === undefined || edge.orderIndex < current) {
+      orderIndexByChild.set(edge.childId, edge.orderIndex);
+    }
+  }
+  // orderIndex tidak ada dianggap paling akhir, lalu childId menaik sebagai
+  // pemecah seri supaya urutannya deterministik.
+  const compareChild = (a: string, b: string) => {
+    const oa = orderIndexByChild.get(a) ?? Number.POSITIVE_INFINITY;
+    const ob = orderIndexByChild.get(b) ?? Number.POSITIVE_INFINITY;
+    if (oa !== ob) return oa - ob;
+    return a < b ? -1 : a > b ? 1 : 0;
+  };
+
   // Map tiap orang → daftar pasangan (sudah urut orderIndex)
   const partnersByPerson = new Map<string, PartnerEdge[]>();
   for (const pe of data.partnerEdges) {
@@ -170,6 +190,9 @@ export function buildTreeGraph(
       appendTo(coupleChildren, coupleKey(parents[0], parents[1]), childId);
     }
   }
+  // Urutan anak dalam tiap grup ditentukan orderIndex, bukan urutan insersi.
+  for (const kids of coupleChildren.values()) kids.sort(compareChild);
+  for (const kids of singleChildren.values()) kids.sort(compareChild);
 
   const seen = new Set<string>();
   // Orang yang sengaja disembunyikan karena induknya dikuncupkan. Dipakai agar
