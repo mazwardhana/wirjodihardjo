@@ -18,6 +18,8 @@ export default async function ProfilPage({ params }: { params: Promise<{ id: str
   const session = await auth();
   const viewer = session?.user ? await prisma.user.findUnique({ where: { id: session.user.id }, select: { role: true, personId: true } }) : null;
   const isMember = viewer !== null && ["MEMBER", "BRANCH_ADMIN", "SUPER_ADMIN"].includes(viewer.role);
+  // Tamu hanya menerima status terbaru di payload; riwayat lengkap khusus anggota.
+  const statusTake = isMember ? 20 : 1;
   const person = await prisma.person.findFirst({
     where: { id, deletedAt: null, ...(isMember ? {} : { isPublicProfile: true }) },
     select: {
@@ -26,7 +28,7 @@ export default async function ProfilPage({ params }: { params: Promise<{ id: str
       branch: { select: { name: true, slug: true } },
       education: { orderBy: { startYear: "desc" }, select: { id: true, institution: true, degree: true, fieldOfStudy: true, startYear: true, endYear: true } },
       socialLinks: { include: { platform: { select: { name: true } } }, orderBy: { createdAt: "desc" } },
-      statuses: { orderBy: { createdAt: "desc" }, take: 20 },
+      statuses: { orderBy: { createdAt: "desc" }, take: statusTake },
     },
   });
   if (!person) notFound();

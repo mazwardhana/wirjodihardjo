@@ -15,7 +15,7 @@ export function ProfileCard({ profile, contacts, isMember = false }: {
   const details = [
     ["Jenis kelamin", { MALE: "Laki-laki", FEMALE: "Perempuan", OTHER: "Lainnya" }[profile.gender]],
     ["Usia", profile.age === null ? null : `${profile.age} tahun`],
-    ["Kota", profile.city], ["Pekerjaan", profile.occupation], ["Status", profile.status],
+    ["Kota", profile.city], ["Pekerjaan", profile.occupation],
   ];
   return (
     <article className="space-y-8 break-words text-forest">

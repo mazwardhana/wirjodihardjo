@@ -10,13 +10,13 @@ describe("Profile Update API", () => {
     assert.equal(f.state.writes.length, 0);
   });
 
-  test("POST persists occupation and status to the Person record", async () => {
+  test("POST persists occupation and ignores the legacy status field", async () => {
     const f = fixture(); const route = loadRoute("src/app/api/profil/update/route.ts", f);
     const response = await route.POST(request("POST", { occupation: "Engineer", status: "Active" }));
     assert.equal(response.status, 200);
     const personUpdate = f.state.writes[0];
     assert.equal(personUpdate.occupation, "Engineer");
-    assert.equal(personUpdate.status, "Active");
+    assert.equal("status" in personUpdate, false);
   });
 
   test("POST persists nama panggilan separately from nickname", async () => {
@@ -34,10 +34,12 @@ describe("Profile Update API", () => {
     assert.equal(f.state.writes.length, 0);
   });
 
-  test("POST rejects status over 500 chars", async () => {
+  test("POST ignores a legacy status field of any length", async () => {
     const f = fixture(); const route = loadRoute("src/app/api/profil/update/route.ts", f);
-    assert.equal((await route.POST(request("POST", { status: "a".repeat(501) }))).status, 400);
-    assert.equal(f.state.writes.length, 0);
+    const response = await route.POST(request("POST", { status: "a".repeat(501) }));
+    assert.equal(response.status, 200);
+    const personUpdate = f.state.writes[0];
+    assert.equal("status" in personUpdate, false);
   });
 
   test("POST keeps legacy fields working and audits the change", async () => {

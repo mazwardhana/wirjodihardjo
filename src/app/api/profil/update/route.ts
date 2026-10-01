@@ -17,7 +17,6 @@ const schema = z.object({
   namaPanggilan: z.string().max(100).optional(),
   bio: z.string().max(2000).optional(),
   occupation: z.string().max(200).optional(),
-  status: z.string().max(500).optional(),
   gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
   birthPlace: z.string().max(200).optional(),
   birthDate: isoDate.optional(),
@@ -84,7 +83,6 @@ export async function POST(request: Request) {
       ...(data.namaPanggilan !== undefined && { namaPanggilan: nullable(data.namaPanggilan) }),
       ...(data.bio !== undefined && { bio: nullable(data.bio) }),
       ...(data.occupation !== undefined && { occupation: nullable(data.occupation) }),
-      ...(data.status !== undefined && { status: nullable(data.status) }),
       ...(data.gender !== undefined && { gender: data.gender }),
       ...(data.birthPlace !== undefined && { birthPlace: nullable(data.birthPlace) }),
       ...(data.birthDatePrecision !== undefined && {
