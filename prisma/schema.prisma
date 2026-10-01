@@ -122,6 +122,7 @@ model Person {
   externalRef        String?   @unique
   fullName           String
   nickname           String?
+  namaPanggilan      String?
   slug               String?   @unique
   gender             Gender
   birthDate          DateTime?
