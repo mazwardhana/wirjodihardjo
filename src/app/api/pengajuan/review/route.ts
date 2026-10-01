@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { notifySubmissionStatus } from "@/lib/notifications";
 import { recalculateGenerationLevel } from "@/lib/genealogy";
-import { orderIndexForChild, type ChildOrderDb } from "@/lib/child-order";
+import { orderIndexForChild, setChildOrderIndex, type ChildOrderDb } from "@/lib/child-order";
 
 /** Cek duplikasi sebelum menyetujui. */
 async function cekDuplikasi(payload: Record<string, unknown>, type: string): Promise<string | null> {
@@ -131,6 +131,11 @@ async function applyEditRelation(payload: Record<string, unknown>): Promise<stri
       });
       const parentIds = [...new Set([...existingParents.map((row) => row.parentId), parentId])];
 
+      const nomor = await orderIndexForChild(
+        childId,
+        parentIds,
+        prisma as unknown as ChildOrderDb,
+      );
       await prisma.personChild.create({
         data: {
           parentId,
@@ -138,13 +143,11 @@ async function applyEditRelation(payload: Record<string, unknown>): Promise<stri
           parentRole: (role as any) ?? "UNKNOWN",
           isStep: (payload.isStep as boolean) ?? false,
           isAdopted: (payload.isAdopted as boolean) ?? false,
-          orderIndex: await orderIndexForChild(
-            childId,
-            parentIds,
-            prisma as unknown as ChildOrderDb,
-          ),
+          orderIndex: nomor,
         },
       });
+      // Baris LAMA anak ikut bernomor sama supaya invariant per-edge terjaga.
+      await setChildOrderIndex(childId, nomor, prisma as unknown as ChildOrderDb);
       try { await recalculateGenerationLevel(childId); } catch { /* non-bloking */ }
       return personId;
     }

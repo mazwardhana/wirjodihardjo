@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { recalculateGenerationLevel } from "@/lib/genealogy";
-import { orderIndexForChild, type ChildOrderDb } from "@/lib/child-order";
+import { orderIndexForChild, setChildOrderIndex, type ChildOrderDb } from "@/lib/child-order";
 import { requireAdminScope, assertPersonAccess, AuthorizationError } from "@/lib/rbac";
 
 const MAX_PARENTS = 2;
@@ -118,18 +118,21 @@ export async function POST(request: Request) {
         const parentIds = [
           ...new Set([...existingParents.map((row) => row.parentId), targetPersonId]),
         ];
+        const nomor = await orderIndexForChild(
+          personId,
+          parentIds,
+          prisma as unknown as ChildOrderDb,
+        );
         await prisma.personChild.create({
           data: {
             parentId: targetPersonId,
             childId: personId,
             parentRole: (role as any) ?? "UNKNOWN",
-            orderIndex: await orderIndexForChild(
-              personId,
-              parentIds,
-              prisma as unknown as ChildOrderDb,
-            ),
+            orderIndex: nomor,
           },
         });
+        // Baris LAMA anak ikut bernomor sama supaya invariant per-edge terjaga.
+        await setChildOrderIndex(personId, nomor, prisma as unknown as ChildOrderDb);
         // Satu panggilan cukup: rekalkulasi menghitung seluruh komponen.
         try { await recalculateGenerationLevel(personId); } catch {}
       } else if (relationType === "child") {
@@ -152,18 +155,21 @@ export async function POST(request: Request) {
         const parentIds = [
           ...new Set([...existingParents.map((row) => row.parentId), personId]),
         ];
+        const nomor = await orderIndexForChild(
+          targetPersonId,
+          parentIds,
+          prisma as unknown as ChildOrderDb,
+        );
         await prisma.personChild.create({
           data: {
             parentId: personId,
             childId: targetPersonId,
             parentRole: (role as any) ?? "UNKNOWN",
-            orderIndex: await orderIndexForChild(
-              targetPersonId,
-              parentIds,
-              prisma as unknown as ChildOrderDb,
-            ),
+            orderIndex: nomor,
           },
         });
+        // Baris LAMA anak ikut bernomor sama supaya invariant per-edge terjaga.
+        await setChildOrderIndex(targetPersonId, nomor, prisma as unknown as ChildOrderDb);
         // Satu panggilan cukup: rekalkulasi menghitung seluruh komponen.
         try { await recalculateGenerationLevel(targetPersonId); } catch {}
       } else if (relationType === "partner") {
@@ -296,14 +302,17 @@ export async function POST(request: Request) {
             const parentIds = [
               ...new Set([...existingParents.map((row) => row.parentId), created.id]),
             ];
+            const nomor = await orderIndexForChild(personId, parentIds, tx as ChildOrderDb);
             await tx.personChild.create({
               data: {
                 parentId: created.id,
                 childId: personId,
                 parentRole: parentRole as any,
-                orderIndex: await orderIndexForChild(personId, parentIds, tx as ChildOrderDb),
+                orderIndex: nomor,
               },
             });
+            // Anak sudah ada, jadi baris LAMA-nya ikut disamakan.
+            await setChildOrderIndex(personId, nomor, tx as ChildOrderDb);
           } else if (relationType === "child") {
             await tx.personChild.create({
               data: {

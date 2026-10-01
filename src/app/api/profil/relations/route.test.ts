@@ -17,8 +17,8 @@ function relationsFixture() {
     p8: { id: "p8", fullName: "Cucu Budi", nickname: null, gender: "MALE", branchId: "b1", generationLevel: 3, isDeceased: false, photoUrl: null, birthDate: null },
   };
   const parentsOf: Record<string, Row[]> = {
-    p1: [{ parentId: "p2", parentRole: "FATHER", isStep: false, isAdopted: false, parent: people.p2 }],
-    p2: [{ parentId: "p4", parentRole: "FATHER", isStep: false, isAdopted: false, parent: people.p4 }],
+    p1: [{ parentId: "p2", childId: "p1", orderIndex: 1, parentRole: "FATHER", isStep: false, isAdopted: false, parent: people.p2 }],
+    p2: [{ parentId: "p4", childId: "p2", orderIndex: 0, parentRole: "FATHER", isStep: false, isAdopted: false, parent: people.p4 }],
   };
   const childrenOf: Record<string, Row[]> = {
     p1: [
@@ -29,6 +29,7 @@ function relationsFixture() {
   };
   const created: Row[] = [];
   const upserted: Row[] = [];
+  const childUpdates: Row[] = [];
   const partner = { edges: [] as Row[], writes: [] as Row[] };
 
   Object.assign(f.prisma, {
@@ -71,6 +72,14 @@ function relationsFixture() {
         return [];
       },
       upsert: async (args: Row) => { upserted.push(args); return args; },
+      update: async (args: Row) => {
+        childUpdates.push(args);
+        const compound = (args.where as Row).parentId_childId as Row;
+        const rows = parentsOf[compound.childId as string] ?? [];
+        const row = rows.find((r) => r.parentId === compound.parentId);
+        if (row) row.orderIndex = (args.data as Row).orderIndex;
+        return args;
+      },
       deleteMany: async () => ({ count: 0 }),
     },
     personPartner: {
@@ -108,7 +117,7 @@ function relationsFixture() {
     auditLog: { create: async (args: Row) => { f.state.writes.push(args); return args; } },
     _created: created,
   });
-  return { f, people, created, upserted, partner };
+  return { f, people, parentsOf, created, upserted, childUpdates, partner };
 }
 
 describe("Profile Relations API", () => {
@@ -184,6 +193,21 @@ describe("Profile Relations API", () => {
     assert.equal(compound.parentId, "p2");
     assert.equal(compound.childId, "p1");
     assert.equal((upserted[0].create as Row).parentRole, "FATHER");
+  });
+
+  test("POST setParent menyamakan orderIndex baris lama anak", async () => {
+    const { f, parentsOf, childUpdates } = relationsFixture();
+    // p1 sudah punya baris orang tua p2; menyetel p4 membuat baris lama p2
+    // ikut bernomor sama dengan baris baru.
+    const route = loadRoute("src/app/api/profil/relations/route.ts", f);
+    const response = await route.POST(request("POST", { action: "setParent", personId: "p4", role: "FATHER" }));
+    assert.equal(response.status, 200);
+    assert.equal(childUpdates.length, 1);
+    const compound = (childUpdates[0].where as Row).parentId_childId as Row;
+    assert.equal(compound.parentId, "p2");
+    assert.equal(compound.childId, "p1");
+    assert.equal((childUpdates[0].data as Row).orderIndex, 0);
+    assert.equal(parentsOf.p1.find((row) => row.parentId === "p2")?.orderIndex, 0);
   });
 
   test("POST rejects a parent from another branch", async () => {

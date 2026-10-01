@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAncestorLabel, getDescendantLabel } from "@/lib/generations";
-import { orderIndexForChild, type ChildOrderDb } from "@/lib/child-order";
+import { orderIndexForChild, setChildOrderIndex, type ChildOrderDb } from "@/lib/child-order";
 import { z } from "zod";
 
 type PartnerStatus = "MARRIED" | "DIVORCED" | "WIDOWED" | "UNKNOWN";
@@ -359,6 +359,13 @@ export async function POST(request: Request) {
       ...new Set([...existingParents.map((row) => row.parentId), data.personId]),
     ];
 
+    // Nomor dihitung sekali dari himpunan orang tua lengkap, lalu baris baru
+    // dibuat dan baris LAMA anak disamakan.
+    const nomor = await orderIndexForChild(
+      personId,
+      parentIds,
+      prisma as unknown as ChildOrderDb,
+    );
     const edge = await prisma.personChild.upsert({
       where: { parentId_childId: { parentId: data.personId, childId: personId } },
       update: { parentRole: data.role },
@@ -366,13 +373,10 @@ export async function POST(request: Request) {
         parentId: data.personId,
         childId: personId,
         parentRole: data.role,
-        orderIndex: await orderIndexForChild(
-          personId,
-          parentIds,
-          prisma as unknown as ChildOrderDb,
-        ),
+        orderIndex: nomor,
       },
     });
+    await setChildOrderIndex(personId, nomor, prisma as unknown as ChildOrderDb);
 
     await prisma.auditLog.create({
       data: {

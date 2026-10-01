@@ -90,6 +90,32 @@ export async function orderIndexForChild(
 }
 
 /**
+ * Menyamakan nomor urut SELURUH baris PersonChild milik satu anak.
+ * Dipakai setelah himpunan orang tua anak berubah supaya baris ayah dan ibu
+ * selalu bernilai sama.
+ */
+export async function setChildOrderIndex(
+  childId: string,
+  orderIndex: number,
+  db?: ChildOrderDb,
+): Promise<void> {
+  const client = resolveDb(db);
+
+  const rows = await client.personChild.findMany({
+    where: { childId },
+    select: { childId: true, parentId: true, orderIndex: true },
+  });
+
+  for (const row of rows) {
+    if (row.orderIndex === orderIndex) continue;
+    await client.personChild.update({
+      where: { parentId_childId: { parentId: row.parentId, childId: row.childId } },
+      data: { orderIndex },
+    });
+  }
+}
+
+/**
  * Tukar posisi anak dengan tetangganya dalam grup, lalu sinkronkan
  * SELURUH baris PersonChild milik kedua anak (ayah dan ibu).
  * `direction` "up" menukar dengan tetangga sebelumnya, "down" dengan sesudahnya.

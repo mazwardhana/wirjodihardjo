@@ -305,6 +305,31 @@ test("EDIT_RELATION add parent membuat edge dan tidak melempar belum diimplement
   assert.equal(state.personChildCreate[0].data.childId, "anak");
 });
 
+test("EDIT_RELATION add parent menyamakan orderIndex baris lama anak", async () => {
+  const state = reviewFixture("EDIT_RELATION", {
+    personId: "anak",
+    relationType: "parent",
+    action: "add",
+    targetPersonId: "orang-tua",
+  });
+  // Anak sudah punya satu baris orang tua bernomor 1. Setelah orang tua kedua
+  // ditambahkan, kedua baris anak wajib bernomor sama.
+  state.childEdges = [{ parentId: "ayah-lama", childId: "anak", orderIndex: 1 }];
+  const route = loadReviewRoute(state);
+
+  const response = await route.POST!(approveRequest());
+
+  assert.equal(response.status, 200);
+  assert.equal(state.personChildCreate.length, 1);
+  assert.equal(state.personChildCreate[0].data.orderIndex, 0);
+  assert.equal(state.personChildUpdate.length, 1);
+  assert.equal(state.personChildUpdate[0].data.orderIndex, 0);
+  assert.deepEqual(state.personChildUpdate[0].where.parentId_childId, {
+    parentId: "ayah-lama",
+    childId: "anak",
+  });
+});
+
 test("EDIT_RELATION remove parent menghapus edge (201)", async () => {
   const state = reviewFixture("EDIT_RELATION", {
     personId: "anak",

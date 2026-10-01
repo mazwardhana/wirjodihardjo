@@ -4,6 +4,7 @@ import {
   moveChild,
   nextChildOrderIndex,
   orderIndexForChild,
+  setChildOrderIndex,
   siblingGroupKey,
   siblingsOfGroup,
   type ChildOrderDb,
@@ -149,6 +150,35 @@ test("siblingsOfGroup mengambil orderIndex terbesar bila baris tidak sinkron", a
   ]);
 
   assert.deepEqual(await siblingsOfGroup(["P1", "P2"], db), [{ childId: "X", orderIndex: 4 }]);
+});
+
+// ── setChildOrderIndex ───────────────────────────────────────────────────
+
+test("setChildOrderIndex menulis nomor ke semua baris anak", async () => {
+  const { db, rows, updates } = makeDb([
+    { parentId: "P1", childId: "C", orderIndex: 1 },
+    { parentId: "P2", childId: "C", orderIndex: 1 },
+    { parentId: "P1", childId: "D", orderIndex: 0 },
+  ]);
+
+  await setChildOrderIndex("C", 0, db);
+
+  assert.equal(orderOf(rows, "P1", "C"), 0);
+  assert.equal(orderOf(rows, "P2", "C"), 0);
+  // Anak lain tidak tersentuh.
+  assert.equal(orderOf(rows, "P1", "D"), 0);
+  assert.equal(updates.length, 2);
+});
+
+test("setChildOrderIndex tidak menulis bila nomor sudah sama", async () => {
+  const { db, updates } = makeDb([
+    { parentId: "P1", childId: "C", orderIndex: 2 },
+    { parentId: "P2", childId: "C", orderIndex: 2 },
+  ]);
+
+  await setChildOrderIndex("C", 2, db);
+
+  assert.equal(updates.length, 0);
 });
 
 // ── moveChild ────────────────────────────────────────────────────────────

@@ -80,12 +80,23 @@ function loadModule(filename: string, requireMap: RequireMap) {
   return exports;
 }
 
+type AdminPersonRow = { id: string; branchId: string | null; gender: string };
+type ChildEdge = { parentId: string; childId: string; orderIndex: number };
+
 type RelasiState = {
-  person: { id: string; branchId: string | null; gender: string } | null;
+  person: AdminPersonRow | null;
+  persons: Record<string, AdminPersonRow>;
   parentCount: number;
   partnerCount: number;
   personCreate: Array<{ data: { fullName: string; branchId?: string; isMarriedInto?: boolean } }>;
-  personChildCreate: Array<{ data: { parentId: string; childId: string; parentRole: string } }>;
+  personChildCreate: Array<{
+    data: { parentId: string; childId: string; parentRole: string; orderIndex?: number };
+  }>;
+  personChildUpdate: Array<{
+    where: { parentId_childId: { parentId: string; childId: string } };
+    data: { orderIndex: number };
+  }>;
+  childEdges: ChildEdge[];
   personPartnerCreate: Array<{
     data: { partnerAId: string; partnerBId: string; status: string; orderIndex: number };
   }>;
@@ -96,10 +107,13 @@ type RelasiState = {
 function relasiFixture(): RelasiState {
   return {
     person: { id: "fokus", branchId: "cabang-1", gender: "MALE" },
+    persons: {},
     parentCount: 0,
     partnerCount: 0,
     personCreate: [],
     personChildCreate: [],
+    personChildUpdate: [],
+    childEdges: [],
     personPartnerCreate: [],
     userRole: "SUPER_ADMIN" as "SUPER_ADMIN" | "BRANCH_ADMIN",
     branchAdminOf: null as { id: string } | null,
@@ -121,8 +135,10 @@ function loadRelasiRoute(state: RelasiState): { POST?: Handler } {
       }),
     },
     person: {
-      findUnique: async ({ where }: { where: { id: string } }) =>
-        state.person && where.id === state.person.id ? state.person : null,
+      findUnique: async ({ where }: { where: { id: string } }) => {
+        if (state.person && where.id === state.person.id) return state.person;
+        return state.persons[where.id] ?? null;
+      },
       create: async (args: { data: { fullName: string; branchId?: string; isMarriedInto?: boolean } }) => {
         state.personCreate.push(args);
         return { id: "person-baru", fullName: args.data.fullName };
@@ -130,9 +146,53 @@ function loadRelasiRoute(state: RelasiState): { POST?: Handler } {
     },
     personChild: {
       count: async () => state.parentCount,
-      findMany: async () => [],
-      create: async (args: { data: { parentId: string; childId: string; parentRole: string } }) => {
+      findFirst: async (args: { where?: { parentId?: string; childId?: string } }) => {
+        const where = args?.where ?? {};
+        return (
+          state.childEdges.find(
+            (row) =>
+              (where.parentId === undefined || row.parentId === where.parentId) &&
+              (where.childId === undefined || row.childId === where.childId),
+          ) ?? null
+        );
+      },
+      // Kembalikan baris PersonChild yang cocok dengan `where` agar jalur
+      // tulis membaca himpunan orang tua anak dari graf nyata, bukan kosong.
+      findMany: async (args: { where?: { parentId?: unknown; childId?: unknown } }) => {
+        const where = args?.where ?? {};
+        return state.childEdges.filter((row) => {
+          const parentId = where.parentId;
+          if (typeof parentId === "string" && row.parentId !== parentId) return false;
+          if (parentId && typeof parentId === "object" && !(parentId as { in?: string[] }).in?.includes(row.parentId)) {
+            return false;
+          }
+          const childId = where.childId;
+          if (typeof childId === "string" && row.childId !== childId) return false;
+          if (childId && typeof childId === "object" && !(childId as { in?: string[] }).in?.includes(row.childId)) {
+            return false;
+          }
+          return true;
+        });
+      },
+      create: async (args: {
+        data: { parentId: string; childId: string; parentRole: string; orderIndex?: number };
+      }) => {
         state.personChildCreate.push(args);
+        state.childEdges.push({
+          parentId: args.data.parentId,
+          childId: args.data.childId,
+          orderIndex: args.data.orderIndex ?? 0,
+        });
+        return { id: "pc-baru" };
+      },
+      update: async (args: {
+        where: { parentId_childId: { parentId: string; childId: string } };
+        data: { orderIndex: number };
+      }) => {
+        state.personChildUpdate.push(args);
+        const { parentId, childId } = args.where.parentId_childId;
+        const row = state.childEdges.find((edge) => edge.parentId === parentId && edge.childId === childId);
+        if (row) row.orderIndex = args.data.orderIndex;
         return { id: "pc-baru" };
       },
     },
@@ -306,4 +366,38 @@ test("add-new ditolak saat orang fokus di luar cabang admin cabang (403)", async
 
   assert.equal(response.status, 403);
   assert.equal(state.personCreate.length, 0);
+});
+
+test("add parent menyamakan orderIndex baris lama dan baru anak yang sudah ada", async () => {
+  // Anak C sudah punya orang tua P1 (orderIndex 1) di grup {P1}. Saat P2
+  // ditambahkan, himpunan orang tua C menjadi {P1,P2}; kedua baris C wajib
+  // bernomor sama.
+  const state = relasiFixture();
+  state.person = { id: "C", branchId: "cabang-1", gender: "MALE" };
+  state.persons = { P2: { id: "P2", branchId: "cabang-1", gender: "FEMALE" } };
+  state.childEdges = [{ parentId: "P1", childId: "C", orderIndex: 1 }];
+  const route = loadRelasiRoute(state);
+
+  const response = await route.POST!(
+    postRequest({
+      action: "add",
+      relationType: "parent",
+      personId: "C",
+      targetPersonId: "P2",
+      role: "MOTHER",
+    }),
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(state.personChildCreate.length, 1);
+  assert.equal(state.personChildCreate[0].data.orderIndex, 0);
+
+  const barisP1 = state.childEdges.find((edge) => edge.parentId === "P1" && edge.childId === "C");
+  const barisP2 = state.childEdges.find((edge) => edge.parentId === "P2" && edge.childId === "C");
+  assert.ok(barisP1);
+  assert.ok(barisP2);
+  assert.equal(barisP1!.orderIndex, 0);
+  assert.equal(barisP2!.orderIndex, 0);
+  assert.equal(barisP1!.orderIndex, barisP2!.orderIndex);
+  assert.equal(state.personChildUpdate.length, 1);
 });
