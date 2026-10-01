@@ -140,13 +140,15 @@ export async function getClassifiedSiblings(personId: string): Promise<SiblingGr
     fatherIds.length > 0
       ? prisma.personChild.findMany({
           where: { parentId: { in: fatherIds }, childId: { not: personId } },
-          select: { childId: true, isStep: true, isAdopted: true, parentRole: true },
+          select: { childId: true, isStep: true, isAdopted: true, parentRole: true, orderIndex: true },
+          orderBy: [{ orderIndex: "asc" }, { childId: "asc" }],
         })
       : Promise.resolve([]),
     motherIds.length > 0
       ? prisma.personChild.findMany({
           where: { parentId: { in: motherIds }, childId: { not: personId } },
-          select: { childId: true, isStep: true, isAdopted: true, parentRole: true },
+          select: { childId: true, isStep: true, isAdopted: true, parentRole: true, orderIndex: true },
+          orderBy: [{ orderIndex: "asc" }, { childId: "asc" }],
         })
       : Promise.resolve([]),
   ]);

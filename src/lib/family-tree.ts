@@ -145,6 +145,7 @@ type Edge = {
   parentRole?: string;
   isStep?: boolean;
   isAdopted?: boolean;
+  orderIndex?: number;
 };
 
 export type TreeDb = {
@@ -343,7 +344,11 @@ async function collectEdges(
 
   for (let depth = 0; depth < maxLevel && frontier.length > 0; depth++) {
     const where = direction === "up" ? { childId: { in: frontier } } : { parentId: { in: frontier } };
-    const edges = await db.personChild.findMany({ where, select: { childId: true, parentId: true } });
+    const edges = await db.personChild.findMany({
+      where,
+      select: { childId: true, parentId: true, orderIndex: true },
+      orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
+    });
     const next: string[] = [];
 
     for (const edge of edges) {
@@ -416,7 +421,10 @@ export async function getFamilyTreeData(
       education: true,
       socialLinks: { include: { platform: true } },
       parents: { include: { parent: true } },
-      children: { include: { child: true } },
+      children: {
+        include: { child: true },
+        orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
+      },
       partnershipsA: { include: { partnerB: true } },
       partnershipsB: { include: { partnerA: true } },
     },

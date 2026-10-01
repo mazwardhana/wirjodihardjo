@@ -53,10 +53,11 @@ export async function GET(request: Request) {
       }
     }
 
-    // Anak-anak (ke bawah)
+    // Anak-anak (ke bawah), posisi x mengikuti nomor urut.
     const children = await prisma.personChild.findMany({
       where: { parentId: id },
-      select: { childId: true, isStep: true, isAdopted: true },
+      select: { childId: true, isStep: true, isAdopted: true, orderIndex: true },
+      orderBy: { orderIndex: "asc" },
     });
 
     for (let i = 0; i < children.length; i++) {

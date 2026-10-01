@@ -188,7 +188,8 @@ export async function GET(request: Request) {
     relation: siblingRelation(roles),
   }));
 
-  // Anak, diurutkan ulang: tanggal lahir paling tua dahulu, tanpa tanggal di akhir.
+  // Anak, diurutkan: orderIndex naik, lalu tanggal lahir paling tua, lalu id.
+  // Tanpa tanggal lahir diletakkan di akhir.
   const childEdges = await prisma.personChild.findMany({
     where: { parentId: person.id },
     include: { child: { select: memberSelect } },
@@ -202,13 +203,16 @@ export async function GET(request: Request) {
       photoUrl: edge.child.photoUrl,
       isDeceased: edge.child.isDeceased,
       birthDate: edge.child.birthDate,
+      orderIndex: edge.orderIndex,
       isStep: edge.isStep,
       isAdopted: edge.isAdopted,
     }))
     .sort((a, b) => {
+      if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex;
       const left = a.birthDate ? new Date(a.birthDate).getTime() : Number.POSITIVE_INFINITY;
       const right = b.birthDate ? new Date(b.birthDate).getTime() : Number.POSITIVE_INFINITY;
-      return left - right;
+      if (left !== right) return left - right;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
     });
 
   // Keturunan selain anak langsung (cucu ke bawah).

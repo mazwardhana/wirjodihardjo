@@ -120,8 +120,8 @@ export async function getFamilyTree(filters?: {
       orderBy: { generationLevel: "asc" },
     }),
     prisma.personChild.findMany({
-      select: { parentId: true, childId: true, parentRole: true, isStep: true, isAdopted: true },
-      orderBy: { createdAt: "asc" },
+      select: { parentId: true, childId: true, parentRole: true, isStep: true, isAdopted: true, orderIndex: true },
+      orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
     }),
     prisma.personPartner.findMany({
       select: { partnerAId: true, partnerBId: true, status: true, marriageDate: true, divorceDate: true, orderIndex: true },
