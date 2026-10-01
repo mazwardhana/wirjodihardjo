@@ -152,6 +152,24 @@ test("siblingsOfGroup mengambil orderIndex terbesar bila baris tidak sinkron", a
   assert.deepEqual(await siblingsOfGroup(["P1", "P2"], db), [{ childId: "X", orderIndex: 4 }]);
 });
 
+test("siblingsOfGroup tidak memasukkan anak yang punya orang tua tambahan di luar grup", async () => {
+  // A dan C berorang tua {P1,P2}; X dan B hanya P1. Memanggil grup {P1} tidak
+  // boleh memasukkan A/C hanya karena baris P1-nya terambil.
+  const { db } = makeDb([
+    { parentId: "P1", childId: "A", orderIndex: 0 },
+    { parentId: "P2", childId: "A", orderIndex: 0 },
+    { parentId: "P1", childId: "C", orderIndex: 1 },
+    { parentId: "P2", childId: "C", orderIndex: 1 },
+    { parentId: "P1", childId: "X", orderIndex: 1 },
+    { parentId: "P1", childId: "B", orderIndex: 2 },
+  ]);
+
+  assert.deepEqual(await siblingsOfGroup(["P1"], db), [
+    { childId: "X", orderIndex: 1 },
+    { childId: "B", orderIndex: 2 },
+  ]);
+});
+
 // ── setChildOrderIndex ───────────────────────────────────────────────────
 
 test("setChildOrderIndex menulis nomor ke semua baris anak", async () => {
@@ -228,6 +246,51 @@ test("moveChild di ujung mengembalikan false dan tidak menulis apa pun", async (
   assert.equal(await moveChild("B", "down", db), false);
   assert.equal(await moveChild("tidak-ada", "up", db), false);
   assert.equal(updates.length, 0);
+});
+
+test("moveChild tidak menyentuh baris anak dua-orang tua dan tidak membuat nomor duplikat", async () => {
+  // A dan C berorang tua {P1,P2}; X dan B hanya P1. Grup X adalah {P1} dengan
+  // urutan X(1), B(2), jadi X sudah di ujung atas dan tidak boleh bergerak.
+  // Sebelum perbaikan, C ikut masuk grup dan X ditukar dengan C sehingga
+  // muncul nomor duplikat.
+  const { db, rows, updates } = makeDb([
+    { parentId: "P1", childId: "A", orderIndex: 0 },
+    { parentId: "P2", childId: "A", orderIndex: 0 },
+    { parentId: "P1", childId: "C", orderIndex: 1 },
+    { parentId: "P2", childId: "C", orderIndex: 1 },
+    { parentId: "P1", childId: "X", orderIndex: 1 },
+    { parentId: "P1", childId: "B", orderIndex: 2 },
+  ]);
+
+  assert.equal(await moveChild("X", "up", db), false);
+  assert.equal(updates.length, 0);
+  assert.equal(orderOf(rows, "P1", "A"), 0);
+  assert.equal(orderOf(rows, "P1", "C"), 1);
+  assert.equal(orderOf(rows, "P2", "C"), 1);
+  assert.equal(orderOf(rows, "P1", "X"), 1);
+  assert.equal(orderOf(rows, "P1", "B"), 2);
+});
+
+test("moveChild down pada anak satu-orang tua tidak menukar dengan anak dua-orang tua", async () => {
+  // Grup X adalah {P1} dengan urutan X(1), B(3). C berorang tua {P1,P2}
+  // tersisip di antara keduanya dan tidak boleh ikut ditukar.
+  const { db, rows, updates } = makeDb([
+    { parentId: "P1", childId: "A", orderIndex: 0 },
+    { parentId: "P2", childId: "A", orderIndex: 0 },
+    { parentId: "P1", childId: "X", orderIndex: 1 },
+    { parentId: "P1", childId: "C", orderIndex: 2 },
+    { parentId: "P2", childId: "C", orderIndex: 2 },
+    { parentId: "P1", childId: "B", orderIndex: 3 },
+  ]);
+
+  assert.equal(await moveChild("X", "down", db), true);
+  // X bertukar dengan B, bukan dengan C.
+  assert.equal(orderOf(rows, "P1", "X"), 3);
+  assert.equal(orderOf(rows, "P1", "B"), 1);
+  // Baris anak dua-orang tua tidak tersentuh.
+  assert.equal(orderOf(rows, "P1", "C"), 2);
+  assert.equal(orderOf(rows, "P2", "C"), 2);
+  assert.equal(updates.length, 2);
 });
 
 test("moveChild memberi nomor unik bila kedua anak bernomor sama", async () => {

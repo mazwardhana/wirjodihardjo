@@ -18,6 +18,11 @@ export type ChildOrderDb = {
   };
 };
 
+/** Klien Prisma dengan `$transaction` untuk membungkus baca-lalu-tulis. */
+type ChildOrderPrisma = ChildOrderDb & {
+  $transaction<T>(fn: (tx: ChildOrderDb) => Promise<T>): Promise<T>;
+};
+
 function resolveDb(db?: ChildOrderDb): ChildOrderDb {
   return db ?? (prisma as unknown as ChildOrderDb);
 }
@@ -30,8 +35,19 @@ export async function siblingsOfGroup(
   const client = resolveDb(db);
   const groupKey = siblingGroupKey(parentIds);
 
-  const rows = await client.personChild.findMany({
+  // 1. Kandidat: anak yang punya salah satu orang tua di grup ini.
+  const candidates = await client.personChild.findMany({
     where: { parentId: { in: parentIds } },
+    select: { childId: true },
+  });
+  const candidateIds = [...new Set(candidates.map((row) => row.childId))];
+  if (candidateIds.length === 0) return [];
+
+  // 2. Ambil SEMUA baris anak-anak kandidat, supaya himpunan orang tua tiap
+  //    anak terlihat lengkap. Tanpa langkah ini, anak dengan orang tua
+  //    tambahan di luar `parentIds` hanya terlihat sebagian dan lolos filter.
+  const rows = await client.personChild.findMany({
+    where: { childId: { in: candidateIds } },
     select: { childId: true, parentId: true, orderIndex: true },
   });
 
@@ -116,18 +132,14 @@ export async function setChildOrderIndex(
 }
 
 /**
- * Tukar posisi anak dengan tetangganya dalam grup, lalu sinkronkan
- * SELURUH baris PersonChild milik kedua anak (ayah dan ibu).
- * `direction` "up" menukar dengan tetangga sebelumnya, "down" dengan sesudahnya.
- * Mengembalikan false bila anak tidak ada atau sudah di ujung.
+ * Inti tukar posisi. Menerima klien (prisma atau tx) supaya pemanggil publik
+ * dapat membungkus seluruh baca-lalu-tulis dalam satu transaksi.
  */
-export async function moveChild(
+async function moveChildWith(
+  client: ChildOrderDb,
   childId: string,
   direction: "up" | "down",
-  db?: ChildOrderDb,
 ): Promise<boolean> {
-  const client = resolveDb(db);
-
   // 1. Himpunan orang tua anak dari seluruh barisnya.
   const ownRows = await client.personChild.findMany({
     where: { childId },
@@ -173,4 +185,24 @@ export async function moveChild(
   }
 
   return true;
+}
+
+/**
+ * Tukar posisi anak dengan tetangganya dalam grup, lalu sinkronkan
+ * SELURUH baris PersonChild milik kedua anak (ayah dan ibu).
+ * `direction` "up" menukar dengan tetangga sebelumnya, "down" dengan sesudahnya.
+ * Mengembalikan false bila anak tidak ada atau sudah di ujung.
+ *
+ * Bila `db` tidak disuntikkan, seluruh baca-lalu-tulis dibungkus satu transaksi
+ * Prisma. Bila `db` disuntikkan (tes), pakai klien itu apa adanya.
+ */
+export async function moveChild(
+  childId: string,
+  direction: "up" | "down",
+  db?: ChildOrderDb,
+): Promise<boolean> {
+  if (db) return moveChildWith(db, childId, direction);
+  return (prisma as unknown as ChildOrderPrisma).$transaction((tx) =>
+    moveChildWith(tx, childId, direction),
+  );
 }
