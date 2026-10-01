@@ -26,6 +26,16 @@ const PLATFORM_BASE: Record<string, string> = {
   tiktok: "https://tiktok.com",
 };
 
+/** Hanya http(s) yang boleh disimpan sebagai tautan sosial. */
+function isHttpUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function extractHandle(input: string): string {
   const raw = input.trim();
   if (!raw) return "";
@@ -97,8 +107,7 @@ export async function POST(request: Request) {
 
   // Jalur lama: platformId + URL lengkap.
   if (parsed.data.platformId) {
-    const urlCheck = z.string().url().safeParse(parsed.data.url);
-    if (!urlCheck.success) {
+    if (!parsed.data.url || !isHttpUrl(parsed.data.url)) {
       return NextResponse.json({ error: "Data tidak valid" }, { status: 400 });
     }
     const platform = await prisma.socialPlatform.findUnique({
@@ -138,7 +147,7 @@ export async function POST(request: Request) {
   }
   const raw = (parsed.data.url ?? parsed.data.username ?? "").trim();
   const built = buildSocialUrl(parsed.data.platform, raw);
-  if (!built.url) {
+  if (!built.url || !isHttpUrl(built.url)) {
     return NextResponse.json({ error: "Data tidak valid" }, { status: 400 });
   }
 

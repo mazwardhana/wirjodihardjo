@@ -121,7 +121,7 @@ export function normalizeWhatsApp(phone: string): string | null {
   return digits;
 }
 
-function isSafeUrl(url: string): boolean {
+export function isSafeUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     return parsed.protocol === "http:" || parsed.protocol === "https:";

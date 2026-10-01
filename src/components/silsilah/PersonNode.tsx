@@ -9,7 +9,7 @@ import {
   FaTiktok,
 } from "react-icons/fa6";
 import { getGenerationLabel } from "@/lib/generations";
-import { calculateAge } from "@/lib/profile";
+import { calculateAge, isSafeUrl } from "@/lib/profile";
 import { initials } from "@/lib/utils";
 import type { PublicPerson } from "@/lib/data";
 
@@ -96,6 +96,9 @@ export function PersonNodeCard({
     .filter(Boolean)
     .join(" · ");
   const age = ageLabel(person);
+  // Tautan sosial dari pohon tidak melewati proyeksi profil, jadi saring
+  // protokol di sini: hanya http(s) yang boleh jadi href.
+  const safeSocialLinks = person.socialLinks.filter((link) => isSafeUrl(link.url));
 
   return (
     <div
@@ -162,9 +165,9 @@ export function PersonNodeCard({
         )}
       </div>
 
-      {person.socialLinks.length > 0 && (
+      {safeSocialLinks.length > 0 && (
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          {person.socialLinks.map((link) => {
+          {safeSocialLinks.map((link) => {
             const Icon = socialIcons[(link.platform.iconName ?? "").toLowerCase()];
             return (
               <a

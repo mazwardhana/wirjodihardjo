@@ -96,6 +96,28 @@ describe("SocialLink API", () => {
     assert.equal(writes.length, 0);
   });
 
+  test("POST menolak URL javascript: pada jalur platformId (400)", async () => {
+    const f = fixture();
+    const route = loadRoute("src/app/api/profil/social/route.ts", f);
+    const response = await route.POST(request("POST", {
+      platformId: "11111111-1111-4111-8111-111111111111",
+      url: "javascript:alert(1)",
+    }));
+    assert.equal(response.status, 400);
+    assert.equal(f.state.writes.length, 0);
+  });
+
+  test("POST menolak URL data: pada jalur platformId (400)", async () => {
+    const f = fixture();
+    const route = loadRoute("src/app/api/profil/social/route.ts", f);
+    const response = await route.POST(request("POST", {
+      platformId: "11111111-1111-4111-8111-111111111111",
+      url: "data:text/html,<script>alert(1)</script>",
+    }));
+    assert.equal(response.status, 400);
+    assert.equal(f.state.writes.length, 0);
+  });
+
   test("POST keeps the legacy platformId path working", async () => {
     const { f } = socialByNameFixture();
     const route = loadRoute("src/app/api/profil/social/route.ts", f);

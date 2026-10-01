@@ -103,6 +103,27 @@ test("kartu tidak menampilkan usia yang terus bertambah untuk wafat tanpa deathD
   assert.ok(markup.includes("Almarhum"), "penanda wafat tetap tampil");
 });
 
+test("kartu tidak merender tautan sosial dengan protokol berbahaya", () => {
+  const markup = renderToStaticMarkup(
+    PersonNodeCard({
+      data: data({
+        person: person({
+          socialLinks: [
+            {
+              id: "l1",
+              url: "javascript:alert(1)",
+              username: null,
+              platform: { name: "Jahat", iconName: "instagram" },
+            },
+          ],
+        }),
+      }),
+    }),
+  );
+  assert.ok(!markup.includes("javascript:alert(1)"), "URL javascript tidak dirender");
+  assert.ok(!markup.includes('href="javascript:'), "tidak ada href javascript");
+});
+
 test("kartu memakai titik fallback bila iconName tidak dikenal", () => {
   const markup = renderToStaticMarkup(
     PersonNodeCard({
