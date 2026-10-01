@@ -210,6 +210,7 @@ model PersonChild {
   parentRole         ParentRole @default(UNKNOWN)
   isAdopted          Boolean    @default(false)
   isStep             Boolean    @default(false)
+  orderIndex         Int        @default(0)
   createdAt          DateTime   @default(now())
   sourceSubmissionId String?
 
@@ -218,6 +219,7 @@ model PersonChild {
   submission Submission? @relation("ChildSubmission", fields: [sourceSubmissionId], references: [id])
 
   @@unique([parentId, childId])
+  @@index([parentId, orderIndex])
   @@index([childId])
   @@index([sourceSubmissionId])
 }
