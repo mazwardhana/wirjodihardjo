@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { resolve } from "node:path";
+import { runInNewContext } from "node:vm";
 import test from "node:test";
+import ts from "typescript";
 import { computeGenerationLevels } from "./generation-levels";
 
 function run(
@@ -144,4 +149,113 @@ test("leluhur dengan anak di dua tingkat memakai anak paling rendah", () => {
 test("akar cabang tanpa anak tetap 1", () => {
   const levels = run(["akar"], [], ["akar"]);
   assert.equal(levels.get("akar"), 1);
+});
+
+// --- getImmediateFamily: urutan anak ---
+
+type Row = Record<string, unknown>;
+type PrismaMock = Record<string, any>;
+
+// Menirukan ORDER BY Prisma pada mock: array { field: "asc" | "desc" }.
+function applyOrderBy(rows: Row[], orderBy: unknown): Row[] {
+  if (!Array.isArray(orderBy)) return rows;
+  return [...rows].sort((a, b) => {
+    for (const clause of orderBy as Array<Record<string, "asc" | "desc">>) {
+      const [field, direction] = Object.entries(clause)[0];
+      const av = a[field] as string | number | Date;
+      const bv = b[field] as string | number | Date;
+      if (av < bv) return direction === "asc" ? -1 : 1;
+      if (av > bv) return direction === "asc" ? 1 : -1;
+    }
+    return 0;
+  });
+}
+
+// Memuat modul genealogy asli ke konteks VM terpisah dengan prisma diganti mock,
+// supaya argumen query dan urutan hasil bisa diperiksa tanpa basis data.
+function loadGenealogyWithPrisma(prisma: PrismaMock) {
+  const abs = resolve("src/lib/genealogy.ts");
+  const output = ts.transpileModule(readFileSync(abs, "utf8"), {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      esModuleInterop: true,
+    },
+  }).outputText;
+  const module = { exports: {} as Record<string, unknown> };
+  const nodeRequire = createRequire(resolve("src/lib/genealogy.ts"));
+  runInNewContext(
+    output,
+    {
+      exports: module.exports,
+      module,
+      require: (id: string) => {
+        if (id === "@/lib/prisma") return { prisma };
+        if (id === "@/lib/generation-levels") return nodeRequire("./generation-levels");
+        return nodeRequire(id);
+      },
+    },
+    { filename: abs },
+  );
+  return module.exports as { getImmediateFamily: (id: string) => Promise<any> };
+}
+
+test("getImmediateFamily mengurutkan anak menurut orderIndex", async () => {
+  const childCalls: Row[] = [];
+  // Sengaja tidak urut, meniru baris yang datang dari basis data tanpa orderBy.
+  const rows = [
+    { childId: "c3", orderIndex: 3, createdAt: new Date("2024-03-03") },
+    { childId: "c1", orderIndex: 1, createdAt: new Date("2024-01-01") },
+    { childId: "c2", orderIndex: 2, createdAt: new Date("2024-02-02") },
+  ];
+
+  const prisma: PrismaMock = {
+    person: {
+      findUnique: async () => ({
+        id: "p1",
+        fullName: "Kepala",
+        nickname: null,
+        photoUrl: null,
+        gender: "MALE",
+        generationLevel: 0,
+        isDeceased: false,
+      }),
+    },
+    personChild: {
+      findMany: async (args: { where: Row; orderBy?: unknown }) => {
+        // Hanya panggilan daftar anak yang dicatat dan diurutkan.
+        if (args.where.parentId === "p1") {
+          childCalls.push(args as Row);
+          return applyOrderBy(rows, args.orderBy).map((row) => ({
+            child: {
+              id: row.childId,
+              fullName: row.childId,
+              nickname: null,
+              photoUrl: null,
+              gender: "MALE",
+              generationLevel: 1,
+              isDeceased: false,
+            },
+          }));
+        }
+        return [];
+      },
+    },
+    personPartner: {
+      findMany: async () => [],
+    },
+  };
+
+  const { getImmediateFamily } = loadGenealogyWithPrisma(prisma);
+  const family = await getImmediateFamily("p1");
+
+  assert.equal(childCalls.length, 1);
+  assert.equal(
+    JSON.stringify(childCalls[0].orderBy),
+    JSON.stringify([{ orderIndex: "asc" }, { createdAt: "asc" }]),
+  );
+  assert.deepEqual(
+    family.children.map((c: { member: { id: string } }) => c.member.id),
+    ["c1", "c2", "c3"],
+  );
 });

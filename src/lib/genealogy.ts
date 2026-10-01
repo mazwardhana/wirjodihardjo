@@ -236,6 +236,7 @@ export async function getImmediateFamily(personId: string) {
     prisma.personChild.findMany({
       where: { parentId: personId },
       include: { child: { select: { id: true, fullName: true, nickname: true, photoUrl: true, gender: true, generationLevel: true, isDeceased: true } } },
+      orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
     }),
   ]);
 
