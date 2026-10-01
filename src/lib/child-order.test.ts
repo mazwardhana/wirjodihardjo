@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   moveChild,
   nextChildOrderIndex,
+  orderIndexForChild,
   siblingGroupKey,
   siblingsOfGroup,
   type ChildOrderDb,
@@ -89,6 +90,35 @@ test("nextChildOrderIndex mengembalikan maksimum tambah satu", async () => {
     { parentId: "P2", childId: "Y", orderIndex: 2 },
   ]);
   assert.equal(await nextChildOrderIndex(["P1", "P2"], db), 3);
+});
+
+// ── orderIndexForChild ───────────────────────────────────────────────────
+
+test("orderIndexForChild mempertahankan nomor anak yang sudah ada di grup", async () => {
+  const { db } = makeDb([
+    { parentId: "P1", childId: "A", orderIndex: 0 },
+    { parentId: "P2", childId: "A", orderIndex: 0 },
+    { parentId: "P1", childId: "B", orderIndex: 1 },
+    { parentId: "P2", childId: "B", orderIndex: 1 },
+  ]);
+
+  // B sudah punya nomor 1 di grup {P1,P2}; nomor itu dipertahankan walau
+  // himpunan orang tua yang dikirim sama.
+  assert.equal(await orderIndexForChild("B", ["P1", "P2"], db), 1);
+  assert.equal(await orderIndexForChild("A", ["P1", "P2"], db), 0);
+});
+
+test("orderIndexForChild memakai nextChildOrderIndex bila anak belum ada di grup", async () => {
+  const { db } = makeDb([
+    { parentId: "P1", childId: "A", orderIndex: 0 },
+    { parentId: "P2", childId: "A", orderIndex: 0 },
+    { parentId: "P1", childId: "X", orderIndex: 5 },
+  ]);
+
+  // X hanya anak P1, bukan anggota grup {P1,P2}; jadi nomor berikutnya 1.
+  assert.equal(await orderIndexForChild("X", ["P1", "P2"], db), 1);
+  // Grup kosong -> 0.
+  assert.equal(await orderIndexForChild("baru", ["P3"], db), 0);
 });
 
 // ── siblingsOfGroup ──────────────────────────────────────────────────────

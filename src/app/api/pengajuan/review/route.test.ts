@@ -35,7 +35,7 @@ type ReviewState = {
   submitterGender: string | null;
   transactionCalls: number;
   partners: Array<{ partnerAId: string; partnerBId: string }>;
-  childEdges: Array<{ parentId: string; childId: string }>;
+  childEdges: Array<{ parentId: string; childId: string; orderIndex?: number }>;
   personCreate: Array<Record<string, any>>;
   personChildCreate: Array<Record<string, any>>;
   personChildUpdate: Array<Record<string, any>>;
@@ -105,7 +105,24 @@ function loadReviewRoute(state: ReviewState): { POST?: Handler } {
       },
       personChild: {
         findFirst: async () => null,
-        findMany: async () => state.childEdges,
+        findMany: async (args: { where?: { parentId?: { in?: string[] } | string; childId?: { in?: string[] } | string } }) => {
+          const where = args?.where ?? {};
+          return state.childEdges.filter((row) => {
+            const parentId = where.parentId;
+            if (typeof parentId === "string" && row.parentId !== parentId) return false;
+            if (parentId && typeof parentId === "object" && !(parentId.in ?? []).includes(row.parentId)) {
+              return false;
+            }
+
+            const childId = where.childId;
+            if (typeof childId === "string" && row.childId !== childId) return false;
+            if (childId && typeof childId === "object" && !(childId.in ?? []).includes(row.childId)) {
+              return false;
+            }
+
+            return true;
+          });
+        },
         count: async () => state.childEdges.length,
         create: async (args: Record<string, any>) => {
           state.personChildCreate.push(args);
@@ -224,6 +241,34 @@ test("ADD_CHILD memakai gender pengaju untuk peran orang tua lalu membaliknya (2
   assert.equal(state.personChildCreate.length, 2);
   assert.equal(state.personChildCreate[0].data.parentRole, "MOTHER");
   assert.equal(state.personChildCreate[1].data.parentRole, "FATHER");
+});
+
+test("ADD_CHILD memberi nomor sama pada baris ayah dan ibu walau ada anak dari relasi lain", async () => {
+  const state = reviewFixture("ADD_CHILD", {
+    parentId: "orang-tua",
+    fullName: "Anak Baru",
+    gender: "MALE",
+  });
+  state.partners = [{ partnerAId: "orang-tua", partnerBId: "ibu" }];
+  // Sudah ada: pasangan punya anak A bernomor 0 di kedua baris, sementara
+  // orang tua punya anak X dari relasi lain bernomor 1. Grup {orang-tua, ibu}
+  // berikutnya adalah 1, dan kedua baris anak baru wajib bernomor sama.
+  state.childEdges = [
+    { parentId: "orang-tua", childId: "anak-a", orderIndex: 0 },
+    { parentId: "ibu", childId: "anak-a", orderIndex: 0 },
+    { parentId: "orang-tua", childId: "anak-x", orderIndex: 1 },
+  ];
+  const route = loadReviewRoute(state);
+
+  const response = await route.POST!(approveRequest());
+
+  assert.equal(response.status, 200);
+  assert.equal(state.personChildCreate.length, 2);
+  const nomorAyah = state.personChildCreate[0].data.orderIndex;
+  const nomorIbu = state.personChildCreate[1].data.orderIndex;
+  assert.equal(nomorAyah, 1);
+  assert.equal(nomorIbu, 1);
+  assert.equal(nomorAyah, nomorIbu);
 });
 
 test("ADD_SPOUSE mengisi branchId pasangan dari anggota (201)", async () => {

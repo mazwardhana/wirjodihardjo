@@ -73,6 +73,23 @@ export async function nextChildOrderIndex(
 }
 
 /**
+ * Nomor urut untuk seorang anak di dalam grup saudaranya, dihitung dari
+ * himpunan orang tua LENGKAP anak itu. Bila anak sudah punya nomor
+ * (orderIndex) di grup tersebut, nomor itu dipertahankan. Bila belum,
+ * memakai nextChildOrderIndex dari grup itu.
+ */
+export async function orderIndexForChild(
+  childId: string,
+  parentIds: string[],
+  db?: ChildOrderDb,
+): Promise<number> {
+  const siblings = await siblingsOfGroup(parentIds, db);
+  const existing = siblings.find((sibling) => sibling.childId === childId);
+  if (existing) return existing.orderIndex;
+  return nextChildOrderIndex(parentIds, db);
+}
+
+/**
  * Tukar posisi anak dengan tetangganya dalam grup, lalu sinkronkan
  * SELURUH baris PersonChild milik kedua anak (ayah dan ibu).
  * `direction` "up" menukar dengan tetangga sebelumnya, "down" dengan sesudahnya.

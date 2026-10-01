@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { recalculateGenerationLevel } from "@/lib/genealogy";
-import { nextChildOrderIndex, type ChildOrderDb } from "@/lib/child-order";
+import { orderIndexForChild, type ChildOrderDb } from "@/lib/child-order";
 import { requireAdminScope, assertPersonAccess, AuthorizationError } from "@/lib/rbac";
 
 const MAX_PARENTS = 2;
@@ -109,12 +109,25 @@ export async function POST(request: Request) {
         if (invalid) {
           return NextResponse.json({ error: invalid }, { status: 409 });
         }
+        // Himpunan orang tua LENGKAP anak, supaya nomor urut dihitung dari
+        // grup saudara sebenarnya, bukan hanya dari satu orang tua.
+        const existingParents = await prisma.personChild.findMany({
+          where: { childId: personId },
+          select: { parentId: true },
+        });
+        const parentIds = [
+          ...new Set([...existingParents.map((row) => row.parentId), targetPersonId]),
+        ];
         await prisma.personChild.create({
           data: {
             parentId: targetPersonId,
             childId: personId,
             parentRole: (role as any) ?? "UNKNOWN",
-            orderIndex: await nextChildOrderIndex([targetPersonId], prisma as unknown as ChildOrderDb),
+            orderIndex: await orderIndexForChild(
+              personId,
+              parentIds,
+              prisma as unknown as ChildOrderDb,
+            ),
           },
         });
         // Satu panggilan cukup: rekalkulasi menghitung seluruh komponen.
@@ -130,12 +143,25 @@ export async function POST(request: Request) {
         if (invalid) {
           return NextResponse.json({ error: invalid }, { status: 409 });
         }
+        // Himpunan orang tua LENGKAP anak, supaya nomor urut dihitung dari
+        // grup saudara sebenarnya, bukan hanya dari satu orang tua.
+        const existingParents = await prisma.personChild.findMany({
+          where: { childId: targetPersonId },
+          select: { parentId: true },
+        });
+        const parentIds = [
+          ...new Set([...existingParents.map((row) => row.parentId), personId]),
+        ];
         await prisma.personChild.create({
           data: {
             parentId: personId,
             childId: targetPersonId,
             parentRole: (role as any) ?? "UNKNOWN",
-            orderIndex: await nextChildOrderIndex([personId], prisma as unknown as ChildOrderDb),
+            orderIndex: await orderIndexForChild(
+              targetPersonId,
+              parentIds,
+              prisma as unknown as ChildOrderDb,
+            ),
           },
         });
         // Satu panggilan cukup: rekalkulasi menghitung seluruh komponen.
@@ -262,12 +288,20 @@ export async function POST(request: Request) {
           });
 
           if (relationType === "parent") {
+            // Orang tua baru ditambah ke himpunan orang tua LENGKAP anak.
+            const existingParents = await tx.personChild.findMany({
+              where: { childId: personId },
+              select: { parentId: true },
+            });
+            const parentIds = [
+              ...new Set([...existingParents.map((row) => row.parentId), created.id]),
+            ];
             await tx.personChild.create({
               data: {
                 parentId: created.id,
                 childId: personId,
                 parentRole: parentRole as any,
-                orderIndex: await nextChildOrderIndex([created.id], tx as ChildOrderDb),
+                orderIndex: await orderIndexForChild(personId, parentIds, tx as ChildOrderDb),
               },
             });
           } else if (relationType === "child") {
@@ -276,7 +310,7 @@ export async function POST(request: Request) {
                 parentId: personId,
                 childId: created.id,
                 parentRole: parentRole as any,
-                orderIndex: await nextChildOrderIndex([personId], tx as ChildOrderDb),
+                orderIndex: await orderIndexForChild(created.id, [personId], tx as ChildOrderDb),
               },
             });
           } else {

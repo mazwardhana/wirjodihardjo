@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { notifySubmissionStatus } from "@/lib/notifications";
 import { recalculateGenerationLevel } from "@/lib/genealogy";
-import { nextChildOrderIndex, type ChildOrderDb } from "@/lib/child-order";
+import { orderIndexForChild, type ChildOrderDb } from "@/lib/child-order";
 
 /** Cek duplikasi sebelum menyetujui. */
 async function cekDuplikasi(payload: Record<string, unknown>, type: string): Promise<string | null> {
@@ -123,6 +123,14 @@ async function applyEditRelation(payload: Record<string, unknown>): Promise<stri
       const invalid = await validateParentChild(parentId, childId);
       if (invalid) throw new Error(invalid);
 
+      // Himpunan orang tua LENGKAP anak, supaya nomor urut dihitung dari
+      // grup saudara sebenarnya, bukan hanya dari satu orang tua.
+      const existingParents = await prisma.personChild.findMany({
+        where: { childId },
+        select: { parentId: true },
+      });
+      const parentIds = [...new Set([...existingParents.map((row) => row.parentId), parentId])];
+
       await prisma.personChild.create({
         data: {
           parentId,
@@ -130,7 +138,11 @@ async function applyEditRelation(payload: Record<string, unknown>): Promise<stri
           parentRole: (role as any) ?? "UNKNOWN",
           isStep: (payload.isStep as boolean) ?? false,
           isAdopted: (payload.isAdopted as boolean) ?? false,
-          orderIndex: await nextChildOrderIndex([parentId], prisma as unknown as ChildOrderDb),
+          orderIndex: await orderIndexForChild(
+            childId,
+            parentIds,
+            prisma as unknown as ChildOrderDb,
+          ),
         },
       });
       try { await recalculateGenerationLevel(childId); } catch { /* non-bloking */ }
@@ -396,6 +408,22 @@ async function applySubmission(
           },
         });
 
+        // Bila orang tua punya tepat satu pasangan, lengkapi orang tua kedua.
+        // Himpunan orang tua LENGKAP dihitung sekali, lalu SATU nomor dipakai
+        // untuk kedua baris anak itu agar tidak berbeda.
+        const partners = await tx.personPartner.findMany({
+          where: { OR: [{ partnerAId: parentId }, { partnerBId: parentId }] },
+          select: { partnerAId: true, partnerBId: true },
+        });
+        const otherParentId =
+          partners.length === 1
+            ? partners[0].partnerAId === parentId
+              ? partners[0].partnerBId
+              : partners[0].partnerAId
+            : null;
+        const parentIds = otherParentId ? [parentId, otherParentId] : [parentId];
+        const orderIndex = await orderIndexForChild(child.id, parentIds, tx as ChildOrderDb);
+
         await tx.personChild.create({
           data: {
             parentId,
@@ -403,19 +431,12 @@ async function applySubmission(
             parentRole: parentRole as any,
             isStep: (payload.isStep as boolean) ?? false,
             isAdopted: (payload.isAdopted as boolean) ?? false,
-            orderIndex: await nextChildOrderIndex([parentId], tx as ChildOrderDb),
+            orderIndex,
             ...(submissionId ? { sourceSubmissionId: submissionId } : {}),
           },
         });
 
-        // Bila orang tua punya tepat satu pasangan, lengkapi orang tua kedua.
-        const partners = await tx.personPartner.findMany({
-          where: { OR: [{ partnerAId: parentId }, { partnerBId: parentId }] },
-          select: { partnerAId: true, partnerBId: true },
-        });
-        if (partners.length === 1) {
-          const otherParentId =
-            partners[0].partnerAId === parentId ? partners[0].partnerBId : partners[0].partnerAId;
+        if (otherParentId) {
           const otherRole =
             parentRole === "FATHER" ? "MOTHER" : parentRole === "MOTHER" ? "FATHER" : "UNKNOWN";
           const duplicate = await tx.personChild.findFirst({
@@ -427,7 +448,7 @@ async function applySubmission(
                 parentId: otherParentId,
                 childId: child.id,
                 parentRole: otherRole as any,
-                orderIndex: await nextChildOrderIndex([otherParentId], tx as ChildOrderDb),
+                orderIndex,
                 ...(submissionId ? { sourceSubmissionId: submissionId } : {}),
               },
             });
