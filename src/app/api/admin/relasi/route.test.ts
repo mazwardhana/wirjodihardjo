@@ -102,6 +102,9 @@ type RelasiState = {
   }>;
   userRole: "SUPER_ADMIN" | "BRANCH_ADMIN";
   branchAdminOf: { id: string } | null;
+  moveChildCalls: Array<{ childId: string; direction: string }>;
+  moveChildResult: boolean;
+  auditCalls: Array<{ action: string; entityId: string; actorUserId: string }>;
 };
 
 function relasiFixture(): RelasiState {
@@ -117,6 +120,9 @@ function relasiFixture(): RelasiState {
     personPartnerCreate: [],
     userRole: "SUPER_ADMIN" as "SUPER_ADMIN" | "BRANCH_ADMIN",
     branchAdminOf: null as { id: string } | null,
+    moveChildCalls: [],
+    moveChildResult: true,
+    auditCalls: [],
   };
 }
 
@@ -210,8 +216,21 @@ function loadRelasiRoute(state: RelasiState): { POST?: Handler } {
 
   const prismaModule = { prisma: prismaPalsu };
   const authModule = { auth: async () => ({ user: { id: "u1" } }) };
-  const auditModule = { logAudit: async () => undefined };
+  const auditModule = {
+    logAudit: async (args: { action: string; entityId: string; actorUserId: string }) => {
+      state.auditCalls.push(args);
+    },
+  };
   const genealogyModule = { recalculateGenerationLevel: async () => null };
+  // Bungkus modul asli: fungsi bantu lain tetap nyata, `moveChild` diganti
+  // spy supaya tes dapat mengamati pemanggilan dan mengatur hasilnya.
+  const childOrderModule = {
+    ...(nodeRequire("@/lib/child-order") as Record<string, unknown>),
+    moveChild: async (childId: string, direction: string) => {
+      state.moveChildCalls.push({ childId, direction });
+      return state.moveChildResult;
+    },
+  };
 
   const rbac = loadModule("src/lib/rbac.ts", (id) =>
     id === "@/lib/prisma" ? prismaModule : nodeRequire(id),
@@ -222,6 +241,7 @@ function loadRelasiRoute(state: RelasiState): { POST?: Handler } {
     if (id === "@/lib/prisma") return prismaModule;
     if (id === "@/lib/audit") return auditModule;
     if (id === "@/lib/genealogy") return genealogyModule;
+    if (id === "@/lib/child-order") return childOrderModule;
     if (id === "@/lib/rbac") return rbac;
     return nodeRequire(id);
   }) as { POST?: Handler };
@@ -400,4 +420,55 @@ test("add parent menyamakan orderIndex baris lama dan baru anak yang sudah ada",
   assert.equal(barisP2!.orderIndex, 0);
   assert.equal(barisP1!.orderIndex, barisP2!.orderIndex);
   assert.equal(state.personChildUpdate.length, 1);
+});
+
+test("reorder-child memanggil moveChild, menulis audit, dan membalas ok (200)", async () => {
+  const state = relasiFixture();
+  state.person = { id: "C", branchId: "cabang-1", gender: "MALE" };
+  const route = loadRelasiRoute(state);
+
+  const response = await route.POST!(
+    postRequest({ action: "reorder-child", childId: "C", direction: "up" }),
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { ok: true });
+  assert.deepEqual(state.moveChildCalls, [{ childId: "C", direction: "up" }]);
+  assert.equal(state.auditCalls.length, 1);
+  assert.equal(state.auditCalls[0].action, "RELATION_REORDER_CHILD");
+  assert.equal(state.auditCalls[0].entityId, "C");
+  assert.equal(state.auditCalls[0].actorUserId, "u1");
+});
+
+test("reorder-child dengan direction tidak valid ditolak dan moveChild tidak dipanggil (400)", async () => {
+  const state = relasiFixture();
+  state.person = { id: "C", branchId: "cabang-1", gender: "MALE" };
+  const route = loadRelasiRoute(state);
+
+  const response = await route.POST!(
+    postRequest({ action: "reorder-child", childId: "C", direction: "kiri" }),
+  );
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error: string };
+  assert.equal(body.error, "childId dan direction (\"up\" atau \"down\") diperlukan");
+  assert.equal(state.moveChildCalls.length, 0);
+  assert.equal(state.auditCalls.length, 0);
+});
+
+test("reorder-child saat moveChild mengembalikan false dibalas 409 (409)", async () => {
+  const state = relasiFixture();
+  state.person = { id: "C", branchId: "cabang-1", gender: "MALE" };
+  state.moveChildResult = false;
+  const route = loadRelasiRoute(state);
+
+  const response = await route.POST!(
+    postRequest({ action: "reorder-child", childId: "C", direction: "down" }),
+  );
+
+  assert.equal(response.status, 409);
+  const body = (await response.json()) as { error: string };
+  assert.equal(body.error, "Anak tidak ditemukan atau sudah berada di urutan paling ujung.");
+  assert.deepEqual(state.moveChildCalls, [{ childId: "C", direction: "down" }]);
+  assert.equal(state.auditCalls.length, 0);
 });

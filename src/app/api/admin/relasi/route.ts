@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { recalculateGenerationLevel } from "@/lib/genealogy";
-import { orderIndexForChild, setChildOrderIndex, type ChildOrderDb } from "@/lib/child-order";
+import { moveChild, orderIndexForChild, setChildOrderIndex, type ChildOrderDb } from "@/lib/child-order";
 import { requireAdminScope, assertPersonAccess, AuthorizationError } from "@/lib/rbac";
 
 const MAX_PARENTS = 2;
@@ -434,6 +434,37 @@ export async function POST(request: Request) {
           },
         });
         return NextResponse.json(note);
+      }
+
+      case "reorder-child": {
+        const childId = body.childId as string;
+        const direction = body.direction as string;
+
+        if (!childId || (direction !== "up" && direction !== "down")) {
+          return NextResponse.json(
+            { error: "childId dan direction (\"up\" atau \"down\") diperlukan" },
+            { status: 400 },
+          );
+        }
+
+        await assertPersonAccess(scope, childId);
+
+        const moved = await moveChild(childId, direction);
+        if (!moved) {
+          return NextResponse.json(
+            { error: "Anak tidak ditemukan atau sudah berada di urutan paling ujung." },
+            { status: 409 },
+          );
+        }
+
+        await logAudit({
+          action: "RELATION_REORDER_CHILD",
+          entityType: "Person",
+          entityId: childId,
+          actorUserId: session.user.id,
+        });
+
+        return NextResponse.json({ ok: true });
       }
 
       default:
