@@ -805,6 +805,7 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
                 </button>
               )}
             </div>
+            <p className="text-xs text-muted">Urutan menentukan posisi kiri ke kanan di silsilah.</p>
 
             {children.length === 0 ? (
               <div className={cardCls}>
@@ -812,7 +813,7 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
               </div>
             ) : (
               <ul className="space-y-2">
-                {children.map((child) => (
+                {children.map((child, index) => (
                   <li
                     key={child.edgeId}
                     className={`${cardCls} flex flex-wrap items-center justify-between gap-2`}
@@ -825,14 +826,46 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
                         {child.isAdopted ? " - Anak angkat" : ""}
                       </span>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => removeRelation("child", child.edgeId)}
-                      disabled={removingEdgeId === child.edgeId}
-                      className="min-h-11 rounded-md px-3 py-2 text-xs font-medium text-wood underline transition-colors hover:bg-wood/10 disabled:opacity-50"
-                    >
-                      Hapus relasi
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label={"Naikkan urutan " + child.fullName}
+                        onClick={() =>
+                          mutate(
+                            { action: "reorder-child", childId: child.id, direction: "up" },
+                            "Urutan anak diperbarui.",
+                          )
+                        }
+                        disabled={saving || removingEdgeId !== null || index === 0}
+                        className="min-h-11 rounded-md px-3 py-2 text-xs font-medium text-wood underline transition-colors hover:bg-wood/10 disabled:opacity-50"
+                      >
+                        Naik
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={"Turunkan urutan " + child.fullName}
+                        onClick={() =>
+                          mutate(
+                            { action: "reorder-child", childId: child.id, direction: "down" },
+                            "Urutan anak diperbarui.",
+                          )
+                        }
+                        disabled={
+                          saving || removingEdgeId !== null || index === children.length - 1
+                        }
+                        className="min-h-11 rounded-md px-3 py-2 text-xs font-medium text-wood underline transition-colors hover:bg-wood/10 disabled:opacity-50"
+                      >
+                        Turun
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeRelation("child", child.edgeId)}
+                        disabled={removingEdgeId === child.edgeId}
+                        className="min-h-11 rounded-md px-3 py-2 text-xs font-medium text-wood underline transition-colors hover:bg-wood/10 disabled:opacity-50"
+                      >
+                        Hapus relasi
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
