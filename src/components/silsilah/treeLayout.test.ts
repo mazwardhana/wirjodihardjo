@@ -63,6 +63,50 @@ function fixture(): FamilyTreeData {
   };
 }
 
+// ── fixture: banyak pernikahan (Yossi dengan 3 pasangan) ────────────────
+// M adalah orang primary, P1..P3 pasangan berurutan orderIndex, C1..C3
+// masing-masing anak dari satu pernikahan berbeda.
+function yossiFixture(): FamilyTreeData {
+  const persons = [
+    person("M", 0),
+    person("P1", 1),
+    person("P2", 1),
+    person("P3", 1),
+    person("C1", 1),
+    person("C2", 1),
+    person("C3", 1),
+  ];
+  const partnerEdges = [
+    { partnerAId: "M", partnerBId: "P1", status: "MARRIED", marriageDate: null, divorceDate: null, orderIndex: 0 },
+    { partnerAId: "M", partnerBId: "P2", status: "MARRIED", marriageDate: null, divorceDate: null, orderIndex: 1 },
+    { partnerAId: "M", partnerBId: "P3", status: "MARRIED", marriageDate: null, divorceDate: null, orderIndex: 2 },
+  ];
+  const childEdges = [
+    { parentId: "M", childId: "C1", parentRole: "FATHER", isStep: false, isAdopted: false },
+    { parentId: "P1", childId: "C1", parentRole: "MOTHER", isStep: false, isAdopted: false },
+    { parentId: "M", childId: "C2", parentRole: "FATHER", isStep: false, isAdopted: false },
+    { parentId: "P2", childId: "C2", parentRole: "MOTHER", isStep: false, isAdopted: false },
+    { parentId: "M", childId: "C3", parentRole: "FATHER", isStep: false, isAdopted: false },
+    { parentId: "P3", childId: "C3", parentRole: "MOTHER", isStep: false, isAdopted: false },
+  ];
+  return { persons, childEdges, partnerEdges };
+}
+
+test("buildTreeGraph menampilkan semua pasangan dan semua anak dari tiap pernikahan", () => {
+  const data = yossiFixture();
+  const { nodes, edges } = buildTreeGraph(data, new Set());
+  const ids = new Set(nodes.map((n) => n.id));
+  for (const id of ["M", "P1", "P2", "P3", "C1", "C2", "C3"]) {
+    assert.ok(ids.has(id), `node ${id} hilang`);
+  }
+  for (const c of ["C1", "C2", "C3"]) {
+    assert.ok(edges.some((e) => e.target === c), `edge ke ${c} hilang`);
+  }
+  // tiga garis pernikahan
+  const partnerEdges = edges.filter((e) => e.id.startsWith("partner-"));
+  assert.equal(partnerEdges.length, 3, "harus ada 3 garis pernikahan");
+});
+
 // ── layout grid: akar tidak lagi berbaris pada satu y ────────────────────
 
 test("buildTreeGraph menyebar akar ke beberapa baris grid", () => {
