@@ -26,6 +26,7 @@ export default async function ProfilPage({ params }: { params: Promise<{ id: str
       branch: { select: { name: true, slug: true } },
       education: { orderBy: { startYear: "desc" }, select: { id: true, institution: true, degree: true, fieldOfStudy: true, startYear: true, endYear: true } },
       socialLinks: { include: { platform: { select: { name: true } } }, orderBy: { createdAt: "desc" } },
+      statuses: { orderBy: { createdAt: "desc" }, take: 20 },
     },
   });
   if (!person) notFound();

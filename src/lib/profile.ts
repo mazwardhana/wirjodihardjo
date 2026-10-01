@@ -38,6 +38,7 @@ type PersonData = {
     email: string | null;
     visibleToMembers: boolean;
   } | null;
+  statuses?: Array<{ id: string; message: string; createdAt: Date }>;
 };
 
 export type PublicProfile = {
@@ -68,6 +69,11 @@ export type PublicProfile = {
     url: string;
     username: string | null;
     platform: { name: string };
+  }>;
+  statuses: Array<{
+    id: string;
+    message: string;
+    createdAt: Date;
   }>;
 };
 
@@ -161,6 +167,11 @@ export function projectPublicProfile(
       endYear: edu.endYear,
     })),
     socialLinks: publicSocialLinks,
+    statuses: (person.statuses || []).map((status) => ({
+      id: status.id,
+      message: status.message,
+      createdAt: status.createdAt,
+    })),
   };
 }
 
