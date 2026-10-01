@@ -239,3 +239,19 @@ test("buildTreeGraph menyembunyikan anak saat induknya collapsed", () => {
   assert.equal((a01.data as { collapsed: boolean }).collapsed, true);
   assert.equal((a01.data as { hasHiddenChildren: boolean }).hasHiddenChildren, true);
 });
+
+test("buildTreeGraph berhenti dan memancarkan kedua node saat silsilah melingkar", () => {
+  // A orang tua B dan B orang tua A. Traversal tidak boleh berputar tanpa
+  // henti; kedua node harus tetap dipancarkan tepat satu kali.
+  const data: FamilyTreeData = {
+    persons: [person("A", 1), person("B", 1)],
+    childEdges: [
+      { parentId: "A", childId: "B", parentRole: "FATHER", isStep: false, isAdopted: false },
+      { parentId: "B", childId: "A", parentRole: "FATHER", isStep: false, isAdopted: false },
+    ],
+    partnerEdges: [],
+  };
+  const { nodes } = buildTreeGraph(data, new Set());
+  const ids = nodes.map((n) => n.id).sort();
+  assert.deepEqual(ids, ["A", "B"]);
+});

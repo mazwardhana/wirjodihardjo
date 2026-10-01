@@ -154,9 +154,9 @@ export default async function SilsilahPage({
                         <p className="font-semibold text-forest transition-colors group-hover:text-gold-deep">
                           {person.fullName}
                         </p>
-                        {person.nickname && (
+                        {(person.namaPanggilan ?? person.nickname) && (
                           <p className="text-xs text-muted">
-                            {person.nickname}
+                            {person.namaPanggilan ?? person.nickname}
                           </p>
                         )}
                         <p className="text-xs text-wood">
