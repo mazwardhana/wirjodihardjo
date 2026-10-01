@@ -44,6 +44,7 @@ export default async function DashboardProfilPage() {
         initial={{
           fullName: person.fullName,
           nickname: person.nickname ?? "",
+          namaPanggilan: person.namaPanggilan ?? "",
           gender: person.gender,
           photoUrl: person.photoUrl,
           birthPlace: person.birthPlace ?? "",

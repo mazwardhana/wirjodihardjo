@@ -22,7 +22,8 @@ export function ProfileCard({ profile, contacts, isMember = false }: {
         <Avatar name={profile.fullName} photoUrl={profile.photoUrl} size="xl" className="shrink-0" />
         <div className="min-w-0">
           <h1 className="font-display text-3xl font-semibold">{profile.fullName}</h1>
-          <p className="mt-1 text-muted">{profile.nickname || "Nama panggilan belum diisi"}</p>
+          <p className="mt-1 text-muted">{profile.namaPanggilan || "Nama panggilan belum diisi"}</p>
+          {profile.nickname && <p className="text-sm text-muted">Nickname: {profile.nickname}</p>}
           <p className="mt-3 font-medium text-wood">{getGenerationLabel(profile.generationLevel)}</p>
           <p className="text-sm text-muted">{profile.branch ? `Keluarga Cabang ${profile.branch.name}` : "Keluarga Cabang belum tercatat"}</p>
           <p className="text-sm text-muted">{profile.isDeceased ? "Almarhum/Almarhumah" : "Masih hidup"}</p>

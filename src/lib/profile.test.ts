@@ -4,7 +4,7 @@ import { calculateAge, projectPublicProfile, projectMemberProfile, normalizeWhat
 
 const now = new Date("2026-09-27T00:00:00Z");
 export const personFixture = {
-  id: "test-person", fullName: "Test profile", nickname: null, gender: "MALE" as const,
+  id: "test-person", fullName: "Test profile", nickname: null, namaPanggilan: null, gender: "MALE" as const,
   birthDate: new Date("1990-09-28T00:00:00Z"), city: "Test city", occupation: null,
   status: null, bio: null, photoUrl: null, generationLevel: 2, isDeceased: false, branch: null,
   education: [], socialLinks: [],

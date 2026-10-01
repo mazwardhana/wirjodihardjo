@@ -5,7 +5,7 @@ import { ProfileCard } from "./ProfileCard";
 import { projectPublicProfile } from "@/lib/profile";
 
 const person = {
-  id: "fixture", fullName: "Profile fixture", nickname: null, gender: "FEMALE" as const,
+  id: "fixture", fullName: "Profile fixture", nickname: null, namaPanggilan: null, gender: "FEMALE" as const,
   birthDate: null, city: null, occupation: null, status: null, bio: null, photoUrl: null,
   generationLevel: null, isDeceased: false, branch: null, private: null,
 };

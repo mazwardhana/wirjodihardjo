@@ -5,6 +5,7 @@ type PersonData = {
   id: string;
   fullName: string;
   nickname: string | null;
+  namaPanggilan: string | null;
   gender: Gender;
   birthDate: Date | null;
   city: string | null;
@@ -43,6 +44,7 @@ export type PublicProfile = {
   id: string;
   fullName: string;
   nickname: string | null;
+  namaPanggilan: string | null;
   gender: Gender;
   age: number | null;
   city: string | null;
@@ -139,6 +141,7 @@ export function projectPublicProfile(
     id: person.id,
     fullName: person.fullName,
     nickname: person.nickname,
+    namaPanggilan: person.namaPanggilan,
     gender: person.gender,
     age: calculateAge(person.birthDate, referenceDate),
     city: person.city,

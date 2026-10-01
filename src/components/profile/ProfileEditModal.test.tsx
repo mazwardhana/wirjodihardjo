@@ -4,6 +4,22 @@ import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createServer } from "node:http";
+import { renderToStaticMarkup } from "react-dom/server";
+import { ProfileEditModal, type ProfileDraft } from "./ProfileEditModal";
+
+test("basic section maps nama panggilan and nickname to separate fields", () => {
+  const initialData: ProfileDraft = {
+    fullName: "Fixture", nickname: "fixture-user", namaPanggilan: "Panggilan sehari-hari",
+    bio: "", occupation: "", status: "", phone: "", whatsapp: "", addressLine: "",
+    city: "", visibleToMembers: false,
+  };
+  const html = renderToStaticMarkup(
+    <ProfileEditModal open initialData={initialData} platforms={[]} onClose={() => {}} onSave={async () => {}} onChanged={() => {}} />
+  );
+  assert.match(html, /Nama panggilan/);
+  assert.match(html, /Nickname \(username\)/);
+  assert.match(html, /value="Panggilan sehari-hari"/);
+});
 
 // Browser dependencies are intentionally external to the application bundle.
 // PLAYWRIGHT_MODULE=/tmp/opencode/ui-tests/node_modules/playwright npx tsx --test <this file>

@@ -9,6 +9,7 @@ import { buttonClass, controlClass } from "./editor-shared";
 export type ProfileFormInitial = {
   fullName: string;
   nickname: string;
+  namaPanggilan: string;
   gender: string;
   photoUrl: string | null;
   birthPlace: string;
@@ -193,6 +194,7 @@ export function ProfileForm({
         body: JSON.stringify({
           fullName: form.fullName,
           nickname: form.nickname,
+          namaPanggilan: form.namaPanggilan,
           gender: form.gender,
           birthPlace: form.birthPlace,
           birthDate: form.birthDate,
@@ -295,6 +297,10 @@ export function ProfileForm({
           </label>
           <label className="min-w-0 text-sm">
             Nama panggilan
+            <input className={controlClass} value={form.namaPanggilan} maxLength={100} onChange={(event) => set("namaPanggilan", event.target.value)} />
+          </label>
+          <label className="min-w-0 text-sm">
+            Nickname (username)
             <input className={controlClass} value={form.nickname} maxLength={100} onChange={(event) => set("nickname", event.target.value)} />
           </label>
           <label className="min-w-0 text-sm">

@@ -19,6 +19,15 @@ describe("Profile Update API", () => {
     assert.equal(personUpdate.status, "Active");
   });
 
+  test("POST persists nama panggilan separately from nickname", async () => {
+    const f = fixture(); const route = loadRoute("src/app/api/profil/update/route.ts", f);
+    const response = await route.POST(request("POST", { nickname: "akun123", namaPanggilan: "Budi" }));
+    assert.equal(response.status, 200);
+    const personUpdate = f.state.writes[0];
+    assert.equal(personUpdate.nickname, "akun123");
+    assert.equal(personUpdate.namaPanggilan, "Budi");
+  });
+
   test("POST rejects occupation over 200 chars", async () => {
     const f = fixture(); const route = loadRoute("src/app/api/profil/update/route.ts", f);
     assert.equal((await route.POST(request("POST", { occupation: "a".repeat(201) }))).status, 400);

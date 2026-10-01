@@ -7,11 +7,11 @@ import { SocialLinksEditor } from "./SocialLinksEditor";
 import { buttonClass, controlClass } from "./editor-shared";
 
 export type ProfileDraft = {
-  fullName: string; nickname: string; bio: string; occupation: string; status: string;
+  fullName: string; nickname: string; namaPanggilan: string; bio: string; occupation: string; status: string;
   phone: string; whatsapp: string; addressLine: string; city: string; visibleToMembers: boolean;
 };
 export type ProfilePlatform = { id: string; name: string };
-const publicFields = [["fullName", "Nama lengkap", 200], ["nickname", "Nama panggilan", 100], ["occupation", "Pekerjaan", 200], ["status", "Status", 500], ["city", "Kota (publik)", 100]] as const;
+const publicFields = [["fullName", "Nama lengkap", 200], ["namaPanggilan", "Nama panggilan", 100], ["nickname", "Nickname (username)", 100], ["occupation", "Pekerjaan", 200], ["status", "Status", 500], ["city", "Kota (publik)", 100]] as const;
 const privateFields = [["phone", "Telepon", 40], ["whatsapp", "WhatsApp", 40], ["addressLine", "Alamat lengkap", 300]] as const;
 
 export function ProfileEditModal({ open, onClose, initialData, onSave, platforms, onChanged }: {

@@ -21,6 +21,10 @@ export function DetailPanel({
   isAuthenticated: boolean;
   onClose: () => void;
 }) {
+  // `namaPanggilan` belum ada di tipe PublicPerson milik workstream Pohon.
+  // Baca lewat cast agar DetailPanel tetap kompilasi di kedua sisi, dengan
+  // fallback ke nickname lama bila kolom baru belum terisi.
+  const namaPanggilan = (person as { namaPanggilan?: string | null }).namaPanggilan ?? person.nickname;
   return (
     <Dialog
       open
@@ -31,8 +35,8 @@ export function DetailPanel({
     >
       <div className="flex items-center gap-4">
         <Avatar name={person.fullName} photoUrl={person.photoUrl} size="lg" />
-        {person.nickname && (
-          <p className="text-sm text-muted">Nama panggilan: {person.nickname}</p>
+        {namaPanggilan && (
+          <p className="text-sm text-muted">Nama panggilan: {namaPanggilan}</p>
         )}
       </div>
 
