@@ -1,5 +1,6 @@
 import { Avatar } from "@/components/ui/Avatar";
 import { getGenerationLabel } from "@/lib/generations";
+import { formatDateTime } from "@/lib/utils";
 import { normalizeWhatsApp, type PublicProfile, type MemberProfile } from "@/lib/profile";
 
 type Contacts = Pick<MemberProfile, "phone" | "whatsapp" | "email" | "addressLine">;
@@ -22,12 +23,37 @@ export function ProfileCard({ profile, contacts, isMember = false }: {
         <Avatar name={profile.fullName} photoUrl={profile.photoUrl} size="xl" className="shrink-0" />
         <div className="min-w-0">
           <h1 className="font-display text-3xl font-semibold">{profile.fullName}</h1>
-          <p className="mt-1 text-muted">{profile.nickname || "Nama panggilan belum diisi"}</p>
+          <p className="mt-1 text-muted">{profile.namaPanggilan || "Nama panggilan belum diisi"}</p>
+          {profile.nickname && <p className="text-sm text-muted">Nickname: {profile.nickname}</p>}
           <p className="mt-3 font-medium text-wood">{getGenerationLabel(profile.generationLevel)}</p>
-          <p className="text-sm text-muted">{profile.branch ? `Cabang ${profile.branch.name}` : "Cabang belum tercatat"}</p>
+          <p className="text-sm text-muted">{profile.branch ? `Keluarga Cabang ${profile.branch.name}` : "Keluarga Cabang belum tercatat"}</p>
           <p className="text-sm text-muted">{profile.isDeceased ? "Almarhum/Almarhumah" : "Masih hidup"}</p>
         </div>
       </header>
+      {profile.statuses.length > 0 && (
+        <section aria-label="Status terkini" className="space-y-3">
+          <div data-testid="status-bubble" className="rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3">
+            <p className="flex gap-2 text-forest">
+              <span aria-hidden="true" className="font-display text-2xl leading-none text-gold-deep">&ldquo;</span>
+              <span className="whitespace-pre-wrap leading-relaxed">{profile.statuses[0].message}</span>
+            </p>
+            <p className="mt-2 text-xs text-muted">{formatDateTime(profile.statuses[0].createdAt)}</p>
+          </div>
+          {isMember && profile.statuses.length > 1 && (
+            <details className="text-sm">
+              <summary className="cursor-pointer text-muted">Riwayat status ({profile.statuses.length})</summary>
+              <ul className="mt-2 space-y-2">
+                {profile.statuses.slice(1).map((status) => (
+                  <li key={status.id} className="rounded-md border border-wood/15 bg-cream px-3 py-2">
+                    <p className="whitespace-pre-wrap text-forest">{status.message}</p>
+                    <p className="mt-1 text-xs text-muted">{formatDateTime(status.createdAt)}</p>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </section>
+      )}
       <dl className="grid gap-x-6 gap-y-4 border-y border-wood/15 py-5 sm:grid-cols-2">
         {details.map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-sm text-muted">{label}</dt><dd className="mt-1">{value || "Belum diisi"}</dd></div>)}
       </dl>

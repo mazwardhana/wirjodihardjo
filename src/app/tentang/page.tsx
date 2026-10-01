@@ -21,7 +21,7 @@ export default function TentangPage() {
         <p>
           Keluarga besar Wirjodihardjo berawal dari pasangan Tn. Wirjodihardjo
           dan Ny. Wirjodihardjo. Sepuluh anak mereka menjadi cikal bakal
-          sepuluh cabang keturunan yang terus bertumbuh lintas generasi.
+          sepuluh keluarga cabang keturunan yang terus bertumbuh lintas generasi.
         </p>
         <p>
           Website ini adalah proyek bersama keluarga untuk mencatat silsilah,

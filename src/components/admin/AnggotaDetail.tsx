@@ -108,7 +108,7 @@ export function AdminAnggotaDetail({
           </h1>
           {person.nickname && <p className="text-sm text-muted">{person.nickname}</p>}
           <p className="mt-1 text-sm text-wood">
-            {person.branch?.name ?? "Tanpa cabang"}
+            {person.branch?.name ?? "Tanpa keluarga cabang"}
             {person.isDeceased && " · Almarhum/Almarhumah"}
           </p>
           {person.deletedAt && (

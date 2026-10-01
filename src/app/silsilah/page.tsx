@@ -19,7 +19,7 @@ export default async function SilsilahPage({
   const session = await auth();
 
   // Tombol Reset di samping kotak cari hanya menghapus kata kunci, sementara
-  // filter cabang/generasi/status tetap dipertahankan (kebalikan dari
+  // filter keluarga cabang/generasi/status tetap dipertahankan (kebalikan dari
   // "Reset filter" di FilterPanel). Dengan begitu kedua kontrol tidak saling
   // menghapus tanpa disadari.
   function clearSearchHref(): string {
@@ -31,7 +31,7 @@ export default async function SilsilahPage({
   }
 
   // Parse filter: `q` hanya memengaruhi daftar hasil pencarian, bukan pohon.
-  // Pohon selalu dirender, disaring hanya oleh cabang, generasi, dan status.
+  // Pohon selalu dirender, disaring hanya oleh keluarga cabang, generasi, dan status.
   const filters = {
     branchId: branchId || undefined,
     generationLevel: generation ? parseInt(generation) : undefined,
@@ -57,7 +57,7 @@ export default async function SilsilahPage({
           </h1>
           <p className="mt-2 max-w-xl text-muted">
             Cari anggota keluarga dan jelajahi pohon silsilah interaktif.
-            Klik simpul untuk detail, klik ganda untuk melipat cabang.
+            Klik simpul untuk detail, klik ganda untuk melipat keluarga cabang.
             Data kontak hanya untuk anggota yang login.
           </p>
         </div>
@@ -107,7 +107,7 @@ export default async function SilsilahPage({
         </div>
 
         {/* Filter aktif harus ikut terkirim, supaya pencarian tidak diam-diam
-            menghapus filter cabang/generasi/status yang sudah dipilih. */}
+            menghapus filter keluarga cabang/generasi/status yang sudah dipilih. */}
         {branchId && <input type="hidden" name="branchId" value={branchId} />}
         {generation && <input type="hidden" name="generation" value={generation} />}
         {deceased !== undefined && (

@@ -45,7 +45,7 @@ export default async function HomePage() {
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted">
               Rumah digital untuk menelusuri silsilah dari pasangan pendiri
               hingga keturunan terkini, menyimpan kenangan bersama, dan
-              menjaga hubungan lintas cabang serta generasi.
+              menjaga hubungan lintas keluarga cabang serta generasi.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link
@@ -90,7 +90,7 @@ export default async function HomePage() {
               },
               {
                 t: "Data yang terjaga",
-                d: "Setiap penambahan anggota melewati persetujuan admin cabang, sehingga pohon tetap akurat.",
+                d: "Setiap penambahan anggota melewati persetujuan admin keluarga cabang, sehingga pohon tetap akurat.",
               },
               {
                 t: "Kenangan bersama",
@@ -126,13 +126,13 @@ export default async function HomePage() {
           {total <= 2 ? (
             <EmptyState
               title="Belum ada keturunan tercatat"
-              description="Silsilah masih menunggu pengisian awal oleh admin cabang."
+              description="Silsilah masih menunggu pengisian awal oleh admin keluarga cabang."
             />
           ) : (
             <>
               <div className="mt-10 flex flex-wrap items-end gap-x-10 gap-y-6">
                 <Stat value={total} label="Anggota tercatat" />
-                <Stat value={branches.length} label="Cabang keturunan" />
+                <Stat value={branches.length} label="Keluarga Cabang keturunan" />
                 <Stat
                   value={maxGen}
                   label={`Generasi terjauh (${getGenerationLabel(maxGen)})`}
@@ -160,14 +160,14 @@ export default async function HomePage() {
         </div>
       </SectionReveal>
 
-      {/* ── CABANG ── */}
+      {/* ── KELUARGA CABANG ── */}
       {branches.length > 0 && (
         <SectionReveal className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <h2 className="font-display text-3xl font-semibold text-forest sm:text-4xl">
-            Cabang keturunan
+            Keluarga Cabang keturunan
           </h2>
           <p className="mt-3 max-w-2xl text-muted">
-            Setiap cabang berakar pada salah satu anak pasangan pendiri.
+            Setiap keluarga cabang berakar pada salah satu anak pasangan pendiri.
           </p>
 
           <BranchGrid>
@@ -258,7 +258,7 @@ function TreeMotif({ branchCount }: { branchCount: number }) {
       viewBox="0 0 320 300"
       className="w-full"
       role="img"
-      aria-label="Ilustrasi pohon keluarga dengan dua pendiri dan cabang keturunannya"
+      aria-label="Ilustrasi pohon keluarga dengan dua pendiri dan keluarga cabang keturunannya"
     >
       <g stroke="#8a6238" strokeOpacity="0.5" strokeWidth="1.5" fill="none">
         {Array.from({ length: kids }).map((_, i) => (

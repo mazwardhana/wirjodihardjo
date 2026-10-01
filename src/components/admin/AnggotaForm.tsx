@@ -134,15 +134,15 @@ export function AnggotaForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label htmlFor="branchId" className={labelCls}>Cabang</label>
+          <label htmlFor="branchId" className={labelCls}>Keluarga Cabang</label>
           <select id="branchId" value={form.branchId} onChange={(e) => set("branchId", e.target.value)} className={inputCls} required={lockBranch}>
-            {!lockBranch && <option value="">Tanpa cabang</option>}
+            {!lockBranch && <option value="">Tanpa keluarga cabang</option>}
             {branches.map((b) => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
           </select>
           {lockBranch && (
-            <p className="mt-1 text-xs text-muted">Anggota baru otomatis masuk cabang Anda.</p>
+            <p className="mt-1 text-xs text-muted">Anggota baru otomatis masuk keluarga cabang Anda.</p>
           )}
         </div>
         <div>

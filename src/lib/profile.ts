@@ -5,6 +5,7 @@ type PersonData = {
   id: string;
   fullName: string;
   nickname: string | null;
+  namaPanggilan: string | null;
   gender: Gender;
   birthDate: Date | null;
   city: string | null;
@@ -37,12 +38,14 @@ type PersonData = {
     email: string | null;
     visibleToMembers: boolean;
   } | null;
+  statuses?: Array<{ id: string; message: string; createdAt: Date }>;
 };
 
 export type PublicProfile = {
   id: string;
   fullName: string;
   nickname: string | null;
+  namaPanggilan: string | null;
   gender: Gender;
   age: number | null;
   city: string | null;
@@ -66,6 +69,11 @@ export type PublicProfile = {
     url: string;
     username: string | null;
     platform: { name: string };
+  }>;
+  statuses: Array<{
+    id: string;
+    message: string;
+    createdAt: Date;
   }>;
 };
 
@@ -139,6 +147,7 @@ export function projectPublicProfile(
     id: person.id,
     fullName: person.fullName,
     nickname: person.nickname,
+    namaPanggilan: person.namaPanggilan,
     gender: person.gender,
     age: calculateAge(person.birthDate, referenceDate),
     city: person.city,
@@ -158,6 +167,11 @@ export function projectPublicProfile(
       endYear: edu.endYear,
     })),
     socialLinks: publicSocialLinks,
+    statuses: (person.statuses || []).map((status) => ({
+      id: status.id,
+      message: status.message,
+      createdAt: status.createdAt,
+    })),
   };
 }
 

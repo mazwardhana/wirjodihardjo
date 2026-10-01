@@ -28,7 +28,7 @@ export function BranchCard({ branch, className }: BranchCardProps) {
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold focus-visible:outline-offset-2",
         className
       )}
-      aria-label={`Lihat silsilah cabang ${branch.name}, ${memberCount} anggota`}
+      aria-label={`Lihat silsilah keluarga cabang ${branch.name}, ${memberCount} anggota`}
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-lg bg-parchment">
         <Image

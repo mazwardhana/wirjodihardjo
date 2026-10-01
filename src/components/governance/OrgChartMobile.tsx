@@ -22,7 +22,7 @@ function PersonCard({
         <p className="truncate text-xs text-muted">{person.occupation ?? positionName}</p>
         {person.branch && (
           <p className="truncate text-xs text-wood/70">
-            Cabang {person.branch.branchNumber}: {person.branch.name}
+            Keluarga Cabang {person.branch.branchNumber}: {person.branch.name}
           </p>
         )}
       </div>
@@ -117,9 +117,9 @@ export function OrgChartMobile({ data }: { data: OrgChartData }) {
           <details className="group rounded-lg border border-wood/20">
             <summary className="flex cursor-pointer items-center justify-between gap-2 bg-parchment/40 px-4 py-3 font-display text-sm font-semibold text-forest transition-colors hover:bg-parchment/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
               <span>
-                Perwakilan Cabang
+                Perwakilan Keluarga Cabang
                 <span className="ml-2 text-xs font-normal text-muted">
-                  ({data.branches.filter((b) => b.slot1 || b.slot2).length}/{data.branches.length} cabang)
+                  ({data.branches.filter((b) => b.slot1 || b.slot2).length}/{data.branches.length} keluarga cabang)
                 </span>
               </span>
               <svg
@@ -137,7 +137,7 @@ export function OrgChartMobile({ data }: { data: OrgChartData }) {
                 <details key={branch.id} className="group/branch">
                   <summary className="flex cursor-pointer items-center justify-between gap-2 rounded-md border border-wood/10 bg-cream px-3 py-2 text-sm font-semibold text-forest transition-colors hover:bg-parchment/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
                     <span>
-                      Cabang {branch.branchNumber}: {branch.name}
+                      Keluarga Cabang {branch.branchNumber}: {branch.name}
                       <span className="ml-2 text-xs font-normal text-muted">
                         ({[branch.slot1, branch.slot2].filter(Boolean).length}/2)
                       </span>

@@ -72,7 +72,7 @@ export function PenggunaForm({ persons, onSuccess, onCancel }: {
         <label htmlFor="role" className={labelCls}>Peran</label>
         <select id="role" value={role} onChange={(e) => setRole(e.target.value)} className={inputCls}>
           <option value="MEMBER">Anggota</option>
-          <option value="BRANCH_ADMIN">Admin Cabang</option>
+          <option value="BRANCH_ADMIN">Admin Keluarga Cabang</option>
           <option value="SUPER_ADMIN">Super Admin</option>
         </select>
       </div>

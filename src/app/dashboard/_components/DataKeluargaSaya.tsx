@@ -123,7 +123,7 @@ function BranchBlock({ branch, genLabel }: { branch: BranchRef; genLabel: string
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted">
-              Cabang Keluarga
+              Keluarga Cabang
             </p>
             <p className="mt-1 font-display text-lg font-semibold text-forest">
               {branch.name}
@@ -131,7 +131,7 @@ function BranchBlock({ branch, genLabel }: { branch: BranchRef; genLabel: string
             <p className="text-sm text-muted">{genLabel}</p>
           </div>
           <Link href={`/silsilah?branchId=${branch.id}`} className={linkAccentClass}>
-            Lihat pohon cabang ini
+            Lihat pohon keluarga cabang ini
           </Link>
         </div>
       </div>
@@ -139,9 +139,9 @@ function BranchBlock({ branch, genLabel }: { branch: BranchRef; genLabel: string
   }
   return (
     <div className="mt-4 rounded-lg border border-gold/40 bg-gold/10 px-4 py-4">
-      <p className="font-medium text-forest">Cabang belum ditetapkan</p>
+      <p className="font-medium text-forest">Keluarga Cabang belum ditetapkan</p>
       <p className="text-sm text-muted">
-        Penetapan cabang dilakukan oleh admin. Lengkapi profil Anda, atau
+        Penetapan keluarga cabang dilakukan oleh admin. Lengkapi profil Anda, atau
         jelajahi seluruh silsilah keluarga.
       </p>
       <div className="mt-3 flex flex-wrap gap-3">
@@ -161,7 +161,7 @@ function BranchBlock({ branch, genLabel }: { branch: BranchRef; genLabel: string
  * Data keluarga diambil lewat helper `getImmediateFamily` dan
  * `getClassifiedSiblings` (lihat src/lib/genealogy.ts); panel ini hanya
  * merender hasilnya. Hanya menampilkan data publik (nama, foto, generasi,
- * cabang, bio) tanpa menyentuh data kontak privat.
+ * keluarga cabang, bio) tanpa menyentuh data kontak privat.
  */
 export function DataKeluargaSaya({ person, family, siblings }: DataKeluargaSayaProps) {
   if (!person) {
@@ -202,7 +202,7 @@ export function DataKeluargaSaya({ person, family, siblings }: DataKeluargaSayaP
             Data Keluarga Saya
           </h2>
           <p className="text-sm text-muted">
-            {branch ? `Cabang ${branch.name}` : "Cabang belum ditetapkan"} · {genLabel}
+            {branch ? `Keluarga Cabang ${branch.name}` : "Keluarga Cabang belum ditetapkan"} · {genLabel}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -210,7 +210,7 @@ export function DataKeluargaSaya({ person, family, siblings }: DataKeluargaSayaP
             Lihat profil lengkap
           </Link>
           <Link href={branch ? `/silsilah?branchId=${branch.id}` : "/silsilah"} className={linkClass}>
-            {branch ? "Jelajahi silsilah cabang saya" : "Jelajahi silsilah"}
+            {branch ? "Jelajahi silsilah keluarga cabang saya" : "Jelajahi silsilah"}
           </Link>
         </div>
       </div>

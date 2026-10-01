@@ -25,13 +25,13 @@ export function CabangCreateModal() {
         onClick={() => setOpen(true)}
         className="min-h-11 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft"
       >
-        Tambah Cabang
+        Tambah Keluarga Cabang
       </button>
       <Dialog
         open={open}
         onClose={handleCancel}
-        title="Tambah Cabang Baru"
-        description="Buat cabang keluarga baru untuk mengelompokkan anggota berdasarkan wilayah atau garis keluarga."
+        title="Tambah Keluarga Cabang Baru"
+        description="Buat keluarga cabang baru untuk mengelompokkan anggota berdasarkan wilayah atau garis keluarga."
         size="lg"
       >
         <CabangForm mode="create" onSuccess={handleSuccess} onCancel={handleCancel} />

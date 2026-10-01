@@ -8,7 +8,7 @@ import { PenggunaCreateModal } from "./PenggunaCreateModal";
 
 const roleOptions = [
   { value: "SUPER_ADMIN", label: "Super Admin" },
-  { value: "BRANCH_ADMIN", label: "Admin Cabang" },
+  { value: "BRANCH_ADMIN", label: "Admin Keluarga Cabang" },
   { value: "MEMBER", label: "Anggota" },
 ];
 

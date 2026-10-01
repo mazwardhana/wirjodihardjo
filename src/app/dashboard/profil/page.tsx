@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { ProfileForm } from "@/components/profile/ProfileForm";
+import { StatusEditor } from "@/components/profile/StatusEditor";
 import { getGenerationLabel } from "@/lib/generations";
 
 function isoDate(value: Date | null) {
@@ -20,6 +21,7 @@ export default async function DashboardProfilPage() {
           private: true,
           branch: { select: { name: true } },
           socialLinks: { include: { platform: { select: { name: true } } } },
+          statuses: { orderBy: { createdAt: "desc" }, take: 20 },
         },
       },
     },
@@ -36,14 +38,24 @@ export default async function DashboardProfilPage() {
         </h1>
         <p className="mt-1 text-sm text-muted">
           {getGenerationLabel(person.generationLevel)}
-          {person.branch ? ` · Cabang ${person.branch.name}` : ""}
+          {person.branch ? ` · Keluarga Cabang ${person.branch.name}` : ""}
         </p>
       </header>
+
+      <StatusEditor
+        personId={person.id}
+        initialStatuses={person.statuses.map((status) => ({
+          id: status.id,
+          message: status.message,
+          createdAt: status.createdAt.toISOString(),
+        }))}
+      />
 
       <ProfileForm
         initial={{
           fullName: person.fullName,
           nickname: person.nickname ?? "",
+          namaPanggilan: person.namaPanggilan ?? "",
           gender: person.gender,
           photoUrl: person.photoUrl,
           birthPlace: person.birthPlace ?? "",

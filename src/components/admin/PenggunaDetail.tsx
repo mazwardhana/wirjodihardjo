@@ -94,7 +94,7 @@ export function PenggunaDetail({ user }: { user: any }) {
               className="rounded-md border border-wood/25 bg-cream px-3 py-1.5 text-sm text-forest focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30"
             >
               <option value="MEMBER">Anggota</option>
-              <option value="BRANCH_ADMIN">Admin Cabang</option>
+              <option value="BRANCH_ADMIN">Admin Keluarga Cabang</option>
               <option value="SUPER_ADMIN">Super Admin</option>
             </select>
             {branchAdminOf && <span className="ml-2 text-xs text-muted">· {branchAdminOf.name}</span>}

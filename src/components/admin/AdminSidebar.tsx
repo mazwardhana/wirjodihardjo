@@ -8,7 +8,7 @@ const menu = [
   { href: "/admin", label: "Overview", icon: "◉", role: "ALL" as const },
   { href: "/admin/pengajuan", label: "Pengajuan", icon: "⊞", role: "ALL" as const },
   { href: "/admin/anggota", label: "Data Anggota", icon: "⊡", role: "ALL" as const },
-  { href: "/admin/cabang", label: "Cabang", icon: "⊟", role: "SUPER_ONLY" as const },
+  { href: "/admin/cabang", label: "Keluarga Cabang", icon: "⊟", role: "SUPER_ONLY" as const },
   { href: "/admin/keluarga", label: "Keluarga", icon: "⊕", role: "ALL" as const },
   { href: "/admin/galeri", label: "Galeri", icon: "⊠", role: "ALL" as const },
   { href: "/admin/hall-of-fame", label: "Hall of Fame", icon: "★", role: "ALL" as const },
@@ -24,7 +24,7 @@ const CABANG_SEGMENT = "/admin/keluarga/cabang";
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/admin") return pathname === "/admin";
-  // "Cabang" nav entry lights on both the legacy /admin/cabang route (which now
+  // "Keluarga Cabang" nav entry lights on both the legacy /admin/cabang route (which now
   // redirects to the unified segment) and the unified /admin/keluarga/cabang segment.
   if (href === CABANG_HREF) {
     return (
@@ -35,7 +35,7 @@ function isActive(pathname: string, href: string): boolean {
     );
   }
   // "Keluarga" stays exclusive: do not light when the unified cabang segment
-  // is active, since that belongs to the "Cabang" entry.
+  // is active, since that belongs to the "Keluarga Cabang" entry.
   if (href === "/admin/keluarga") {
     const inCabangSegment =
       pathname === CABANG_SEGMENT || pathname.startsWith(`${CABANG_SEGMENT}/`);
@@ -59,7 +59,7 @@ export function AdminSidebar({ role, fullName }: { role: string; fullName: strin
         <div>
           <p className="text-sm font-semibold text-forest">Admin</p>
           <p className="text-[10px] uppercase tracking-wide text-muted">
-            {role === "SUPER_ADMIN" ? "Super Admin" : "Admin Cabang"}
+            {role === "SUPER_ADMIN" ? "Super Admin" : "Admin Keluarga Cabang"}
           </p>
         </div>
       </div>

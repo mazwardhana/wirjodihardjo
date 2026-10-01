@@ -38,8 +38,9 @@ const actionLabels: Record<string, string> = {
   REUNION_DELETE: "Hapus Reuni",
   SUBMISSION_APPROVE: "Setujui Pengajuan",
   SUBMISSION_REJECT: "Tolak Pengajuan",
-  BRANCH_CREATE: "Tambah Cabang",
-  BRANCH_UPDATE: "Ubah Cabang",
+  BRANCH_CREATE: "Tambah Keluarga Cabang",
+  BRANCH_UPDATE: "Ubah Keluarga Cabang",
+  CREATE_STATUS: "Perbarui Status",
   LOGIN: "Login",
 };
 

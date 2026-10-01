@@ -43,8 +43,8 @@ export default async function AdminKeluargaCabangPage({
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="font-display text-3xl font-semibold text-forest">Kelola Cabang</h1>
-          <p className="mt-1 text-sm text-muted">{branches.length} cabang tercatat</p>
+          <h1 className="font-display text-3xl font-semibold text-forest">Kelola Keluarga Cabang</h1>
+          <p className="mt-1 text-sm text-muted">{branches.length} keluarga cabang tercatat</p>
         </div>
         <CabangCreateModal />
       </div>
@@ -53,7 +53,7 @@ export default async function AdminKeluargaCabangPage({
         <FilterBar
           config={{
             search: {
-              placeholder: "Cari nama cabang...",
+              placeholder: "Cari nama keluarga cabang...",
               param: "q",
             },
           }}
@@ -64,8 +64,8 @@ export default async function AdminKeluargaCabangPage({
         <div className="mt-12 rounded-lg border border-dashed border-wood/20 bg-parchment/40 p-12 text-center">
           <p className="text-sm text-muted">
             {q
-              ? "Tidak ada cabang yang cocok dengan pencarian."
-              : "Belum ada cabang. Buat cabang pertama untuk mulai mengelola anggota keluarga berdasarkan cabang."}
+              ? "Tidak ada keluarga cabang yang cocok dengan pencarian."
+              : "Belum ada keluarga cabang. Buat keluarga cabang pertama untuk mulai mengelola anggota keluarga berdasarkan keluarga cabang."}
           </p>
           <div className="mt-6">
             {q ? (

@@ -100,7 +100,7 @@ export default async function AdminAnggotaPage({
             description={
               q
                 ? "Tidak ada anggota yang cocok dengan pencarian."
-                : "Belum ada anggota tercatat pada cabang ini."
+                : "Belum ada anggota tercatat pada keluarga cabang ini."
             }
             action={
               q ? (
@@ -126,7 +126,7 @@ export default async function AdminAnggotaPage({
               <tr className="border-b border-wood/15 bg-parchment/40 text-xs font-medium uppercase tracking-wide text-muted">
                 <th className="px-4 py-3">Anggota</th>
                 <th className="px-4 py-3">Generasi</th>
-                <th className="px-4 py-3">Cabang</th>
+                <th className="px-4 py-3">Keluarga Cabang</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Akun</th>
                 <th className="px-4 py-3">Aksi</th>

@@ -14,6 +14,7 @@ const schema = z.object({
   personId: z.string().max(100).optional(),
   fullName: z.string().min(1).max(200).optional(),
   nickname: z.string().max(100).optional(),
+  namaPanggilan: z.string().max(100).optional(),
   bio: z.string().max(2000).optional(),
   occupation: z.string().max(200).optional(),
   status: z.string().max(500).optional(),
@@ -80,6 +81,7 @@ export async function POST(request: Request) {
     data: {
       ...(data.fullName !== undefined && { fullName: data.fullName }),
       ...(data.nickname !== undefined && { nickname: nullable(data.nickname) }),
+      ...(data.namaPanggilan !== undefined && { namaPanggilan: nullable(data.namaPanggilan) }),
       ...(data.bio !== undefined && { bio: nullable(data.bio) }),
       ...(data.occupation !== undefined && { occupation: nullable(data.occupation) }),
       ...(data.status !== undefined && { status: nullable(data.status) }),

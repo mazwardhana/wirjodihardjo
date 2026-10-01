@@ -21,11 +21,12 @@ export default async function ProfilPage({ params }: { params: Promise<{ id: str
   const person = await prisma.person.findFirst({
     where: { id, deletedAt: null, ...(isMember ? {} : { isPublicProfile: true }) },
     select: {
-      id: true, fullName: true, nickname: true, gender: true, birthDate: true,
+      id: true, fullName: true, nickname: true, namaPanggilan: true, gender: true, birthDate: true,
       occupation: true, status: true, bio: true, photoUrl: true, generationLevel: true, isDeceased: true,
       branch: { select: { name: true, slug: true } },
       education: { orderBy: { startYear: "desc" }, select: { id: true, institution: true, degree: true, fieldOfStudy: true, startYear: true, endYear: true } },
       socialLinks: { include: { platform: { select: { name: true } } }, orderBy: { createdAt: "desc" } },
+      statuses: { orderBy: { createdAt: "desc" }, take: 20 },
     },
   });
   if (!person) notFound();
