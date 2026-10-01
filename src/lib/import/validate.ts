@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 const GENDERS: Gender[] = ["MALE", "FEMALE", "OTHER"];
 const NICKNAME_MIN = 2;
 const NICKNAME_MAX = 50;
+const NAMA_PANGGILAN_MAX = 100;
 const PASSWORD_MIN = 8;
 
 const GENDER_ALIASES: Record<string, Gender> = {
@@ -120,7 +121,8 @@ export async function validateImportData(data: ParsedData): Promise<ValidationRe
     const rowNo = row._row ?? index + 2;
     const rawBranch = row.cabangKe?.trim() ?? "";
     const namaLengkap = row.namaLengkap?.trim() ?? "";
-    const nickname = row.namaPanggilan?.trim() ?? "";
+    const nickname = row.nickname?.trim() ?? "";
+    const namaPanggilan = row.namaPanggilan?.trim() ?? "";
     const password = row.password?.trim() ?? "";
     const passwordHash = row.passwordHash?.trim() ?? "";
     const rawGender = row.jenisKelamin as unknown as string | undefined;
@@ -171,6 +173,15 @@ export async function validateImportData(data: ParsedData): Promise<ValidationRe
       });
     }
 
+    if (namaPanggilan.length > NAMA_PANGGILAN_MAX) {
+      errors.push({
+        sheet: "Data",
+        row: rowNo,
+        field: "nama panggilan",
+        message: `Nama panggilan maksimal ${NAMA_PANGGILAN_MAX} karakter.`,
+      });
+    }
+
     // Pada commit password sudah berbentuk hash sehingga panjangnya tidak bisa
     // dicek ulang; hash yang kosong berarti data batch tidak lengkap.
     if (!password && !passwordHash) {
@@ -215,7 +226,8 @@ export async function validateImportData(data: ParsedData): Promise<ValidationRe
       _row: rowNo,
       cabangKe: rawBranch,
       namaLengkap,
-      namaPanggilan: nickname || undefined,
+      nickname: nickname || undefined,
+      namaPanggilan: namaPanggilan || undefined,
       password: password || undefined,
       jenisKelamin: gender ?? "OTHER",
       tempatLahir: row.tempatLahir?.trim() || undefined,
