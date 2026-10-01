@@ -171,7 +171,7 @@ export function RegistrationButton({
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Contohnya: rombongan dari cabang Semarang, butuh kursi anak."
+            placeholder="Contohnya: rombongan dari keluarga cabang Semarang, butuh kursi anak."
             className="mt-1 block w-full rounded-md border border-wood/30 bg-parchment/40 px-4 py-2.5 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
           />
         </div>

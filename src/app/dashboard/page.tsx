@@ -70,7 +70,7 @@ export default async function DashboardPage() {
             {user.role === "SUPER_ADMIN"
               ? "Super Admin"
               : user.role === "BRANCH_ADMIN"
-                ? "Admin Cabang"
+                ? "Admin Keluarga Cabang"
                 : "Anggota"}
           </p>
         </div>
@@ -130,7 +130,7 @@ export default async function DashboardPage() {
             <AdminLink href="/admin/reuni" label="Kelola Reuni" />
             {user.role === "SUPER_ADMIN" && (
               <>
-                <AdminLink href="/admin/cabang" label="Cabang" />
+                <AdminLink href="/admin/cabang" label="Keluarga Cabang" />
                 <AdminLink href="/admin/pengguna" label="Pengguna" />
                 <AdminLink href="/admin/audit-log" label="Audit Log" />
               </>

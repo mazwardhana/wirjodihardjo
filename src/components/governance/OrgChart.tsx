@@ -62,7 +62,7 @@ function PersonCard({
         <p className="truncate text-xs text-muted">{person.occupation ?? positionName}</p>
         {person.branch && (
           <p className="truncate text-xs text-wood/70">
-            Cabang {person.branch.branchNumber}: {person.branch.name}
+            Keluarga Cabang {person.branch.branchNumber}: {person.branch.name}
           </p>
         )}
       </div>
@@ -154,13 +154,13 @@ export function OrgChart({ data }: { data: OrgChartData }) {
         <div className="mt-10 w-full max-w-5xl">
           <div className="motif-divider mb-6" aria-hidden="true" />
           <h3 className="mb-6 text-center font-display text-lg font-semibold text-forest">
-            Perwakilan Cabang
+            Perwakilan Keluarga Cabang
           </h3>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.branches.map((branch) => (
               <div key={branch.id} className="rounded-lg border border-wood/20 bg-cream p-4">
                 <h4 className="mb-3 font-display text-sm font-semibold text-forest">
-                  Cabang {branch.branchNumber}: {branch.name}
+                  Keluarga Cabang {branch.branchNumber}: {branch.name}
                 </h4>
                 <div className="space-y-2">
                   {branch.slot1 && branch.slot1.person ? (

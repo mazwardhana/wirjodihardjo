@@ -32,7 +32,7 @@ export default async function AdminKeluargaCabangDetailPage({
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-      <h1 className="font-display text-3xl font-semibold text-forest">Kelola Cabang</h1>
+      <h1 className="font-display text-3xl font-semibold text-forest">Kelola Keluarga Cabang</h1>
       <p className="mt-1 text-sm text-muted">
         {branch.name} &middot; {branch._count.members} anggota
       </p>

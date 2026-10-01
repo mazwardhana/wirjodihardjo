@@ -59,7 +59,7 @@ export default async function PengurusPage() {
       select: { id: true, name: true, branchNumber: true },
     }),
 
-    // Perwakilan cabang aktif. `branch: true` dihapus karena hanya `branchId`
+    // Perwakilan keluarga cabang aktif. `branch: true` dihapus karena hanya `branchId`
     // yang dipakai; relasi penuh tidak pernah dirender.
     prisma.branchRepresentative.findMany({
       where: {

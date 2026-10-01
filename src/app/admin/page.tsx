@@ -46,7 +46,7 @@ export default async function AdminOverviewPage() {
         <Card label="Anggota Hidup" value={String(anggotaHidup)} />
         <Card label="Almarhum/Almarhumah" value={String(anggotaWafat)} />
         <Card label="Pengajuan Tertunda" value={String(pendingPengajuan)} highlight />
-        <Card label="Cabang Aktif" value={String(totalCabang)} />
+        <Card label="Keluarga Cabang Aktif" value={String(totalCabang)} />
         <Card label="Pengguna Terdaftar" value={String(totalPengguna)} />
       </div>
     </div>

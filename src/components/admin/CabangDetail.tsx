@@ -117,7 +117,7 @@ export function CabangDetail({ branch }: { branch: BranchDetail }) {
     setError(null);
 
     if (!name.trim()) {
-      setError("Nama cabang wajib diisi.");
+      setError("Nama keluarga cabang wajib diisi.");
       return;
     }
 
@@ -138,12 +138,12 @@ export function CabangDetail({ branch }: { branch: BranchDetail }) {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as { error?: string }).error ?? "Gagal menyimpan cabang");
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? "Gagal menyimpan keluarga cabang");
 
-      toast("success", "Cabang berhasil diperbarui.");
+      toast("success", "Keluarga Cabang berhasil diperbarui.");
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal menyimpan cabang");
+      setError(e instanceof Error ? e.message : "Gagal menyimpan keluarga cabang");
     } finally {
       setSaving(false);
     }
@@ -162,7 +162,7 @@ export function CabangDetail({ branch }: { branch: BranchDetail }) {
         throw new Error((d as { error?: string }).error ?? "Gagal mengubah status");
       }
       setIsActive(newActive);
-      toast("success", newActive ? "Cabang diaktifkan." : "Cabang dinonaktifkan.");
+      toast("success", newActive ? "Keluarga Cabang diaktifkan." : "Keluarga Cabang dinonaktifkan.");
       router.refresh();
     } catch (e) {
       toast("error", e instanceof Error ? e.message : "Gagal mengubah status");
@@ -174,9 +174,9 @@ export function CabangDetail({ branch }: { branch: BranchDetail }) {
       {/* Status toggle */}
       <div className="flex items-center justify-between rounded-md border border-wood/20 bg-parchment/40 p-4">
         <div>
-          <p className="text-sm font-medium text-forest">Status Cabang</p>
+          <p className="text-sm font-medium text-forest">Status Keluarga Cabang</p>
           <p className="text-xs text-muted">
-            {isActive ? "Cabang aktif dan ditampilkan" : "Cabang tidak aktif"}
+            {isActive ? "Keluarga Cabang aktif dan ditampilkan" : "Keluarga Cabang tidak aktif"}
           </p>
         </div>
         <button
@@ -194,7 +194,7 @@ export function CabangDetail({ branch }: { branch: BranchDetail }) {
 
       {/* Name & Description */}
       <div>
-        <label htmlFor="name" className={labelCls}>Nama Cabang</label>
+        <label htmlFor="name" className={labelCls}>Nama Keluarga Cabang</label>
         <input
           id="name"
           value={name}
@@ -212,7 +212,7 @@ export function CabangDetail({ branch }: { branch: BranchDetail }) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className={inputCls}
-          placeholder="Deskripsi cabang (opsional)"
+          placeholder="Deskripsi keluarga cabang (opsional)"
         />
       </div>
 
@@ -224,7 +224,7 @@ export function CabangDetail({ branch }: { branch: BranchDetail }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={coverImageUrl}
-              alt="Sampul cabang"
+              alt="Sampul keluarga cabang"
               className="h-32 w-48 rounded-md border border-wood/20 object-cover"
             />
           ) : (
@@ -277,7 +277,7 @@ export function CabangDetail({ branch }: { branch: BranchDetail }) {
 
       {/* Root person search */}
       <div>
-        <span className={labelCls}>Akar Cabang (Root Person)</span>
+        <span className={labelCls}>Akar Keluarga Cabang (Root Person)</span>
         {rootPerson ? (
           <div className="mt-1 flex items-center justify-between gap-3 rounded-md border border-wood/30 bg-parchment/40 px-4 py-2.5">
             <span className="text-sm font-medium text-forest">{rootPerson.fullName}</span>
@@ -307,7 +307,7 @@ export function CabangDetail({ branch }: { branch: BranchDetail }) {
                 }
               }}
               placeholder="Ketik minimal 2 huruf..."
-              aria-label="Cari anggota untuk dijadikan akar cabang"
+              aria-label="Cari anggota untuk dijadikan akar keluarga cabang"
               className={inputCls}
             />
             {searchingRoot && <p className="mt-1 text-xs text-muted">Mencari...</p>}
@@ -339,7 +339,7 @@ export function CabangDetail({ branch }: { branch: BranchDetail }) {
 
       {/* Admin search */}
       <div>
-        <span className={labelCls}>Admin Cabang</span>
+        <span className={labelCls}>Admin Keluarga Cabang</span>
         {admin ? (
           <div className="mt-1 flex items-center justify-between gap-3 rounded-md border border-wood/30 bg-parchment/40 px-4 py-2.5">
             <div>
@@ -372,7 +372,7 @@ export function CabangDetail({ branch }: { branch: BranchDetail }) {
                 }
               }}
               placeholder="Ketik minimal 2 huruf..."
-              aria-label="Cari pengguna untuk dijadikan admin cabang"
+              aria-label="Cari pengguna untuk dijadikan admin keluarga cabang"
               className={inputCls}
             />
             {searchingAdmin && <p className="mt-1 text-xs text-muted">Mencari...</p>}

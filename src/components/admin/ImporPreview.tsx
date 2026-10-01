@@ -42,7 +42,7 @@ export function ImporPreview({ batchId, filename, errors, warnings, counts, cred
     ],
   }));
   
-  const columns = ["Cabang", "Nama Lengkap", "Jenis Kelamin", "Nickname", "Tanggal Lahir", "Kota Domisili", "No. Telepon"];
+  const columns = ["Keluarga Cabang", "Nama Lengkap", "Jenis Kelamin", "Nickname", "Tanggal Lahir", "Kota Domisili", "No. Telepon"];
   const invalidRows = new Set(errors.map((entry) => entry.row));
   const pageSize = 20;
 

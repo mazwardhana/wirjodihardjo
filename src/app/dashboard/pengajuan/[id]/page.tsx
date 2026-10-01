@@ -56,7 +56,7 @@ const PAYLOAD_LABELS: Record<string, string> = {
   personId: "ID Anggota Terkait",
   targetPersonId: "ID Anggota Target",
   edgeId: "ID Relasi",
-  branchId: "ID Cabang",
+  branchId: "ID Keluarga Cabang",
   fullName: "Nama Lengkap",
   nickname: "Nama Panggilan",
   gender: "Jenis Kelamin",

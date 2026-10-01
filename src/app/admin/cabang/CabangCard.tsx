@@ -21,14 +21,14 @@ export function CabangCard({ branch }: { branch: Branch }) {
   const router = useRouter();
 
   async function handleDeactivate() {
-    if (!confirm(`Nonaktifkan cabang "${branch.name}"? Data anggota tetap tersimpan.`)) return;
+    if (!confirm(`Nonaktifkan keluarga cabang "${branch.name}"? Data anggota tetap tersimpan.`)) return;
     try {
       const res = await fetch(`/api/admin/cabang?id=${branch.id}`, { method: "DELETE" });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         throw new Error((d as { error?: string }).error ?? "Gagal menonaktifkan");
       }
-      toast("success", "Cabang dinonaktifkan.");
+      toast("success", "Keluarga Cabang dinonaktifkan.");
       router.refresh();
     } catch (e) {
       toast("error", e instanceof Error ? e.message : "Gagal menonaktifkan");
@@ -46,7 +46,7 @@ export function CabangCard({ branch }: { branch: Branch }) {
         const d = await res.json().catch(() => ({}));
         throw new Error((d as { error?: string }).error ?? "Gagal mengaktifkan");
       }
-      toast("success", "Cabang diaktifkan.");
+      toast("success", "Keluarga Cabang diaktifkan.");
       router.refresh();
     } catch (e) {
       toast("error", e instanceof Error ? e.message : "Gagal mengaktifkan");

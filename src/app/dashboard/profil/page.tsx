@@ -36,7 +36,7 @@ export default async function DashboardProfilPage() {
         </h1>
         <p className="mt-1 text-sm text-muted">
           {getGenerationLabel(person.generationLevel)}
-          {person.branch ? ` · Cabang ${person.branch.name}` : ""}
+          {person.branch ? ` · Keluarga Cabang ${person.branch.name}` : ""}
         </p>
       </header>
 

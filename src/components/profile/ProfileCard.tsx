@@ -24,7 +24,7 @@ export function ProfileCard({ profile, contacts, isMember = false }: {
           <h1 className="font-display text-3xl font-semibold">{profile.fullName}</h1>
           <p className="mt-1 text-muted">{profile.nickname || "Nama panggilan belum diisi"}</p>
           <p className="mt-3 font-medium text-wood">{getGenerationLabel(profile.generationLevel)}</p>
-          <p className="text-sm text-muted">{profile.branch ? `Cabang ${profile.branch.name}` : "Cabang belum tercatat"}</p>
+          <p className="text-sm text-muted">{profile.branch ? `Keluarga Cabang ${profile.branch.name}` : "Keluarga Cabang belum tercatat"}</p>
           <p className="text-sm text-muted">{profile.isDeceased ? "Almarhum/Almarhumah" : "Masih hidup"}</p>
         </div>
       </header>

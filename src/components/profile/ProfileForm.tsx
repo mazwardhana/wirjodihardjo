@@ -552,7 +552,7 @@ function ParentPicker({
           </select>
         </label>
         <label className="min-w-0 text-sm">
-          Cari nama dari cabang yang sama
+          Cari nama dari keluarga cabang yang sama
           <input
             className={controlClass}
             value={query}

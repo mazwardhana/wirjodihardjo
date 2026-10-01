@@ -41,7 +41,7 @@ export function DetailPanel({
           label="Generasi"
           value={getGenerationLabel(person.generationLevel)}
         />
-        {person.branch && <Row label="Cabang" value={person.branch.name} />}
+        {person.branch && <Row label="Keluarga Cabang" value={person.branch.name} />}
         <Row
           label="Status"
           value={person.isDeceased ? "Almarhum/Almarhumah" : "Masih hidup"}

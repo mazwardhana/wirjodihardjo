@@ -18,7 +18,7 @@ export type PenggunaListUser = {
 
 const roleLabels: Record<PenggunaListUser["role"], string> = {
   SUPER_ADMIN: "Super Admin",
-  BRANCH_ADMIN: "Admin Cabang",
+  BRANCH_ADMIN: "Admin Keluarga Cabang",
   MEMBER: "Anggota",
 };
 

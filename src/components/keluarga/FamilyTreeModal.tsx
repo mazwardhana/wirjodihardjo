@@ -332,7 +332,7 @@ function ParentPicker({
                 searchRef.current?.search(value);
               }}
               onFocus={() => setOpen(true)}
-              placeholder="Ketik nama anggota cabang ini..."
+              placeholder="Ketik nama anggota keluarga cabang ini..."
               className={inputCls}
             />
             {open && showResults && (searching || searchError === null) && (
@@ -461,7 +461,7 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
       const res = await fetch(buildParentSearchUrl(branchId, q), { signal });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? "Gagal mencari anggota cabang");
+        throw new Error(body.error ?? "Gagal mencari anggota keluarga cabang");
       }
       const body = (await res.json()) as { members?: BranchMember[] };
       return body.members ?? [];
@@ -618,14 +618,14 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
         </div>
       ) : data ? (
         <div className="space-y-5">
-          {/* 1. Info cabang */}
+          {/* 1. Info keluarga cabang */}
           <section className="rounded-lg border border-gold/40 bg-gold/10 p-4">
-            <p className="text-xs uppercase tracking-wide text-gold-deep">Data Keluarga cabang mana?</p>
+            <p className="text-xs uppercase tracking-wide text-gold-deep">Data keluarga cabang mana?</p>
             <p className="mt-1 font-display text-lg font-semibold text-forest">
-              {data.branch ? data.branch.name : "Cabang tidak diketahui"}
+              {data.branch ? data.branch.name : "Keluarga Cabang tidak diketahui"}
             </p>
             <p className="text-sm text-muted">
-              {data.branch ? `Cabang nomor ${data.branch.branchNumber}` : "Anggota ini belum terikat cabang."}
+              {data.branch ? `Keluarga Cabang nomor ${data.branch.branchNumber}` : "Anggota ini belum terikat keluarga cabang."}
             </p>
             <p className="mt-2 text-sm text-forest">
               Anggota: <span className="font-semibold">{data.person.fullName}</span>
@@ -643,7 +643,7 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
             <h3 className={sectionTitleCls}>Orang tua</h3>
             <ParentPicker
               title="Masukan nama ayah"
-              hint="Cari anggota dari cabang yang sama, lalu pilih untuk menetapkan relasi ayah. Bila belum ada di data, buat anggota baru."
+              hint="Cari anggota dari keluarga cabang yang sama, lalu pilih untuk menetapkan relasi ayah. Bila belum ada di data, buat anggota baru."
               role="FATHER"
               currentValue={father}
               busy={busyRole === "FATHER"}
@@ -656,7 +656,7 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
             />
             <ParentPicker
               title="Masukan nama ibu"
-              hint="Cari anggota dari cabang yang sama, lalu pilih untuk menetapkan relasi ibu. Bila belum ada di data, buat anggota baru."
+              hint="Cari anggota dari keluarga cabang yang sama, lalu pilih untuk menetapkan relasi ibu. Bila belum ada di data, buat anggota baru."
               role="MOTHER"
               currentValue={mother}
               busy={busyRole === "MOTHER"}

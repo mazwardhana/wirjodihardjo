@@ -153,7 +153,7 @@ export function KeluargaDashboard({
 
         if (!statsRes.ok) {
           const body = (await statsRes.json().catch(() => ({}))) as { error?: string };
-          throw new Error(body.error ?? "Gagal memuat statistik cabang");
+          throw new Error(body.error ?? "Gagal memuat statistik keluarga cabang");
         }
         if (!membersRes.ok) {
           const body = (await membersRes.json().catch(() => ({}))) as { error?: string };
@@ -201,7 +201,7 @@ export function KeluargaDashboard({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `anggota-keluarga-${branch?.slug ?? "cabang"}.csv`;
+    link.download = `anggota-keluarga-${branch?.slug ?? "keluarga-cabang"}.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -216,22 +216,22 @@ export function KeluargaDashboard({
         <div>
           <h1 className="font-display text-3xl font-semibold text-forest">Keluarga</h1>
           <p className="mt-1 text-sm text-muted">
-            Dashboard anggota per cabang beserta status pohon keluarganya.
+            Dashboard anggota per keluarga cabang beserta status pohon keluarganya.
           </p>
         </div>
 
         {isSuperAdmin && (
           <label className="flex items-center gap-2 text-sm text-muted">
-            <span>Cabang</span>
+            <span>Keluarga Cabang</span>
             <select
               value={branchId}
               onChange={(event) => setBranchId(event.target.value)}
-              aria-label="Pilih cabang"
+              aria-label="Pilih keluarga cabang"
               className={selectCls}
             >
               {branchOptions.map((option) => (
                 <option key={option.id} value={option.id}>
-                  Cabang {option.branchNumber} - {option.name}
+                  Keluarga Cabang {option.branchNumber} - {option.name}
                 </option>
               ))}
             </select>
@@ -245,12 +245,12 @@ export function KeluargaDashboard({
         </p>
       )}
 
-      {/* Info cabang (nama, admin, akar, jumlah) hidup di /admin/keluarga/cabang; di sini cukup pointer. */}
+      {/* Info keluarga cabang (nama, admin, akar, jumlah) hidup di /admin/keluarga/cabang; di sini cukup pointer. */}
       {isSuperAdmin && (
         <p className="mt-6 text-sm text-muted">
-          Info dan pengaturan cabang ada di{" "}
+          Info dan pengaturan keluarga cabang ada di{" "}
           <Link href="/admin/keluarga/cabang" className="underline hover:text-forest">
-            Kelola Cabang
+            Kelola Keluarga Cabang
           </Link>
           .
         </p>

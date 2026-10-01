@@ -100,7 +100,7 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
     setError(null);
 
     if (!name.trim()) {
-      setError("Nama cabang wajib diisi.");
+      setError("Nama keluarga cabang wajib diisi.");
       return;
     }
 
@@ -130,9 +130,9 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as { error?: string }).error ?? "Gagal menyimpan cabang");
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? "Gagal menyimpan keluarga cabang");
 
-      toast("success", mode === "create" ? "Cabang berhasil dibuat." : "Cabang berhasil diperbarui.");
+      toast("success", mode === "create" ? "Keluarga Cabang berhasil dibuat." : "Keluarga Cabang berhasil diperbarui.");
       if (onSuccess) {
         onSuccess();
       } else {
@@ -140,7 +140,7 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
         router.refresh();
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal menyimpan cabang");
+      setError(e instanceof Error ? e.message : "Gagal menyimpan keluarga cabang");
     } finally {
       setSaving(false);
     }
@@ -149,14 +149,14 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
       <div>
-        <label htmlFor="name" className={labelCls}>Nama Cabang</label>
+        <label htmlFor="name" className={labelCls}>Nama Keluarga Cabang</label>
         <input
           id="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
           className={inputCls}
-          placeholder="Contoh: Cabang Jakarta"
+          placeholder="Contoh: Keluarga Cabang Jakarta"
         />
       </div>
 
@@ -168,7 +168,7 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className={inputCls}
-          placeholder="Cerita singkat tentang cabang ini (opsional)"
+          placeholder="Cerita singkat tentang keluarga cabang ini (opsional)"
         />
       </div>
 
@@ -179,7 +179,7 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={coverImageUrl}
-              alt="Pratinjau sampul cabang"
+              alt="Pratinjau sampul keluarga cabang"
               className="h-32 w-48 rounded-md border border-wood/20 object-cover"
             />
           ) : (
@@ -231,9 +231,9 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
 
       {mode === "create" && (
         <fieldset className="space-y-3">
-          <legend className={labelCls}>Akar cabang (generasi 1)</legend>
+          <legend className={labelCls}>Akar keluarga cabang (generasi 1)</legend>
           <p className="text-xs text-muted">
-            Kosongkan bila belum tahu. Anggota inilah yang memulai garis keturunan cabang ini.
+            Kosongkan bila belum tahu. Anggota inilah yang memulai garis keturunan keluarga cabang ini.
           </p>
 
           <div className="flex flex-wrap gap-4">
@@ -384,7 +384,7 @@ export function CabangForm({ initial, mode, onSuccess, onCancel }: BranchFormPro
           disabled={saving}
           className="min-h-11 rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
-          {saving ? "Menyimpan..." : mode === "create" ? "Buat Cabang" : "Simpan Perubahan"}
+          {saving ? "Menyimpan..." : mode === "create" ? "Buat Keluarga Cabang" : "Simpan Perubahan"}
         </button>
         <button
           type="button"

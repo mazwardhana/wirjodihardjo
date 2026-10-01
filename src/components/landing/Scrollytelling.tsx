@@ -15,12 +15,12 @@ const BABAK = [
   {
     title: "Pasangan Pendiri",
     subtitle: "Awal dari segalanya",
-    body: "Tn. & Ny. Wirjodihardjo memulai perjalanan keluarga yang kelak akan menjadi sebuah trah besar. Dari tangan dan doa mereka, lahir sepuluh anak yang menjadi cabang-cabang pertama keluarga.",
+    body: "Tn. & Ny. Wirjodihardjo memulai perjalanan keluarga yang kelak akan menjadi sebuah trah besar. Dari tangan dan doa mereka, lahir sepuluh anak yang menjadi keluarga cabang pertama.",
   },
   {
-    title: "Sepuluh Cabang",
+    title: "Sepuluh Keluarga Cabang",
     subtitle: "Bermula dari satu pohon",
-    body: "Sepuluh anak masing-masing membentuk garis keturunan baru. Setiap cabang tumbuh mandiri namun tetap terikat dalam satu akar yang sama — prinsip yang masih dijaga hingga keturunan sekarang.",
+    body: "Sepuluh anak masing-masing membentuk garis keturunan baru. Setiap keluarga cabang tumbuh mandiri namun tetap terikat dalam satu akar yang sama — prinsip yang masih dijaga hingga keturunan sekarang.",
   },
   {
     title: "Pertumbuhan Generasi",
@@ -154,7 +154,7 @@ function BabakIllustration({ babak }: { babak: number }) {
       );
     case 1:
       return (
-        <svg viewBox="0 0 200 140" className="h-44 sm:h-56" role="img" aria-label="Pohon dengan sepuluh cabang">
+        <svg viewBox="0 0 200 140" className="h-44 sm:h-56" role="img" aria-label="Pohon dengan sepuluh keluarga cabang">
           {Array.from({ length: 10 }).map((_, i) => {
             const x = 20 + i * 18;
             return (

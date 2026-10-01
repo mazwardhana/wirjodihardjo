@@ -255,7 +255,7 @@ export function MemberDetailModal({ personId, onClose }: MemberDetailModalProps)
                   : "Disembunyikan oleh pemilik data"}
               </InfoRow>
               <InfoRow label="Pekerjaan">{person.occupation || "-"}</InfoRow>
-              <InfoRow label="Cabang">
+              <InfoRow label="Keluarga Cabang">
                 {data.branch ? `${data.branch.name} (nomor ${data.branch.branchNumber})` : "-"}
               </InfoRow>
               <InfoRow label="Generasi">

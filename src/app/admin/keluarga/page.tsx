@@ -20,7 +20,7 @@ export default async function AdminKeluargaPage({
 
   const sp = await searchParams;
 
-  // BRANCH_ADMIN: terkunci ke cabang yang ditugaskan. Tanpa penugasan -> tanpa data.
+  // BRANCH_ADMIN: terkunci ke keluarga cabang yang ditugaskan. Tanpa penugasan -> tanpa data.
   if (scope.role === "BRANCH_ADMIN") {
     if (!scope.branchId) {
       return (
@@ -29,7 +29,7 @@ export default async function AdminKeluargaPage({
           <div className="mt-6 rounded-lg border border-dashed border-wood/30 p-12 text-center">
             <p className="text-sm font-semibold text-forest">Akses ditolak</p>
             <p className="mt-2 text-sm text-muted">
-              Akun Anda belum ditugaskan ke satu cabang. Hubungi Super Admin untuk penugasan cabang.
+              Akun Anda belum ditugaskan ke satu keluarga cabang. Hubungi Super Admin untuk penugasan keluarga cabang.
             </p>
           </div>
         </div>
@@ -45,7 +45,7 @@ export default async function AdminKeluargaPage({
     );
   }
 
-  // SUPER_ADMIN: pilih cabang.
+  // SUPER_ADMIN: pilih keluarga cabang.
   const branches = await prisma.branch.findMany({
     orderBy: { branchNumber: "asc" },
     select: { id: true, name: true, branchNumber: true },
@@ -57,13 +57,13 @@ export default async function AdminKeluargaPage({
         <h1 className="font-display text-2xl font-semibold text-forest">Keluarga</h1>
         <div className="mt-6 rounded-lg border border-dashed border-wood/30 p-12 text-center">
           <p className="text-sm text-muted">
-            Belum ada cabang. Buat cabang terlebih dahulu untuk mulai mengelola anggota keluarga.
+            Belum ada keluarga cabang. Buat keluarga cabang terlebih dahulu untuk mulai mengelola anggota keluarga.
           </p>
           <Link
             href="/admin/keluarga/cabang"
             className="mt-6 inline-flex min-h-11 items-center rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
-            Buat Cabang
+            Buat Keluarga Cabang
           </Link>
         </div>
       </div>

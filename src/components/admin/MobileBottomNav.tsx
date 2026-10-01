@@ -20,7 +20,7 @@ const primaryItems: AdminNavItem[] = [
 ];
 
 const overflowItems: AdminNavItem[] = [
-  { href: "/admin/cabang", label: "Cabang", icon: "⊟", role: "SUPER_ONLY" },
+  { href: "/admin/cabang", label: "Keluarga Cabang", icon: "⊟", role: "SUPER_ONLY" },
   { href: "/admin/keluarga", label: "Keluarga", icon: "⊕", role: "ALL" },
   { href: "/admin/galeri", label: "Galeri", icon: "⊠", role: "ALL" },
   { href: "/admin/hall-of-fame", label: "Hall of Fame", icon: "★", role: "ALL" },
@@ -36,7 +36,7 @@ const CABANG_SEGMENT = "/admin/keluarga/cabang";
 
 function isActive(pathname: string, href: string) {
   if (href === "/admin") return pathname === "/admin";
-  // Sama seperti sidebar: entri "Cabang" menyala juga di segmen terpadu.
+  // Sama seperti sidebar: entri "Keluarga Cabang" menyala juga di segmen terpadu.
   if (href === CABANG_HREF) {
     return (
       pathname === CABANG_HREF ||
@@ -45,7 +45,7 @@ function isActive(pathname: string, href: string) {
       pathname.startsWith(`${CABANG_SEGMENT}/`)
     );
   }
-  // "Keluarga" eksklusif: jangan menyala di segmen cabang terpadu.
+  // "Keluarga" eksklusif: jangan menyala di segmen keluarga cabang terpadu.
   if (href === "/admin/keluarga") {
     const inCabangSegment =
       pathname === CABANG_SEGMENT || pathname.startsWith(`${CABANG_SEGMENT}/`);

@@ -14,9 +14,9 @@ export default async function AdminCabangBaruPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-      <h1 className="font-display text-3xl font-semibold text-forest">Tambah Cabang Baru</h1>
+      <h1 className="font-display text-3xl font-semibold text-forest">Tambah Keluarga Cabang Baru</h1>
       <p className="mt-1 text-sm text-muted">
-        Buat cabang keluarga baru untuk mengelompokkan anggota berdasarkan wilayah atau garis keluarga.
+        Buat keluarga cabang baru untuk mengelompokkan anggota berdasarkan wilayah atau garis keluarga.
       </p>
       <div className="mt-8">
         <CabangForm mode="create" />
