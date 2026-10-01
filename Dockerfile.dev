@@ -11,7 +11,10 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
-# Prisma client di-generate tanpa koneksi DB.
+# Prisma client di-generate tanpa koneksi DB. Schema dan konfigurasi Prisma
+# harus ada lebih dulu karena `prisma generate` membacanya.
+COPY prisma ./prisma
+COPY prisma.config.ts ./
 ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
 RUN npx prisma generate
 
