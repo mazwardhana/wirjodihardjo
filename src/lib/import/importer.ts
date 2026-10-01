@@ -209,7 +209,7 @@ async function applyData(
     }
 
     if (!row.branchId) {
-      rowError("Data", rowNo, "kode cabang keluarga", `Cabang '${row.cabangKe}' tidak ditemukan`);
+      rowError("Data", rowNo, "kode cabang keluarga", `Keluarga Cabang '${row.cabangKe}' tidak ditemukan`);
     }
     if (!row.passwordHash) {
       rowError(

@@ -112,7 +112,7 @@ test("unknown branch reports Indonesian row error", async () => {
   const branchError = result.errors.find((error) => error.field === "kode cabang keluarga");
   assert.ok(branchError, "harus ada error cabang");
   assert.strictEqual(branchError.row, 7);
-  assert.match(branchError.message, /^Cabang 'Tidak Ada' tidak ditemukan$/);
+  assert.match(branchError.message, /^Keluarga Cabang 'Tidak Ada' tidak ditemukan$/);
 });
 
 test("inactive branch is reported as not found", async () => {
@@ -120,7 +120,7 @@ test("inactive branch is reported as not found", async () => {
   assert.strictEqual(result.valid, false);
   assert.ok(
     result.errors.some(
-      (error) => error.field === "kode cabang keluarga" && error.message === "Cabang '9' tidak ditemukan",
+      (error) => error.field === "kode cabang keluarga" && error.message === "Keluarga Cabang '9' tidak ditemukan",
     ),
   );
 });

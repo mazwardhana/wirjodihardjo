@@ -20,7 +20,7 @@ const BABAK = [
   {
     title: "Sepuluh Keluarga Cabang",
     subtitle: "Bermula dari satu pohon",
-    body: "Sepuluh anak masing-masing membentuk garis keturunan baru. Setiap keluarga cabang tumbuh mandiri namun tetap terikat dalam satu akar yang sama — prinsip yang masih dijaga hingga keturunan sekarang.",
+    body: "Sepuluh anak masing-masing membentuk garis keturunan baru. Setiap keluarga cabang tumbuh mandiri namun tetap terikat dalam satu akar yang sama, prinsip yang masih dijaga hingga keturunan sekarang.",
   },
   {
     title: "Pertumbuhan Generasi",

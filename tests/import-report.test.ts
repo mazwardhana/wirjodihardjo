@@ -53,12 +53,12 @@ test("spreadsheet formulas are escaped in credentials and errors", () => {
 test("error CSV keeps Indonesian column labels and row numbers", () => {
   const rows = parse(
     generateErrorCSV([
-      { sheet: "Data", row: 7, field: "kode cabang keluarga", message: "Cabang 'X' tidak ditemukan" },
+      { sheet: "Data", row: 7, field: "kode cabang keluarga", message: "Keluarga Cabang 'X' tidak ditemukan" },
     ]),
     { columns: true },
   ) as Row[];
   assert.equal(rows[0]["Sheet"], "Data");
   assert.equal(rows[0]["Baris"], "7");
   assert.equal(rows[0]["Kolom"], "kode cabang keluarga");
-  assert.equal(rows[0]["Pesan Error"], "Cabang 'X' tidak ditemukan");
+  assert.equal(rows[0]["Pesan Error"], "Keluarga Cabang 'X' tidak ditemukan");
 });

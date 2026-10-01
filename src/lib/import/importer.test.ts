@@ -185,8 +185,8 @@ test("sanitizePreviewData removes password fields without mutating input", () =>
 });
 
 test("ImportError carries status and row errors", () => {
-  const error = new ImportError("Cabang 'X' tidak ditemukan", 400, [
-    { sheet: "Data", row: 2, field: "kode cabang keluarga", message: "Cabang 'X' tidak ditemukan" },
+  const error = new ImportError("Keluarga Cabang 'X' tidak ditemukan", 400, [
+    { sheet: "Data", row: 2, field: "kode cabang keluarga", message: "Keluarga Cabang 'X' tidak ditemukan" },
   ]);
   assert.equal(error.status, 400);
   assert.equal(error.errors.length, 1);

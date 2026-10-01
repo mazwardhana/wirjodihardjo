@@ -143,7 +143,7 @@ export async function validateImportData(data: ParsedData): Promise<ValidationRe
           sheet: "Data",
           row: rowNo,
           field: "kode cabang keluarga",
-          message: `Cabang '${rawBranch}' tidak ditemukan`,
+          message: `Keluarga Cabang '${rawBranch}' tidak ditemukan`,
         });
       }
     }
