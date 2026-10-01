@@ -33,7 +33,7 @@ export type PersonNodeData = {
   partnerStatus: "MARRIED" | "DIVORCED" | "WIDOWED" | "UNKNOWN" | null;
 };
 
-const NODE_W = 230;
+const NODE_W = 260;
 const NODE_H = 130; // tinggi kartu orang
 const COUPLE_SPACING = NODE_W + 40; // jarak kartu primary ke kartu pasangan
 const GAP_X = 60; // spasi horizontal antar blok / anak di dalam baris

@@ -1,8 +1,15 @@
 "use client";
 
-import { createContext, memo, useContext } from "react";
+import { createContext, memo, useContext, type ComponentType } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
+import {
+  FaFacebookF,
+  FaInstagram,
+  FaLinkedinIn,
+  FaTiktok,
+} from "react-icons/fa6";
 import { getGenerationLabel } from "@/lib/generations";
+import { calculateAge } from "@/lib/profile";
 import { initials } from "@/lib/utils";
 import type { PublicPerson } from "@/lib/data";
 
@@ -41,11 +48,39 @@ const statusBadge: Record<string, { label: string; cls: string }> = {
   },
 };
 
-function PersonNodeComponent({ data, selected }: NodeProps) {
-  const d = data as unknown as PersonNodeData;
-  const { person, childCount, hasHiddenChildren, partnerStatus } = d;
+const socialIcons: Record<string, ComponentType<{ className?: string }>> = {
+  instagram: FaInstagram,
+  facebook: FaFacebookF,
+  linkedin: FaLinkedinIn,
+  tiktok: FaTiktok,
+};
+
+/** Label umur, memakai deathDate sebagai acuan bila orangnya sudah wafat. */
+function ageLabel(person: PublicPerson): string | null {
+  if (!person.birthDate) return null;
+  if (person.isDeceased && person.deathDate) {
+    const age = calculateAge(person.birthDate, person.deathDate);
+    return age === null ? null : `wafat usia ${age} tahun`;
+  }
+  const age = calculateAge(person.birthDate);
+  return age === null ? null : `usia ${age} tahun`;
+}
+
+/**
+ * Isi kartu profil, komponen murni agar mudah diuji tanpa konteks React Flow.
+ * `onOpenDetail` opsional: bila kosong tombol info tidak ditampilkan.
+ */
+export function PersonNodeCard({
+  data,
+  selected,
+  onOpenDetail,
+}: {
+  data: PersonNodeData;
+  selected?: boolean;
+  onOpenDetail?: (person: PublicPerson) => void;
+}) {
+  const { person, childCount, hasHiddenChildren, partnerStatus } = data;
   const badge = partnerStatus ? statusBadge[partnerStatus] : null;
-  const actions = useContext(PersonNodeActionsContext);
 
   const birthYear = person.birthDate
     ? String(new Date(person.birthDate).getFullYear())
@@ -57,74 +92,99 @@ function PersonNodeComponent({ data, selected }: NodeProps) {
   ]
     .filter(Boolean)
     .join(" · ");
+  const age = ageLabel(person);
 
   return (
     <div
-      className={`w-[200px] rounded-lg border bg-cream px-3 py-2.5 shadow-sm transition-all ${
+      className={`w-[260px] rounded-lg border bg-cream px-3 py-2.5 shadow-sm transition-all ${
         selected
           ? "border-gold ring-2 ring-gold/40"
           : "border-wood/25 hover:border-gold/60"
       } ${person.isDeceased ? "opacity-80" : ""}`}
     >
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!h-1.5 !w-1.5 !border-0 !bg-wood/40"
-      />
       <div className="flex items-center gap-2">
         {person.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={person.photoUrl}
             alt=""
-            className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-gold/40"
+            className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-gold/40"
           />
         ) : (
           <span
             aria-hidden="true"
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-forest/10 text-[10px] font-semibold text-forest ring-1 ring-forest/15"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-forest/10 text-[10px] font-semibold text-forest ring-1 ring-forest/15"
           >
             {initials(person.fullName)}
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold leading-tight text-forest">
+          <p className="text-sm font-semibold leading-tight text-forest">
             {person.fullName}
           </p>
-          <p className="truncate text-[10px] font-medium text-wood">
-            {shortInfo}
+          <p className="text-[10px] font-medium text-wood">
+            {[shortInfo, age].filter(Boolean).join(" · ")}
           </p>
         </div>
 
-        {/*
-          Tombol info: memiliki handler eksplisit sehingga membuka detail
-          orang ini tanpa bergantung pada event bubbling ke node wrapper.
-          Diletakkan di luar elemen interaktif lain dan diberi kelas nodrag
-          agar tidak mengganggu React Flow.
-        */}
-        <button
-          type="button"
-          aria-label={`Lihat detail ${person.fullName}`}
-          className="nodrag -mr-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-forest/60 transition-colors hover:bg-forest/10 hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
-          onClick={() => actions?.openDetail(person)}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
+        {onOpenDetail && (
+          /*
+            Tombol info: memiliki handler eksplisit sehingga membuka detail
+            orang ini tanpa bergantung pada event bubbling ke node wrapper.
+            Diletakkan di luar elemen interaktif lain dan diberi kelas nodrag
+            agar tidak mengganggu React Flow.
+          */
+          <button
+            type="button"
+            aria-label={`Lihat detail ${person.fullName}`}
+            className="nodrag -mr-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-forest/60 transition-colors hover:bg-forest/10 hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+            onClick={() => onOpenDetail(person)}
           >
-            <circle cx="12" cy="12" r="9" />
-            <line x1="12" y1="16" x2="12" y2="12" />
-            <line x1="12" y1="8" x2="12.01" y2="8" />
-          </svg>
-        </button>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+          </button>
+        )}
       </div>
+
+      {person.socialLinks.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          {person.socialLinks.map((link) => {
+            const Icon = socialIcons[(link.platform.iconName ?? "").toLowerCase()];
+            return (
+              <a
+                key={link.id}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={link.platform.name}
+                className="nodrag grid h-5 w-5 place-items-center rounded-full text-forest/70 transition-colors hover:bg-forest/10 hover:text-forest"
+              >
+                {Icon ? (
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="h-1.5 w-1.5 rounded-full bg-forest/60"
+                  />
+                )}
+              </a>
+            );
+          })}
+        </div>
+      )}
 
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
         {person.isDeceased && (
@@ -147,7 +207,25 @@ function PersonNodeComponent({ data, selected }: NodeProps) {
           </span>
         )}
       </div>
+    </div>
+  );
+}
 
+function PersonNodeComponent({ data, selected }: NodeProps) {
+  const d = data as unknown as PersonNodeData;
+  const actions = useContext(PersonNodeActionsContext);
+  return (
+    <div className="relative">
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!h-1.5 !w-1.5 !border-0 !bg-wood/40"
+      />
+      <PersonNodeCard
+        data={d}
+        selected={selected}
+        onOpenDetail={actions?.openDetail}
+      />
       <Handle
         type="source"
         position={Position.Bottom}
