@@ -5,6 +5,13 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { recalculateGenerationLevel } from "@/lib/genealogy";
 import { moveChild, orderIndexForChild, setChildOrderIndex, type ChildOrderDb } from "@/lib/child-order";
+import {
+  autoLinkChildToPartner,
+  autoLinkChildrenToPartner,
+  partnerRoleFromGender,
+  solePartnerId,
+  type RelationSyncDb,
+} from "@/lib/relation-sync";
 import { requireAdminScope, assertPersonAccess, AuthorizationError } from "@/lib/rbac";
 
 const MAX_PARENTS = 2;
@@ -54,6 +61,17 @@ async function validateParentChild(
   }
 
   return null;
+}
+
+/** Peran pasangan orang tua, dihitung dari jenis kelamin pasangan tunggalnya. */
+async function partnerRoleForParent(
+  parentId: string,
+  db: { personChild: RelationSyncDb["personChild"]; personPartner: RelationSyncDb["personPartner"]; person: { findUnique(args: unknown): Promise<{ gender?: string } | null> } },
+): Promise<{ partnerId: string; role: ReturnType<typeof partnerRoleFromGender> } | null> {
+  const partnerId = await solePartnerId(parentId, db as unknown as RelationSyncDb);
+  if (!partnerId) return null;
+  const partner = await db.person.findUnique({ where: { id: partnerId }, select: { gender: true } });
+  return { partnerId, role: partnerRoleFromGender(partner?.gender ?? "UNKNOWN") };
 }
 
 /**
@@ -178,6 +196,16 @@ export async function POST(request: Request) {
           });
           // Baris LAMA anak ikut bernomor sama supaya invariant per-edge terjaga.
           await setChildOrderIndex(targetPersonId, nomor, tx as unknown as ChildOrderDb);
+
+          const pasangan = await partnerRoleForParent(personId, tx as never);
+          if (pasangan) {
+            await autoLinkChildToPartner(
+              targetPersonId,
+              personId,
+              pasangan.role,
+              tx as unknown as RelationSyncDb,
+            );
+          }
         });
         // Satu panggilan cukup: rekalkulasi menghitung seluruh komponen.
         try { await recalculateGenerationLevel(targetPersonId); } catch {}
@@ -203,6 +231,12 @@ export async function POST(request: Request) {
             }),
           },
         });
+        await autoLinkChildrenToPartner(
+          personId,
+          targetPersonId,
+          partnerRoleFromGender(target.gender),
+          prisma as unknown as RelationSyncDb,
+        );
       } else {
         return NextResponse.json({ error: "Tipe relasi tidak dikenal" }, { status: 400 });
       }
@@ -331,6 +365,10 @@ export async function POST(request: Request) {
                 orderIndex: await orderIndexForChild(created.id, [personId], tx as ChildOrderDb),
               },
             });
+            const pasangan = await partnerRoleForParent(personId, tx as never);
+            if (pasangan) {
+              await autoLinkChildToPartner(created.id, personId, pasangan.role, tx as unknown as RelationSyncDb);
+            }
           } else {
             await tx.personPartner.create({
               data: {
@@ -340,6 +378,12 @@ export async function POST(request: Request) {
                 orderIndex: partnerCount,
               },
             });
+            await autoLinkChildrenToPartner(
+              personId,
+              created.id,
+              partnerRoleFromGender(gender),
+              tx as unknown as RelationSyncDb,
+            );
           }
 
           return created.id;

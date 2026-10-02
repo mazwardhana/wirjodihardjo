@@ -612,3 +612,60 @@ test("edit-partner menolak pasangan duplikat (409)", async () => {
   }));
   assert.equal(res.status, 409);
 });
+
+// ── auto-link anak <-> pasangan pada `add` & `add-new` ───────────────────
+
+test("add child menautkan anak ke pasangan tunggal orang tuanya", async () => {
+  const state = relasiFixture();
+  state.persons["pasangan"] = { id: "pasangan", branchId: "cabang-1", gender: "FEMALE" };
+  state.partnerEdges.push({ id: "p1", partnerAId: "fokus", partnerBId: "pasangan", status: "MARRIED" });
+  const route = loadRelasiRoute(state);
+  const res = await route.POST!(postRequest({
+    action: "add", relationType: "child", personId: "fokus", targetPersonId: "anak",
+  }));
+  assert.equal(res.status, 200);
+  assert.equal(state.personChildCreate.length, 2, "fokus->anak dan pasangan->anak");
+  const created = state.personChildCreate.map((c) => c.data.parentId).sort();
+  assert.deepEqual(created, ["fokus", "pasangan"]);
+});
+
+test("add child TIDAK menautkan bila orang tua punya dua pasangan", async () => {
+  const state = relasiFixture();
+  state.partnerEdges.push({ id: "p1", partnerAId: "fokus", partnerBId: "p1x", status: "MARRIED" });
+  state.partnerEdges.push({ id: "p2", partnerAId: "fokus", partnerBId: "p2x", status: "MARRIED" });
+  const route = loadRelasiRoute(state);
+  const res = await route.POST!(postRequest({
+    action: "add", relationType: "child", personId: "fokus", targetPersonId: "anak",
+  }));
+  assert.equal(res.status, 200);
+  assert.equal(state.personChildCreate.length, 1);
+});
+
+test("add pasangan menautkan anak tunggal orang tua ke pasangan terdaftar", async () => {
+  const state = relasiFixture();
+  state.persons["pasangan"] = { id: "pasangan", branchId: "cabang-1", gender: "FEMALE" };
+  state.childEdges.push({ id: "e1", parentId: "fokus", childId: "anak", orderIndex: 0 });
+  const route = loadRelasiRoute(state);
+  const res = await route.POST!(postRequest({
+    action: "add", relationType: "partner", personId: "fokus", targetPersonId: "pasangan",
+  }));
+  assert.equal(res.status, 200);
+  assert.ok(
+    state.personChildCreate.some((c) => c.data.parentId === "pasangan" && c.data.childId === "anak"),
+    "anak fokus harus ditautkan ke pasangan baru",
+  );
+});
+
+test("add-new pasangan menautkan anak tunggal orang tua ke pasangan baru", async () => {
+  const state = relasiFixture();
+  state.childEdges.push({ id: "e1", parentId: "fokus", childId: "anak", orderIndex: 0 });
+  const route = loadRelasiRoute(state);
+  const res = await route.POST!(postRequest({
+    action: "add-new", relationType: "partner", personId: "fokus", fullName: "Pasangan Baru", gender: "FEMALE",
+  }));
+  assert.equal(res.status, 201);
+  assert.ok(
+    state.personChildCreate.some((c) => c.data.parentId === "person-baru" && c.data.childId === "anak"),
+    "anak fokus harus ditautkan ke pasangan baru",
+  );
+});
