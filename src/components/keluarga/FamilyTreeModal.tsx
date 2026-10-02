@@ -43,7 +43,14 @@ type SiblingSection = {
 
 type ParentEntry = TreeMember & { edgeId: string; role: string; isStep: boolean; isAdopted: boolean };
 type ChildEntry = TreeMember & { edgeId: string; isStep: boolean; isAdopted: boolean };
-type PartnerEntry = { edgeId: string; status: string; member: TreeMember };
+type PartnerEntry = {
+  edgeId: string;
+  status: string;
+  marriageDate: string | null;
+  divorceDate: string | null;
+  notes: string | null;
+  member: TreeMember;
+};
 
 type RelasiPayload = {
   person: TreeMember & { fullName: string };

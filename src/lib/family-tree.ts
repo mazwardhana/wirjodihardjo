@@ -42,7 +42,14 @@ export type ParentEntry = TreeMember & {
   isAdopted: boolean;
 };
 export type ChildEntry = TreeMember & { edgeId: string; isStep: boolean; isAdopted: boolean };
-export type PartnerEntry = { edgeId: string; status: string; member: TreeMember };
+export type PartnerEntry = {
+  edgeId: string;
+  status: string;
+  marriageDate: string | null;
+  divorceDate: string | null;
+  notes: string | null;
+  member: TreeMember;
+};
 
 export type PrivateContact = {
   visibleToMembers: boolean;
@@ -135,8 +142,22 @@ type PersonDetailRow = PersonRow & {
     isAdopted: boolean;
     child: PersonRow;
   }>;
-  partnershipsA?: Array<{ id: string; status: string; partnerB: PersonRow }>;
-  partnershipsB?: Array<{ id: string; status: string; partnerA: PersonRow }>;
+  partnershipsA?: Array<{
+    id: string;
+    status: string;
+    marriageDate?: Date | string | null;
+    divorceDate?: Date | string | null;
+    notes?: string | null;
+    partnerB: PersonRow;
+  }>;
+  partnershipsB?: Array<{
+    id: string;
+    status: string;
+    marriageDate?: Date | string | null;
+    divorceDate?: Date | string | null;
+    notes?: string | null;
+    partnerA: PersonRow;
+  }>;
 };
 
 type Edge = {
@@ -383,15 +404,27 @@ export type FamilyTreeOptions = {
   siblingProvider?: (personId: string) => Promise<SiblingGroup[]>;
 };
 
+function toIsoOrNull(value: Date | string | null | undefined): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 function buildPartners(person: PersonDetailRow): PartnerEntry[] {
   const fromA = (person.partnershipsA ?? []).map((row) => ({
     edgeId: row.id,
     status: row.status,
+    marriageDate: toIsoOrNull(row.marriageDate),
+    divorceDate: toIsoOrNull(row.divorceDate),
+    notes: row.notes ?? null,
     member: toMember(row.partnerB),
   }));
   const fromB = (person.partnershipsB ?? []).map((row) => ({
     edgeId: row.id,
     status: row.status,
+    marriageDate: toIsoOrNull(row.marriageDate),
+    divorceDate: toIsoOrNull(row.divorceDate),
+    notes: row.notes ?? null,
     member: toMember(row.partnerA),
   }));
   return [...fromA, ...fromB];
@@ -425,8 +458,26 @@ export async function getFamilyTreeData(
         include: { child: true },
         orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
       },
-      partnershipsA: { include: { partnerB: true } },
-      partnershipsB: { include: { partnerA: true } },
+      partnershipsA: {
+        select: {
+          id: true,
+          status: true,
+          marriageDate: true,
+          divorceDate: true,
+          notes: true,
+          partnerB: true,
+        },
+      },
+      partnershipsB: {
+        select: {
+          id: true,
+          status: true,
+          marriageDate: true,
+          divorceDate: true,
+          notes: true,
+          partnerA: true,
+        },
+      },
     },
   });
   if (!person) {
