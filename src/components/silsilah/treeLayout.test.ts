@@ -433,17 +433,13 @@ test("buildTreeGraph memak saudara daun di kontur baris, bukan setelah subtree l
   const xOf = (id: string) => nodes.find((n) => n.id === id)!.position.x;
   const yOf = (id: string) => nodes.find((n) => n.id === id)!.position.y;
 
-  // B sebaris dengan A (sesama anak P); AP berada di baris bawah A.
+  // B sebaris dengan A (sesama anak P); AP juga sebaris dengan A.
   assert.equal(yOf("B"), yOf("A"), "B harus sebaris dengan A");
-  assert.notEqual(yOf("AP"), yOf("A"), "pasangan AP harus di baris bawah, bukan sebaris");
-
-  const aRowRight = xOf("A") + 260;
-  const gap = xOf("B") - aRowRight;
-  const GAP_X = 60;
-  const COUPLE_SPACING = 260 + 40;
+  assert.equal(yOf("AP"), yOf("A"), "pasangan AP sebaris dengan A");
+  assert.ok(xOf("B") > xOf("AP"), "B harus di kanan pasangan A");
   assert.ok(
-    gap >= GAP_X && gap <= GAP_X + COUPLE_SPACING,
-    `B harus dekat kontur baris A, jarak=${Math.round(gap)} (harus ${GAP_X}..${GAP_X + COUPLE_SPACING})`,
+    xOf("B") - (xOf("AP") + 260) >= NODE_MIN_GAP,
+    `B tidak boleh menimpa AP, jarak=${Math.round(xOf("B") - (xOf("AP") + 260))}`,
   );
 });
 
@@ -455,20 +451,18 @@ test("buildTreeGraph menyebar anak ke kiri dan kanan orang tua", () => {
   assert.ok(kids.some((x) => x > parentX), "harus ada anak di kanan orang tua");
 });
 
-test("buildTreeGraph menaruh pasangan di baris bawah, bukan menyelip di antara anak", () => {
+test("buildTreeGraph menaruh pasangan sebaris dengan kartu darah", () => {
   const { nodes } = buildTreeGraph(fixture(), new Set());
   const a05 = nodes.find((n) => n.id === "A05")!;
   const a06 = nodes.find((n) => n.id === "A06")!;
-  assert.notEqual(a05.position.y, a06.position.y, "pasangan harus di baris terpisah");
+  assert.equal(a05.position.y, a06.position.y, "pasangan harus sebaris");
   assert.notEqual(a05.position.x, a06.position.x, "pasangan harus terpisah horizontal");
 
-  // Deretan anak orang tua berpasangan harus bersih: semua anak langsung
-  // berada di satu baris yang sama, tanpa kartu pasangan menyelip.
   const couple = buildTreeGraph(coupleChildrenFixture(), new Set());
   const yOf = (id: string) => couple.nodes.find((n) => n.id === id)!.position.y;
-  assert.equal(yOf("Y1"), yOf("Y2"), "semua anak harus sebaris");
-  assert.notEqual(yOf("A"), yOf("Y1"), "pasangan tidak sebaris dengan anak");
-  assert.notEqual(yOf("B"), yOf("Y1"), "pasangan tidak sebaris dengan anak");
+  assert.equal(yOf("A"), yOf("B"), "kedua pasangan sebaris");
+  assert.notEqual(yOf("A"), yOf("Y1"), "anak di baris bawah pasangan");
+  assert.notEqual(yOf("B"), yOf("Y1"), "anak di baris bawah pasangan");
 });
 
 test("buildTreeGraph menyembunyikan orang tanpa relasi secara default", () => {
