@@ -41,7 +41,14 @@ export type ParentEntry = TreeMember & {
   isStep: boolean;
   isAdopted: boolean;
 };
-export type ChildEntry = TreeMember & { edgeId: string; isStep: boolean; isAdopted: boolean };
+export type ChildEntry = TreeMember & {
+  edgeId: string;
+  isStep: boolean;
+  isAdopted: boolean;
+  parentRole: string;
+  birthDate: string | null;
+  birthPlace: string | null;
+};
 export type PartnerEntry = {
   edgeId: string;
   status: string;
@@ -113,6 +120,8 @@ type PersonRow = {
   gender: unknown;
   generationLevel: number | null;
   isDeceased: boolean;
+  birthDate?: Date | string | null;
+  birthPlace?: string | null;
 };
 
 type PersonDetailRow = PersonRow & {
@@ -138,6 +147,7 @@ type PersonDetailRow = PersonRow & {
   }>;
   children?: Array<{
     id: string;
+    parentRole?: string;
     isStep: boolean;
     isAdopted: boolean;
     child: PersonRow;
@@ -518,6 +528,9 @@ export async function getFamilyTreeData(
       edgeId: edge.id,
       isStep: edge.isStep === true,
       isAdopted: edge.isAdopted === true,
+      parentRole: edge.parentRole ?? "",
+      birthDate: edge.child.birthDate ? toIsoOrNull(edge.child.birthDate) : null,
+      birthPlace: edge.child.birthPlace ?? null,
     })),
     partners: buildPartners(person),
   };

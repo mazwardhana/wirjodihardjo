@@ -214,7 +214,7 @@ function makeFixtureDb(
         })),
       children: edges
         .filter((e) => e.parentId === id)
-        .map((e) => ({ id: e.id, isStep: false, isAdopted: false, child: MEMBERS[e.childId] })),
+        .map((e) => ({ id: e.id, parentRole: "FATHER", isStep: false, isAdopted: false, child: MEMBERS[e.childId] })),
       partnershipsA: [{ id: "pp-1", status: "MARRIED", partnerB: MEMBERS.S1 }],
       partnershipsB: [{ id: "pp-2", status: "MARRIED", partnerA: MEMBERS.S2 }],
     };
@@ -335,6 +335,9 @@ test("getFamilyTreeData menyertakan edgeId pada setiap relasi", async () => {
   assert.equal(data.parents[0].edgeId, "edge-p-1");
   assert.equal(data.children.length, 3);
   assert.equal(data.children[0].edgeId, "edge-c-1");
+  assert.equal(data.children[0].parentRole, "FATHER");
+  assert.ok("birthDate" in data.children[0]);
+  assert.ok("birthPlace" in data.children[0]);
 });
 
 test("getFamilyTreeData menyertakan pasangan dari kedua sisi partnership", async () => {

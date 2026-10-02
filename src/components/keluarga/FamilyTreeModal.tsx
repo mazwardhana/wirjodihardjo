@@ -42,7 +42,14 @@ type SiblingSection = {
 };
 
 type ParentEntry = TreeMember & { edgeId: string; role: string; isStep: boolean; isAdopted: boolean };
-type ChildEntry = TreeMember & { edgeId: string; isStep: boolean; isAdopted: boolean };
+type ChildEntry = TreeMember & {
+  edgeId: string;
+  isStep: boolean;
+  isAdopted: boolean;
+  parentRole: string;
+  birthDate: string | null;
+  birthPlace: string | null;
+};
 type PartnerEntry = {
   edgeId: string;
   status: string;
@@ -415,36 +422,129 @@ function ParentPicker({
   );
 }
 
+function ChangePersonPicker({
+  label,
+  searchMembers,
+  onPick,
+}: {
+  label: string;
+  searchMembers: (q: string, signal?: AbortSignal) => Promise<BranchMember[]>;
+  onPick: (member: BranchMember) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [state, setState] = useState<ParentSearchState<BranchMember>>({ options: [], searching: false, error: null });
+  const onSearchRef = useRef(searchMembers);
+  useEffect(() => { onSearchRef.current = searchMembers; }, [searchMembers]);
+  const searchRef = useRef<ReturnType<typeof createParentSearch<BranchMember>> | null>(null);
+  useEffect(() => {
+    const searcher = createParentSearch<BranchMember>({
+      fetchMembers: (q, signal) => onSearchRef.current(q, signal),
+      onChange: setState,
+    });
+    searchRef.current = searcher;
+    return () => { searcher.cancel(); searchRef.current = null; };
+  }, []);
+  const { options, searching, error } = state;
+  const show = query.trim().length >= PARENT_SEARCH_MIN_LENGTH;
+  return (
+    <div className="relative">
+      <label className="block text-sm font-medium text-forest">{label}</label>
+      <input
+        type="search"
+        autoComplete="off"
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); searchRef.current?.search(e.target.value); }}
+        onFocus={() => setOpen(true)}
+        placeholder="Ketik nama anggota pengganti..."
+        className={inputCls}
+      />
+      {open && show && (
+        <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-wood/20 bg-cream py-1 shadow-lg">
+          {searching ? <p className="px-3 py-2 text-sm text-muted">Mencari anggota...</p> : (
+            <ul>
+              {options.map((m) => (
+                <li key={m.id}>
+                  <button
+                    type="button"
+                    onClick={() => { onPick(m); setQuery(""); setOpen(false); searchRef.current?.cancel(); }}
+                    className="flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-forest hover:bg-wood/10"
+                  >
+                    <span className="truncate">{m.fullName}</span>
+                    <span className="shrink-0 text-xs text-muted">{m.gender === "FEMALE" ? "Perempuan" : "Laki-laki"}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {error && <p role="alert" className="mt-1 text-sm text-wood">{error}</p>}
+    </div>
+  );
+}
+
 function ChildEditForm({
   child,
+  searchMembers,
   busy,
   onCancel,
   onSave,
 }: {
   child: ChildEntry;
+  searchMembers: (q: string, signal?: AbortSignal) => Promise<BranchMember[]>;
   busy: boolean;
   onCancel: () => void;
   onSave: (draft: {
     parentRole: string;
     isStep: boolean;
     isAdopted: boolean;
+    fullName: string;
+    gender: string;
+    birthDate: string;
+    birthPlace: string;
     newTargetPersonId?: string;
   }) => void;
 }) {
-  const [parentRole, setParentRole] = useState("UNKNOWN");
+  const [parentRole, setParentRole] = useState(child.parentRole || "UNKNOWN");
   const [isStep, setIsStep] = useState(child.isStep);
   const [isAdopted, setIsAdopted] = useState(child.isAdopted);
+  const [fullName, setFullName] = useState(child.fullName);
+  const [gender, setGender] = useState(child.gender);
+  const [birthDate, setBirthDate] = useState(child.birthDate ? child.birthDate.slice(0, 10) : "");
+  const [birthPlace, setBirthPlace] = useState(child.birthPlace ?? "");
+  const [target, setTarget] = useState<BranchMember | null>(null);
   const fieldId = `child-edit-${child.edgeId}`;
 
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        onSave({ parentRole, isStep, isAdopted });
+        onSave({ parentRole, isStep, isAdopted, fullName, gender, birthDate, birthPlace, newTargetPersonId: target?.id });
       }}
       className="mt-2 space-y-3 rounded-md border border-wood/20 bg-cream p-3"
     >
       <p className="text-sm font-medium text-forest">Edit relasi anak: {child.fullName}</p>
+      <div>
+        <label htmlFor={`${fieldId}-name`} className="block text-sm font-medium text-forest">Nama lengkap</label>
+        <input id={`${fieldId}-name`} value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputCls} required />
+      </div>
+      <div>
+        <label htmlFor={`${fieldId}-gender`} className="block text-sm font-medium text-forest">Jenis kelamin</label>
+        <select id={`${fieldId}-gender`} value={gender} onChange={(e) => setGender(e.target.value)} className={inputCls}>
+          <option value="MALE">Laki-laki</option>
+          <option value="FEMALE">Perempuan</option>
+          <option value="OTHER">Lainnya</option>
+        </select>
+      </div>
+      <div>
+        <label htmlFor={`${fieldId}-birth`} className="block text-sm font-medium text-forest">Tanggal lahir</label>
+        <input id={`${fieldId}-birth`} type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className={inputCls} />
+      </div>
+      <div>
+        <label htmlFor={`${fieldId}-birthplace`} className="block text-sm font-medium text-forest">Tempat lahir</label>
+        <input id={`${fieldId}-birthplace`} value={birthPlace} onChange={(e) => setBirthPlace(e.target.value)} className={inputCls} />
+      </div>
       <div>
         <label htmlFor={`${fieldId}-role`} className="block text-sm font-medium text-forest">Peran orang tua</label>
         <select id={`${fieldId}-role`} value={parentRole} onChange={(e) => setParentRole(e.target.value)} className={inputCls}>
@@ -461,8 +561,13 @@ function ChildEditForm({
         <input type="checkbox" checked={isAdopted} onChange={(e) => setIsAdopted(e.target.checked)} className="h-4 w-4" />
         Anak angkat
       </label>
+      <ChangePersonPicker
+        label={target ? `Ganti orang (dipilih: ${target.fullName})` : "Ganti orang (opsional)"}
+        searchMembers={searchMembers}
+        onPick={setTarget}
+      />
       <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={busy} className="min-h-11 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream disabled:opacity-50">Simpan</button>
+        <button type="submit" disabled={busy || !fullName.trim()} className="min-h-11 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream disabled:opacity-50">Simpan</button>
         <button type="button" onClick={onCancel} disabled={busy} className="min-h-11 rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest disabled:opacity-50">Batal</button>
       </div>
     </form>
@@ -471,11 +576,13 @@ function ChildEditForm({
 
 function PartnerEditForm({
   partner,
+  searchMembers,
   busy,
   onCancel,
   onSave,
 }: {
   partner: PartnerEntry;
+  searchMembers: (q: string, signal?: AbortSignal) => Promise<BranchMember[]>;
   busy: boolean;
   onCancel: () => void;
   onSave: (draft: {
@@ -483,23 +590,41 @@ function PartnerEditForm({
     marriageDate: string;
     divorceDate: string;
     notes: string;
+    fullName: string;
+    gender: string;
+    newPartnerId?: string;
   }) => void;
 }) {
   const [status, setStatus] = useState(partner.status);
   const [marriageDate, setMarriageDate] = useState(partner.marriageDate ? partner.marriageDate.slice(0, 10) : "");
   const [divorceDate, setDivorceDate] = useState(partner.divorceDate ? partner.divorceDate.slice(0, 10) : "");
   const [notes, setNotes] = useState(partner.notes ?? "");
+  const [fullName, setFullName] = useState(partner.member.fullName);
+  const [gender, setGender] = useState(partner.member.gender);
+  const [target, setTarget] = useState<BranchMember | null>(null);
   const fieldId = `partner-edit-${partner.edgeId}`;
 
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        onSave({ status, marriageDate, divorceDate, notes });
+        onSave({ status, marriageDate, divorceDate, notes, fullName, gender, newPartnerId: target?.id });
       }}
       className="mt-2 space-y-3 rounded-md border border-wood/20 bg-cream p-3"
     >
       <p className="text-sm font-medium text-forest">Edit relasi pasangan: {partner.member.fullName}</p>
+      <div>
+        <label htmlFor={`${fieldId}-name`} className="block text-sm font-medium text-forest">Nama lengkap</label>
+        <input id={`${fieldId}-name`} value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputCls} required />
+      </div>
+      <div>
+        <label htmlFor={`${fieldId}-gender`} className="block text-sm font-medium text-forest">Jenis kelamin</label>
+        <select id={`${fieldId}-gender`} value={gender} onChange={(e) => setGender(e.target.value)} className={inputCls}>
+          <option value="MALE">Laki-laki</option>
+          <option value="FEMALE">Perempuan</option>
+          <option value="OTHER">Lainnya</option>
+        </select>
+      </div>
       <div>
         <label htmlFor={`${fieldId}-status`} className="block text-sm font-medium text-forest">Status</label>
         <select id={`${fieldId}-status`} value={status} onChange={(e) => setStatus(e.target.value)} className={inputCls}>
@@ -521,8 +646,13 @@ function PartnerEditForm({
         <label htmlFor={`${fieldId}-notes`} className="block text-sm font-medium text-forest">Catatan</label>
         <input id={`${fieldId}-notes`} value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} />
       </div>
+      <ChangePersonPicker
+        label={target ? `Ganti orang (dipilih: ${target.fullName})` : "Ganti orang (opsional)"}
+        searchMembers={searchMembers}
+        onPick={setTarget}
+      />
       <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={busy} className="min-h-11 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream disabled:opacity-50">Simpan</button>
+        <button type="submit" disabled={busy || !fullName.trim()} className="min-h-11 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream disabled:opacity-50">Simpan</button>
         <button type="button" onClick={onCancel} disabled={busy} className="min-h-11 rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest disabled:opacity-50">Batal</button>
       </div>
     </form>
@@ -845,9 +975,25 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
                       <div className="w-full">
                         <PartnerEditForm
                           partner={partner}
+                          searchMembers={searchMembers}
                           busy={saving}
                           onCancel={() => setEditingPartner(null)}
                           onSave={async (draft) => {
+                            if (
+                              draft.fullName !== partner.member.fullName ||
+                              draft.gender !== partner.member.gender
+                            ) {
+                              const idRes = await fetch(`/api/admin/keluarga/person/${encodeURIComponent(partner.member.id)}`, {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ fullName: draft.fullName, gender: draft.gender }),
+                              });
+                              if (!idRes.ok) {
+                                const body = (await idRes.json().catch(() => ({}))) as { error?: string };
+                                setSaveError(body.error ?? "Gagal mengubah identitas pasangan.");
+                                return;
+                              }
+                            }
                             const ok = await mutate(
                               {
                                 action: "edit-partner",
@@ -856,6 +1002,7 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
                                 marriageDate: draft.marriageDate || null,
                                 divorceDate: draft.divorceDate || null,
                                 notes: draft.notes || null,
+                                newPartnerId: draft.newPartnerId ?? undefined,
                               },
                               "Relasi pasangan diperbarui.",
                             );
@@ -1034,9 +1181,26 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
                       <div className="w-full">
                         <ChildEditForm
                           child={child}
+                          searchMembers={searchMembers}
                           busy={saving}
                           onCancel={() => setEditingChild(null)}
                           onSave={async (draft) => {
+                            const identityChanged =
+                              draft.fullName !== child.fullName ||
+                              draft.gender !== child.gender ||
+                              draft.birthDate !== (child.birthDate ?? "").slice(0, 10);
+                            if (identityChanged) {
+                              const idRes = await fetch(`/api/admin/keluarga/person/${encodeURIComponent(child.id)}`, {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ fullName: draft.fullName, gender: draft.gender, birthDate: draft.birthDate || null, birthPlace: draft.birthPlace || null }),
+                              });
+                              if (!idRes.ok) {
+                                const body = (await idRes.json().catch(() => ({}))) as { error?: string };
+                                setSaveError(body.error ?? "Gagal mengubah identitas anak.");
+                                return;
+                              }
+                            }
                             const ok = await mutate(
                               {
                                 action: "edit-relation",
@@ -1045,6 +1209,7 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
                                 parentRole: draft.parentRole,
                                 isStep: draft.isStep,
                                 isAdopted: draft.isAdopted,
+                                newTargetPersonId: draft.newTargetPersonId ?? undefined,
                               },
                               "Relasi anak diperbarui.",
                             );
