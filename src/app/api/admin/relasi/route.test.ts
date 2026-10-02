@@ -116,6 +116,7 @@ type RelasiState = {
   moveChildCalls: Array<{ childId: string; direction: string }>;
   moveChildResult: boolean;
   auditCalls: Array<{ action: string; entityId: string; actorUserId: string }>;
+  recalcCalls: string[];
 };
 
 function relasiFixture(): RelasiState {
@@ -137,6 +138,7 @@ function relasiFixture(): RelasiState {
     moveChildCalls: [],
     moveChildResult: true,
     auditCalls: [],
+    recalcCalls: [],
   };
 }
 
@@ -291,7 +293,7 @@ function loadRelasiRoute(state: RelasiState): { POST?: Handler } {
       state.auditCalls.push(args);
     },
   };
-  const genealogyModule = { recalculateGenerationLevel: async () => null };
+  const genealogyModule = { recalculateGenerationLevel: async (id: string) => { state.recalcCalls.push(id); return null; } };
   // Bungkus modul asli: fungsi bantu lain tetap nyata, `moveChild` diganti
   // spy supaya tes dapat mengamati pemanggilan dan mengatur hasilnya.
   const childOrderModule = {
@@ -581,6 +583,18 @@ test("edit-relation memperbarui atribut relasi tanpa ganti orang", async () => {
   assert.ok(state.auditCalls.some((c) => c.action === "RELATION_UPDATE_CHILD"));
 });
 
+test("edit-relation ganti anak merekalkulasi generasi anak lama dan baru", async () => {
+  const state = relasiFixture();
+  state.childEdges.push({ id: "e1", parentId: "fokus", childId: "anak", orderIndex: 0 });
+  const route = loadRelasiRoute(state);
+  const res = await route.POST!(postRequest({
+    action: "edit-relation", edgeId: "e1", relationType: "child", newTargetPersonId: "anak-baru",
+  }));
+  assert.equal(res.status, 200);
+  assert.ok(state.recalcCalls.includes("anak-baru"), "generasi anak baru dihitung ulang");
+  assert.ok(state.recalcCalls.includes("anak"), "generasi anak lama ikut dihitung ulang");
+});
+
 test("edit-partner memperbarui status dan tanggal", async () => {
   const state = relasiFixture();
   state.partnerEdges.push({ id: "p1", partnerAId: "fokus", partnerBId: "pasangan", status: "MARRIED" });
@@ -608,9 +622,46 @@ test("edit-partner menolak pasangan duplikat (409)", async () => {
   state.partnerEdges.push({ id: "p2", partnerAId: "fokus", partnerBId: "lain", status: "MARRIED" });
   const route = loadRelasiRoute(state);
   const res = await route.POST!(postRequest({
-    action: "edit-partner", edgeId: "p1", newPartnerId: "lain",
+    action: "edit-partner", edgeId: "p1", newPartnerId: "lain", oldPartnerId: "pasangan",
   }));
   assert.equal(res.status, 409);
+});
+
+test("edit-partner mengganti sisi B (fokus di partnerB)", async () => {
+  const state = relasiFixture();
+  // fokus adalah partnerB; ganti partnerA
+  state.partnerEdges.push({ id: "p1", partnerAId: "pasangan", partnerBId: "fokus", status: "MARRIED" });
+  const route = loadRelasiRoute(state);
+  const res = await route.POST!(postRequest({
+    action: "edit-partner", edgeId: "p1", newPartnerId: "baru", oldPartnerId: "pasangan",
+  }));
+  assert.equal(res.status, 200);
+  const data = state.partnerUpdate[0].data as Record<string, unknown>;
+  assert.equal(data.partnerAId, "baru"); // sisi yang diganti (A) jadi baru
+  assert.equal(data.partnerBId, undefined); // B (fokus) tidak disentuh
+});
+
+test("edit-partner mengganti sisi A (fokus di partnerA)", async () => {
+  const state = relasiFixture();
+  state.partnerEdges.push({ id: "p1", partnerAId: "fokus", partnerBId: "pasangan", status: "MARRIED" });
+  const route = loadRelasiRoute(state);
+  const res = await route.POST!(postRequest({
+    action: "edit-partner", edgeId: "p1", newPartnerId: "baru", oldPartnerId: "pasangan",
+  }));
+  assert.equal(res.status, 200);
+  const data = state.partnerUpdate[0].data as Record<string, unknown>;
+  assert.equal(data.partnerBId, "baru"); // sisi B (pasangan) diganti
+  assert.equal(data.partnerAId, undefined); // A (fokus) tidak disentuh
+});
+
+test("edit-partner menolak oldPartnerId tak cocok (400)", async () => {
+  const state = relasiFixture();
+  state.partnerEdges.push({ id: "p1", partnerAId: "fokus", partnerBId: "pasangan", status: "MARRIED" });
+  const route = loadRelasiRoute(state);
+  const res = await route.POST!(postRequest({
+    action: "edit-partner", edgeId: "p1", newPartnerId: "baru", oldPartnerId: "orang-lain",
+  }));
+  assert.equal(res.status, 400);
 });
 
 // ── auto-link anak <-> pasangan pada `add` & `add-new` ───────────────────

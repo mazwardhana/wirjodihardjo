@@ -601,6 +601,9 @@ export async function POST(request: Request) {
             await setChildOrderIndex(newChildId, nomor, tx as unknown as ChildOrderDb);
           });
           try { await recalculateGenerationLevel(newChildId); } catch {}
+          if (relationType === "child") {
+            try { await recalculateGenerationLevel(edge.childId); } catch {}
+          }
         } else {
           await prisma.personChild.update({ where: { id: edgeId }, data: attrs });
           try { await recalculateGenerationLevel(edge.childId); } catch {}
@@ -627,20 +630,37 @@ export async function POST(request: Request) {
         await assertPersonAccess(scope, edge.partnerBId);
 
         const newPartnerId = body.newPartnerId as string | undefined;
+        const oldPartnerId = body.oldPartnerId as string | undefined;
         const data: Prisma.PersonPartnerUncheckedUpdateInput = {};
+        let keptAuditId = edge.partnerAId;
 
         if (newPartnerId && newPartnerId !== edge.partnerAId && newPartnerId !== edge.partnerBId) {
+          const a = edge.partnerAId;
+          const b = edge.partnerBId;
+          let replaceA: boolean;
+          if (oldPartnerId) {
+            if (oldPartnerId === a) replaceA = true;
+            else if (oldPartnerId === b) replaceA = false;
+            else {
+              return NextResponse.json({ error: "Pasangan yang diganti tidak termasuk pada relasi ini." }, { status: 400 });
+            }
+          } else {
+            replaceA = false; // legacy fallback, keep old default behaviour
+          }
           await assertPersonAccess(scope, newPartnerId);
+          const keptId = replaceA ? b : a;
+          keptAuditId = keptId;
           const duplicate = await prisma.personPartner.findFirst({
             where: {
               OR: [
-                { partnerAId: edge.partnerAId, partnerBId: newPartnerId },
-                { partnerAId: newPartnerId, partnerBId: edge.partnerAId },
+                { partnerAId: keptId, partnerBId: newPartnerId },
+                { partnerAId: newPartnerId, partnerBId: keptId },
               ],
             },
           });
           if (duplicate) return NextResponse.json({ error: "Relasi sudah ada" }, { status: 409 });
-          data.partnerBId = newPartnerId;
+          if (replaceA) data.partnerAId = newPartnerId;
+          else data.partnerBId = newPartnerId;
         }
 
         if (body.status !== undefined) {
@@ -669,7 +689,7 @@ export async function POST(request: Request) {
         await logAudit({
           action: "RELATION_UPDATE_PARTNER",
           entityType: "Person",
-          entityId: edge.partnerAId,
+          entityId: keptAuditId,
           beforeData: edge as unknown as Prisma.InputJsonValue,
           afterData: body as unknown as Prisma.InputJsonValue,
           actorUserId: session.user.id,

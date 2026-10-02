@@ -1003,6 +1003,7 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
                                 divorceDate: draft.divorceDate || null,
                                 notes: draft.notes || null,
                                 newPartnerId: draft.newPartnerId ?? undefined,
+                                oldPartnerId: partner.member.id,
                               },
                               "Relasi pasangan diperbarui.",
                             );
