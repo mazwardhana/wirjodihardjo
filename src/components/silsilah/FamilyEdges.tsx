@@ -59,10 +59,14 @@ export function FamilyChildEdge({ data, style, targetX, targetY }: EdgeProps) {
   );
 }
 
-/** Garis pernikahan horizontal pada tengah tinggi kartu. */
-export function FamilyMarriageEdge({ data, style, sourceX, targetX }: EdgeProps) {
-  const { y } = data as unknown as FamilyMarriageEdgeData;
-  return <BaseEdge path={`M ${sourceX} ${y} L ${targetX} ${y}`} style={style} />;
+/** Garis pernikahan: horizontal antar pasangan sebaris, atau menurun ke pasangan. */
+export function FamilyMarriageEdge({ data, style }: EdgeProps) {
+  const { x1, y1, x2, y2 } = data as unknown as FamilyMarriageEdgeData;
+  const path =
+    Math.abs(y1 - y2) < 1
+      ? `M ${x1} ${y1} L ${x2} ${y2}`
+      : `M ${x1} ${y1} L ${x2} ${y1} L ${x2} ${y2}`;
+  return <BaseEdge path={path} style={style} />;
 }
 
 export const familyEdgeTypes = {
