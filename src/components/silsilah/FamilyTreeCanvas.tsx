@@ -13,6 +13,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { PersonNode, PersonNodeActionsContext } from "@/components/silsilah/PersonNode";
+import { familyEdgeTypes } from "@/components/silsilah/FamilyEdges";
 import {
   buildTreeGraph,
   type FamilyTreeData,
@@ -90,6 +91,7 @@ export function FamilyTreeCanvas({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
+          edgeTypes={familyEdgeTypes}
           onNodeClick={onNodeClick}
           onNodeDoubleClick={onNodeDoubleClick}
           fitView

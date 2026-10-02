@@ -223,6 +223,7 @@ function PersonNodeComponent({ data, selected }: NodeProps) {
   return (
     <div className="relative">
       <Handle
+        id="bus"
         type="target"
         position={Position.Top}
         className="!h-1.5 !w-1.5 !border-0 !bg-wood/40"

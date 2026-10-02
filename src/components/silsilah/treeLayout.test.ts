@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { Edge } from "@xyflow/react";
 import { buildTreeGraph, getRootId, NODE_MIN_GAP, type FamilyTreeData } from "./treeLayout";
 import type { PublicPerson } from "@/lib/data";
 
@@ -285,16 +286,34 @@ function connectedComponents(data: FamilyTreeData): string[][] {
   return [...groups.values()];
 }
 
+type FamilyChildEdgeData = {
+  kind: "child";
+  originX: number;
+  originY: number;
+  busY: number;
+};
+
+/** Semua edge keturunan (bukan pernikahan). */
+function childEdgesOf(edges: Edge[]) {
+  return edges.filter((e) => e.type === "familyChild");
+}
+
+function childData(e: Edge): FamilyChildEdgeData {
+  return e.data as unknown as FamilyChildEdgeData;
+}
+
 /** Setiap relasi orang tua-anak yang tampil harus menurun ke bawah. */
 function assertChildrenBelowParents(data: FamilyTreeData) {
   const { nodes, edges } = buildTreeGraph(data, new Set());
   const yById = new Map(nodes.map((n) => [n.id, n.position.y]));
-  for (const e of edges) {
-    if (e.type !== "smoothstep") continue;
-    const parentY = yById.get(e.source);
+  const children = childEdgesOf(edges);
+  assert.ok(children.length > 0, "harus ada garis keturunan");
+  for (const e of children) {
     const childY = yById.get(e.target);
-    if (parentY === undefined || childY === undefined) continue;
-    assert.ok(childY > parentY, `anak ${e.target} harus di bawah orang tua ${e.source}`);
+    if (childY === undefined) continue;
+    const { originY, busY } = childData(e);
+    assert.ok(originY < busY, `titik asal harus di atas bus untuk anak ${e.target}`);
+    assert.ok(busY < childY, `bus harus di atas anak ${e.target}`);
   }
 }
 
@@ -488,24 +507,72 @@ test("buildTreeGraph memancarkan tepat satu node per orang terhubung", () => {
   }
 });
 
-test("buildTreeGraph memancarkan semua edge orang tua-anak dan pasangan", () => {
+test("buildTreeGraph memancarkan satu garis keturunan per anak dan garis pasangan", () => {
   const { nodes, edges } = buildTreeGraph(fixture(), new Set());
   const nodeIds = new Set(nodes.map((n) => n.id));
   const edgeIds = new Set(edges.map((e) => e.id));
 
-  for (const e of CHILD_EDGES) {
-    const id = `${e.parentId}->${e.childId}`;
-    assert.ok(edgeIds.has(id), `edge ${id} hilang`);
-    const edge = edges.find((x) => x.id === id)!;
-    assert.ok(nodeIds.has(edge.source), `sumber ${id} bukan node yang dipancarkan`);
-    assert.ok(nodeIds.has(edge.target), `tujuan ${id} bukan node yang dipancarkan`);
+  // Satu garis per anak, bukan per orang tua: A04 punya B5 dan B6 (2 anak),
+  // bukan 2 garis per anak.
+  const children = childEdgesOf(edges);
+  const childTargets = children.map((e) => e.target);
+  for (const id of ["B1", "B2", "B3", "B4", "B5", "B6"]) {
+    assert.equal(
+      childTargets.filter((t) => t === id).length,
+      1,
+      `anak ${id} harus punya tepat satu garis keturunan`,
+    );
+  }
+  for (const e of children) {
+    assert.ok(nodeIds.has(e.source), `sumber ${e.id} bukan node yang dipancarkan`);
+    assert.ok(nodeIds.has(e.target), `tujuan ${e.id} bukan node yang dipancarkan`);
   }
 
   assert.ok(edgeIds.has("partner-A05+A06"), "edge pasangan A05+A06 hilang");
   const partnerEdge = edges.find((e) => e.id === "partner-A05+A06")!;
+  assert.equal(partnerEdge.type, "familyMarriage");
   assert.ok(nodeIds.has(partnerEdge.source) && nodeIds.has(partnerEdge.target));
 
   assert.equal(ROOT_IDS.includes(getRootId(fixture()) ?? ""), true);
+});
+
+test("buildTreeGraph mengelompokkan saudara pada satu bus ortogonal", () => {
+  // Sepasang orang tua dengan dua anak: kedua garis anak harus berbagi bus yang
+  // sama dan titik asal yang sama, sehingga membentuk satu konektor keluarga.
+  const { edges } = buildTreeGraph(coupleChildrenFixture(), new Set());
+  const kids = childEdgesOf(edges).filter((e) => ["Y1", "Y2"].includes(e.target));
+  assert.equal(kids.length, 2, "dua garis anak");
+  const first = childData(kids[0]);
+  const second = childData(kids[1]);
+  assert.equal(first.busY, second.busY, "bus saudara harus sama");
+  assert.equal(first.originX, second.originX, "titik asal saudara harus sama");
+  assert.equal(first.originY, second.originY, "titik asal saudara harus sama");
+});
+
+test("buildTreeGraph menaruh titik asal pasangan di celah antara dua kartu", () => {
+  const { nodes, edges } = buildTreeGraph(coupleChildrenFixture(), new Set());
+  const xOf = (id: string) => nodes.find((n) => n.id === id)!.position.x;
+  const kids = childEdgesOf(edges).filter((e) => ["Y1", "Y2"].includes(e.target));
+  const { originX } = childData(kids[0]);
+  // Kartu A di x=0, kartu B di x=300 (260 + 40). Titik tengah celah = 280.
+  const mid = (xOf("A") + 260 + xOf("B")) / 2;
+  assert.ok(
+    Math.abs(originX - mid) <= NODE_MIN_GAP,
+    `titik asal harus di celah pasangan, origin=${originX} mid=${mid}`,
+  );
+});
+
+test("buildTreeGraph memberi titik asal berbeda untuk tiap pernikahan", () => {
+  // M punya tiga pasangan berurutan; tiap pernikahan harus turun dari celahnya
+  // sendiri, bukan semua menumpuk di satu titik.
+  const { edges } = buildTreeGraph(yossiFixture(), new Set());
+  const kids = childEdgesOf(edges);
+  const byTarget = new Map(kids.map((e) => [e.target, childData(e)]));
+  for (const c of ["C1", "C2", "C3"]) {
+    assert.ok(byTarget.has(c), `garis anak ${c} hilang`);
+  }
+  const origins = ["C1", "C2", "C3"].map((c) => byTarget.get(c)!.originX);
+  assert.equal(new Set(origins).size, 3, `tiap pernikahan titik asal sendiri: ${origins}`);
 });
 
 test("buildTreeGraph deterministik pada pemanggilan berulang", () => {
@@ -532,8 +599,8 @@ test("buildTreeGraph memancarkan edge orang tua dari pasangan yang menikah masuk
   const { nodes, edges } = buildTreeGraph(data, new Set());
   const ids = new Set(nodes.map((n) => n.id));
   for (const id of ["A1", "A2", "B1", "B2"]) assert.ok(ids.has(id), `node ${id} hilang`);
-  assert.ok(edges.some((e) => e.id === "A1->A2"), "edge A1->A2 hilang");
-  assert.ok(edges.some((e) => e.id === "B1->B2"), "edge B1->B2 hilang");
+  assert.ok(edges.some((e) => e.id === "child-A2"), "garis keturunan A2 hilang");
+  assert.ok(edges.some((e) => e.id === "child-B2"), "garis keturunan B2 hilang");
 });
 
 test("buildTreeGraph menyembunyikan anak saat induknya collapsed", () => {
@@ -541,7 +608,7 @@ test("buildTreeGraph menyembunyikan anak saat induknya collapsed", () => {
 
   const ids = nodes.map((n) => n.id);
   assert.ok(!ids.includes("B1") && !ids.includes("B2"), "anak A01 disembunyikan");
-  assert.ok(!edges.some((e) => e.id === "A01->B1"), "edge anak A01 disembunyikan");
+  assert.ok(!edges.some((e) => e.id === "child-B1"), "garis anak B1 disembunyikan");
   assert.ok(ids.includes("A02"), "induk yang lain tetap tampil");
 
   const a01 = nodes.find((n) => n.id === "A01")!;

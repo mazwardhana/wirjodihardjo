@@ -34,6 +34,25 @@ export type PersonNodeData = {
   partnerStatus: "MARRIED" | "DIVORCED" | "WIDOWED" | "UNKNOWN" | null;
 };
 
+/**
+ * Data geometri garis keturunan ortogonal. Semua koordinat absolut (koordinat
+ * kanvas React Flow). `originX/originY` adalah titik turun keluarga (celah
+ * pasangan atau tengah kartu orang tua tunggal), `busY` adalah garis bus
+ * horizontal yang dipakai bersama saudara-saudara.
+ */
+export type FamilyChildEdgeData = {
+  kind: "child";
+  originX: number;
+  originY: number;
+  busY: number;
+};
+
+/** Data garis pernikahan horizontal; `y` adalah tinggi garis (tengah kartu). */
+export type FamilyMarriageEdgeData = {
+  kind: "marriage";
+  y: number;
+};
+
 const NODE_W = 260;
 const NODE_H = 130; // tinggi kartu orang
 const COUPLE_SPACING = NODE_W + 40; // jarak kartu primary ke kartu pasangan
@@ -51,7 +70,13 @@ type PlacedNode = {
 };
 
 type PartnerLink = { a: string; b: string; edge: PartnerEdge };
-type ChildLink = { parentId: string; childId: string };
+
+/** Konektor satu anak: identitas anak dan orang tuanya. Geometri dihitung
+ *  dari posisi final node saat edge dipancarkan. */
+type ChildBus = {
+  childId: string;
+  parentIds: string[];
+};
 
 /**
  * Hasil layout satu keluarga, koordinat relatif terhadap kartu primary di (0,0).
@@ -61,7 +86,7 @@ type ChildLink = { parentId: string; childId: string };
 type FamilyLayout = {
   positions: PlacedNode[];
   partnerLinks: PartnerLink[];
-  childLinks: ChildLink[];
+  childBus: ChildBus[];
   left: number;
   right: number;
   height: number;
@@ -208,7 +233,7 @@ export function buildTreeGraph(
     seen.add(pid);
 
     const partnerLinks: PartnerLink[] = [];
-    const childLinks: ChildLink[] = [];
+    const childBus: ChildBus[] = [];
     const claimed = new Set<string>();
 
     // Baris kartu: primary di x=0, lalu semua pasangan (termasuk pasangan dari
@@ -334,13 +359,11 @@ export function buildTreeGraph(
         right = Math.max(right, x + NODE_W);
       }
       partnerLinks.push(...block.layout.partnerLinks);
-      childLinks.push(...block.layout.childLinks);
-
-      for (const parentId of block.parentIds) {
-        if (childEdgesByParent.get(parentId)?.some((e) => e.childId === block.childId)) {
-          childLinks.push({ parentId, childId: block.childId });
-        }
-      }
+      // Anak-anak dari blok ini memakai geometri lokal (relatif terhadap blok)
+      // supaya konturnya tetap benar; pergeseran global ditambahkan saat edge
+      // dipancarkan dari posisi node final.
+      childBus.push(...block.layout.childBus);
+      childBus.push({ childId: block.childId, parentIds: block.parentIds });
     }
 
     const height = blocks.length > 0 ? childY + childHeight : NODE_H;
@@ -356,7 +379,7 @@ export function buildTreeGraph(
       rightContour[d] = Math.max(rightContour[d] ?? -Infinity, p.x + NODE_W);
     }
 
-    return { positions, partnerLinks, childLinks, left, right, height, leftContour, rightContour };
+    return { positions, partnerLinks, childBus, left, right, height, leftContour, rightContour };
   }
 
   // === Akar per komponen terhubung (union-find) ===
@@ -389,6 +412,7 @@ export function buildTreeGraph(
   const nodes: Node[] = [];
   const edges: Edge[] = [];
   const emitted = new Set<string>();
+  const emittedChild = new Set<string>();
   const rowRight = new Map<number, number>();
 
   for (let i = 0; i < blocks.length; i++) {
@@ -410,50 +434,108 @@ export function buildTreeGraph(
     }
 
     for (const link of block.partnerLinks) {
+      const a = nodes.find((n) => n.id === link.a);
+      const b = nodes.find((n) => n.id === link.b);
+      const y = a && b ? a.position.y + NODE_H / 2 : NODE_H / 2;
       edges.push({
         id: `partner-${link.a}+${link.b}`,
         source: link.a,
         target: link.b,
-        type: "straight",
+        type: "familyMarriage",
+        data: {
+          kind: "marriage",
+          y,
+        } satisfies FamilyMarriageEdgeData as unknown as Record<string, unknown>,
         style: partnerLineStyle(link.edge.status),
       });
     }
 
-    for (const link of block.childLinks) {
-      const ce = childEdgesByParent.get(link.parentId)?.find((e) => e.childId === link.childId);
+    // Satu garis keturunan per anak. Geometri dihitung dari posisi node final
+    // (setelah pergeseran anti-tumpuk) supaya konektor selalu menempel ke kartu.
+    for (const cb of block.childBus) {
+      if (emittedChild.has(cb.childId)) continue;
+      if (cb.parentIds.some((id) => collapsed.has(id))) continue;
+      const child = nodes.find((n) => n.id === cb.childId);
+      const parents = cb.parentIds
+        .map((id) => nodes.find((n) => n.id === id))
+        .filter((n): n is Node => n !== undefined);
+      if (!child || parents.length === 0) continue;
+
+      const ce = cb.parentIds
+        .flatMap((id) => childEdgesByParent.get(id) ?? [])
+        .find((e) => e.childId === cb.childId);
+      const originX = familyOriginX(parents);
+      const originY = Math.max(...parents.map((p) => p.position.y)) + NODE_H;
+      const busY = child.position.y - GAP_Y / 2;
+      emittedChild.add(cb.childId);
+
       edges.push({
-        id: `${link.parentId}->${link.childId}`,
-        source: link.parentId,
-        target: link.childId,
-        type: "smoothstep",
+        id: `child-${cb.childId}`,
+        source: parents[0].id,
+        target: cb.childId,
+        type: "familyChild",
+        data: {
+          kind: "child",
+          originX,
+          originY,
+          busY,
+        } satisfies FamilyChildEdgeData as unknown as Record<string, unknown>,
         style: childLineStyle(ce),
       });
     }
   }
 
-  // Sapuan global: pasangan yang menikah masuk bisa terserap ke baris keluarga
-  // lain sehingga edge dari orang tuanya tidak pernah tercatat saat traversal.
-  // Pancarkan semua edge orang tua-anak yang kedua ujungnya tampil sebagai node,
-  // lalu dedupe berdasarkan id agar tidak dobel dengan hasil traversal.
-  const nodeIds = new Set(nodes.map((n) => n.id));
-  const edgeIds = new Set(edges.map((e) => e.id));
+  // Sapuan: pasangan yang menikah masuk bisa terserap ke baris keluarga lain
+  // sehingga garis dari orang tuanya tidak tercatat saat traversal. Pancarkan
+  // sisa garis keturunan yang kedua ujungnya tampil, dengan geometri ortogonal
+  // dari kartu orang tua yang tersedia.
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
   for (const ce of data.childEdges) {
-    if (!nodeIds.has(ce.parentId) || !nodeIds.has(ce.childId)) continue;
-    // Induk yang dikuncupkan menyembunyikan garis ke anaknya.
+    if (emittedChild.has(ce.childId)) continue;
     if (collapsed.has(ce.parentId)) continue;
-    const id = `${ce.parentId}->${ce.childId}`;
-    if (edgeIds.has(id)) continue;
-    edgeIds.add(id);
+    const child = nodeById.get(ce.childId);
+    const parent = nodeById.get(ce.parentId);
+    if (!child || !parent) continue;
+    const parents = (parentIdsByChild.get(ce.childId) ?? [])
+      .map((id) => nodeById.get(id))
+      .filter((n): n is Node => n !== undefined);
+    if (parents.length === 0) continue;
+    emittedChild.add(ce.childId);
     edges.push({
-      id,
-      source: ce.parentId,
+      id: `child-${ce.childId}`,
+      source: parents[0].id,
       target: ce.childId,
-      type: "smoothstep",
+      type: "familyChild",
+      data: {
+        kind: "child",
+        originX: familyOriginX(parents),
+        originY: Math.max(...parents.map((p) => p.position.y)) + NODE_H,
+        busY: child.position.y - GAP_Y / 2,
+      } satisfies FamilyChildEdgeData as unknown as Record<string, unknown>,
       style: childLineStyle(ce),
     });
   }
 
   return { nodes, edges };
+}
+
+/**
+ * Titik turun keluarga pada koordinat kanvas: tengah celah pasangan, atau
+ * tengah kartu orang tua tunggal. Bila titik tengah pasangan jatuh di dalam
+ * kartu lain pada baris yang sama (pernikahan beruntun), digeser ke tepi
+ * kanan kartu itu agar garis tidak keluar dari tengah kartu orang lain.
+ */
+function familyOriginX(parents: Node[]): number {
+  if (parents.length === 1) return parents[0].position.x + NODE_W / 2;
+  const left = Math.min(...parents.map((p) => p.position.x));
+  const right = Math.max(...parents.map((p) => p.position.x));
+  const mid = (left + right) / 2 + NODE_W / 2;
+  for (const p of [...parents].sort((a, b) => a.position.x - b.position.x)) {
+    if (mid > p.position.x && mid < p.position.x + NODE_W) {
+      return p.position.x + NODE_W;
+    }
+  }
+  return mid;
 }
 
 // === Utility helpers ===
