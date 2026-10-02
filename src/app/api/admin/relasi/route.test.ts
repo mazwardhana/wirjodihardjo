@@ -678,6 +678,8 @@ test("add child menautkan anak ke pasangan tunggal orang tuanya", async () => {
   assert.equal(state.personChildCreate.length, 2, "fokus->anak dan pasangan->anak");
   const created = state.personChildCreate.map((c) => c.data.parentId).sort();
   assert.deepEqual(created, ["fokus", "pasangan"]);
+  const body = (await res.json()) as { linkedPartnerId?: string | null };
+  assert.equal(body.linkedPartnerId, "pasangan");
 });
 
 test("add child TIDAK menautkan bila orang tua punya dua pasangan", async () => {
@@ -705,6 +707,8 @@ test("add pasangan menautkan anak tunggal orang tua ke pasangan terdaftar", asyn
     state.personChildCreate.some((c) => c.data.parentId === "pasangan" && c.data.childId === "anak"),
     "anak fokus harus ditautkan ke pasangan baru",
   );
+  const body = (await res.json()) as { linkedChildIds?: string[] };
+  assert.deepEqual(body.linkedChildIds, ["anak"]);
 });
 
 test("add-new pasangan menautkan anak tunggal orang tua ke pasangan baru", async () => {
@@ -719,4 +723,6 @@ test("add-new pasangan menautkan anak tunggal orang tua ke pasangan baru", async
     state.personChildCreate.some((c) => c.data.parentId === "person-baru" && c.data.childId === "anak"),
     "anak fokus harus ditautkan ke pasangan baru",
   );
+  const body = (await res.json()) as { linkedChildIds?: string[] };
+  assert.deepEqual(body.linkedChildIds, ["anak"]);
 });

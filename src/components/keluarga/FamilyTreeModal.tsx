@@ -725,7 +725,7 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
   async function mutate(
     body: Record<string, unknown>,
     successMessage: string,
-  ): Promise<boolean> {
+  ): Promise<{ ok: boolean; linkedPartnerId?: string | null; linkedChildIds?: string[] }> {
     setSaveError(null);
     setSaving(true);
     try {
@@ -734,15 +734,25 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        linkedPartnerId?: string | null;
+        linkedChildIds?: string[];
+      };
       if (!res.ok) throw new Error(payload.error ?? "Gagal menyimpan relasi");
 
       toast("success", successMessage);
+      if (payload.linkedPartnerId) {
+        toast("info", "Anak juga otomatis ditautkan ke pasangannya.");
+      }
+      if (payload.linkedChildIds && payload.linkedChildIds.length > 0) {
+        toast("info", `${payload.linkedChildIds.length} anak juga otomatis ditautkan ke pasangan baru.`);
+      }
       setReloadKey((key) => key + 1);
-      return true;
+      return { ok: true, ...payload };
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Gagal menyimpan relasi");
-      return false;
+      return { ok: false };
     } finally {
       setSaving(false);
     }
@@ -763,7 +773,11 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
           role,
         }),
       });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        linkedPartnerId?: string | null;
+        linkedChildIds?: string[];
+      };
       if (!res.ok) throw new Error(body.error ?? "Gagal menyimpan relasi orang tua");
 
       toast("success", role === "FATHER" ? "Relasi ayah berhasil disimpan." : "Relasi ibu berhasil disimpan.");
@@ -791,7 +805,11 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
           ...draft,
         }),
       });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        linkedPartnerId?: string | null;
+        linkedChildIds?: string[];
+      };
       if (!res.ok) throw new Error(body.error ?? "Gagal menambah orang tua baru");
 
       toast("success", role === "FATHER" ? "Ayah baru berhasil ditambahkan." : "Ibu baru berhasil ditambahkan.");
@@ -823,7 +841,7 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
   }
 
   async function createChild(draft: NewPersonDraft): Promise<boolean> {
-    const ok = await mutate(
+    const { ok } = await mutate(
       { action: "add-new", relationType: "child", personId, ...draft },
       "Anak baru berhasil ditambahkan.",
     );
@@ -832,7 +850,7 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
   }
 
   async function createPartner(draft: NewPersonDraft): Promise<boolean> {
-    const ok = await mutate(
+    const { ok } = await mutate(
       { action: "add-new", relationType: "partner", personId, ...draft },
       "Pasangan baru berhasil ditambahkan.",
     );
@@ -994,7 +1012,7 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
                                 return;
                               }
                             }
-                            const ok = await mutate(
+                            const { ok } = await mutate(
                               {
                                 action: "edit-partner",
                                 edgeId: partner.edgeId,
@@ -1202,7 +1220,7 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
                                 return;
                               }
                             }
-                            const ok = await mutate(
+                            const { ok } = await mutate(
                               {
                                 action: "edit-relation",
                                 edgeId: child.edgeId,

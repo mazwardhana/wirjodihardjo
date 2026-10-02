@@ -116,6 +116,9 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: "Anggota tidak ditemukan" }, { status: 404 });
         }
 
+        let linkedPartnerId: string | null = null;
+        let linkedChildIds: string[] = [];
+
       if (relationType === "parent") {
         // Cek duplikasi edge
         const existing = await prisma.personChild.findFirst({
@@ -199,12 +202,13 @@ export async function POST(request: Request) {
 
           const pasangan = await partnerRoleForParent(personId, tx as never);
           if (pasangan) {
-            await autoLinkChildToPartner(
+            const link = await autoLinkChildToPartner(
               targetPersonId,
               personId,
               pasangan.role,
               tx as unknown as RelationSyncDb,
             );
+            linkedPartnerId = link.linkedPartnerId;
           }
         });
         // Satu panggilan cukup: rekalkulasi menghitung seluruh komponen.
@@ -231,12 +235,13 @@ export async function POST(request: Request) {
             }),
           },
         });
-        await autoLinkChildrenToPartner(
+        const linked = await autoLinkChildrenToPartner(
           personId,
           targetPersonId,
           partnerRoleFromGender(target.gender),
           prisma as unknown as RelationSyncDb,
         );
+        linkedChildIds = linked.linkedChildIds;
       } else {
         return NextResponse.json({ error: "Tipe relasi tidak dikenal" }, { status: 400 });
       }
@@ -249,7 +254,7 @@ export async function POST(request: Request) {
           actorUserId: session.user.id,
         });
 
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ ok: true, linkedPartnerId, linkedChildIds });
       }
 
       case "add-new": {
@@ -260,6 +265,9 @@ export async function POST(request: Request) {
         const gender = body.gender as string;
         const birthDate = typeof body.birthDate === "string" ? body.birthDate.trim() : "";
         const birthPlace = typeof body.birthPlace === "string" ? body.birthPlace.trim() : "";
+
+        let linkedPartnerId: string | null = null;
+        let linkedChildIds: string[] = [];
 
         if (!personId) {
           return NextResponse.json({ error: "personId diperlukan" }, { status: 400 });
@@ -367,7 +375,8 @@ export async function POST(request: Request) {
             });
             const pasangan = await partnerRoleForParent(personId, tx as never);
             if (pasangan) {
-              await autoLinkChildToPartner(created.id, personId, pasangan.role, tx as unknown as RelationSyncDb);
+              const link = await autoLinkChildToPartner(created.id, personId, pasangan.role, tx as unknown as RelationSyncDb);
+              linkedPartnerId = link.linkedPartnerId;
             }
           } else {
             await tx.personPartner.create({
@@ -378,12 +387,13 @@ export async function POST(request: Request) {
                 orderIndex: partnerCount,
               },
             });
-            await autoLinkChildrenToPartner(
+            const link = await autoLinkChildrenToPartner(
               personId,
               created.id,
               partnerRoleFromGender(gender),
               tx as unknown as RelationSyncDb,
             );
+            linkedChildIds = link.linkedChildIds;
           }
 
           return created.id;
@@ -402,7 +412,7 @@ export async function POST(request: Request) {
           actorUserId: session.user.id,
         });
 
-        return NextResponse.json({ ok: true, personId: createdId }, { status: 201 });
+        return NextResponse.json({ ok: true, personId: createdId, linkedPartnerId, linkedChildIds }, { status: 201 });
       }
 
       case "remove": {
