@@ -98,6 +98,11 @@ export function OrgChartMobile({ data }: { data: OrgChartData }) {
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-forest/70">
                     {position.name}
                   </h3>
+                  {position.description && (
+                    <p className="mb-2 text-xs leading-relaxed text-muted">
+                      {position.description}
+                    </p>
+                  )}
                   {position.assignments.length > 0 ? (
                     <div className="space-y-2">
                       {position.assignments.map((a) => (
@@ -117,7 +122,7 @@ export function OrgChartMobile({ data }: { data: OrgChartData }) {
           <details className="group rounded-lg border border-wood/20">
             <summary className="flex cursor-pointer items-center justify-between gap-2 bg-parchment/40 px-4 py-3 font-display text-sm font-semibold text-forest transition-colors hover:bg-parchment/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
               <span>
-                Perwakilan Keluarga Cabang
+                Dewan Perwakilan Keluarga Cabang
                 <span className="ml-2 text-xs font-normal text-muted">
                   ({data.branches.filter((b) => b.slot1 || b.slot2).length}/{data.branches.length} keluarga cabang)
                 </span>

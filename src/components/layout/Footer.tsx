@@ -64,6 +64,14 @@ export function Footer() {
               </li>
               <li>
                 <Link
+                  href="/pengurus"
+                  className="text-cream/80 transition-colors hover:text-gold-light"
+                >
+                  Pengurus
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/tentang"
                   className="text-cream/80 transition-colors hover:text-gold-light"
                 >

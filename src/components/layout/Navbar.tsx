@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: "/galeri", label: "Galeri" },
   { href: "/hall-of-fame", label: "Hall of Fame" },
   { href: "/reuni", label: "Reuni" },
+  { href: "/pengurus", label: "Pengurus" },
   { href: "/tentang", label: "Tentang" },
 ] as const;
 

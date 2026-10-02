@@ -122,6 +122,11 @@ export function OrgChart({ data }: { data: OrgChartData }) {
                   <h3 className="mb-2 text-center font-display text-sm font-semibold uppercase tracking-wide text-forest/80">
                     {position.name}
                   </h3>
+                  {position.description && (
+                    <p className="mb-2 max-w-[220px] text-center text-xs leading-relaxed text-muted">
+                      {position.description}
+                    </p>
+                  )}
                   {position.assignments.length > 0 ? (
                     <div className="flex flex-col gap-2">
                       {position.assignments.map((a) => (
@@ -154,7 +159,7 @@ export function OrgChart({ data }: { data: OrgChartData }) {
         <div className="mt-10 w-full max-w-5xl">
           <div className="motif-divider mb-6" aria-hidden="true" />
           <h3 className="mb-6 text-center font-display text-lg font-semibold text-forest">
-            Perwakilan Keluarga Cabang
+            Dewan Perwakilan Keluarga Cabang
           </h3>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.branches.map((branch) => (

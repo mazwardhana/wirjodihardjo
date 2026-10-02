@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { OrgChart } from "@/components/governance/OrgChart";
 import { OrgChartMobile } from "@/components/governance/OrgChartMobile";
+import { buildPengurusPlaceholderData } from "@/components/governance/pengurus-placeholder";
 import type { OrgChartData, OrgLevel, OrgBranch } from "@/components/governance/OrgChart";
 
 export const dynamic = "force-dynamic";
@@ -176,13 +177,13 @@ export default async function PengurusPage() {
     };
   });
 
-  const data: OrgChartData = {
-    structure: structure
-      ? { name: structure.name, description: structure.description }
-      : null,
-    levels,
-    branches: branchData,
-  };
+  const data: OrgChartData = structure
+    ? {
+        structure: { name: structure.name, description: structure.description },
+        levels,
+        branches: branchData,
+      }
+    : buildPengurusPlaceholderData(branches);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
