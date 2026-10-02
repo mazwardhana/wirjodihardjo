@@ -153,6 +153,45 @@ function noOrderIndexFixture(): FamilyTreeData {
   };
 }
 
+// ── fixture: urutan anak lintas pernikahan harus global ─────────────────
+// P menikah P1 (orderIndex 0) lalu P2 (orderIndex 1). C1 anak (P,P1) order 0,
+// C2 anak (P,P2) order 0, C3 anak (P,P1) order 1. C2 dibuat lebih dulu dari C1,
+// jadi urutan global (orderIndex, createdAt) = C2, C1, C3. Pengelompokan lama
+// per pernikahan justru menghasilkan C1, C3, C2.
+function crossMarriageOrderFixture(): FamilyTreeData {
+  const early = "2024-01-01T00:00:00.000Z";
+  const late = "2024-06-01T00:00:00.000Z";
+  const edge = (
+    parentId: string,
+    childId: string,
+    parentRole: string,
+    orderIndex: number,
+    createdAt: string,
+  ) => ({ parentId, childId, parentRole, isStep: false, isAdopted: false, orderIndex, createdAt });
+  return {
+    persons: [
+      person("P", 0),
+      person("P1", 1),
+      person("P2", 1),
+      person("C1", 1),
+      person("C2", 1),
+      person("C3", 1),
+    ],
+    childEdges: [
+      edge("P", "C1", "FATHER", 0, late),
+      edge("P1", "C1", "MOTHER", 0, late),
+      edge("P", "C2", "FATHER", 0, early),
+      edge("P2", "C2", "MOTHER", 0, early),
+      edge("P", "C3", "FATHER", 1, late),
+      edge("P1", "C3", "MOTHER", 1, late),
+    ],
+    partnerEdges: [
+      { partnerAId: "P", partnerBId: "P1", status: "MARRIED", marriageDate: null, divorceDate: null, orderIndex: 0 },
+      { partnerAId: "P", partnerBId: "P2", status: "MARRIED", marriageDate: null, divorceDate: null, orderIndex: 1 },
+    ],
+  };
+}
+
 // ── fixture: subtree berat sebelah ──────────────────────────────────────
 // X punya dua anak: Y1 (daun) dan Y2 (punya lima anak). Bentang subtree Y2
 // jauh lebih lebar dari kartu Y2 sendiri, sehingga pusat bentang subtree tidak
@@ -633,6 +672,29 @@ test("buildTreeGraph mengurutkan anak menurut orderIndex, bukan urutan masukan",
       `${nama}: orderIndex 0,1,2 harus kiri ke kanan, x(C3)=${x3} x(C2)=${x2} x(C1)=${x1}`,
     );
   }
+});
+
+test("buildTreeGraph mengurutkan anak lintas pernikahan secara global, bukan per pasangan", () => {
+  const xOf = (nodes: { id: string; position: { x: number } }[], id: string) =>
+    nodes.find((n) => n.id === id)!.position.x;
+
+  const first = buildTreeGraph(crossMarriageOrderFixture(), new Set());
+  const second = buildTreeGraph(crossMarriageOrderFixture(), new Set());
+
+  const x1 = xOf(first.nodes, "C1");
+  const x2 = xOf(first.nodes, "C2");
+  const x3 = xOf(first.nodes, "C3");
+  assert.ok(
+    x2 < x1 && x1 < x3,
+    `anak lintas pernikahan harus urut global (C2,C1,C3), x(C2)=${x2} x(C1)=${x1} x(C3)=${x3}`,
+  );
+
+  // Urutan harus deterministik antar pemanggilan.
+  for (const id of ["C1", "C2", "C3"]) {
+    assert.equal(xOf(second.nodes, id), xOf(first.nodes, id), `x ${id} harus sama antar pemanggilan`);
+  }
+  assert.deepEqual(second.nodes, first.nodes);
+  assert.deepEqual(second.edges, first.edges);
 });
 
 test("buildTreeGraph tetap deterministik saat orderIndex tidak ada", () => {

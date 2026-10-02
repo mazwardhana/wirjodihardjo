@@ -8,6 +8,8 @@ export type ChildEdge = {
   isStep: boolean;
   isAdopted: boolean;
   orderIndex?: number;
+  /** Waktu baris relasi dibuat. Pemecah seri bila `orderIndex` sama. */
+  createdAt?: Date | string | null;
 };
 
 export type PartnerEdge = {
@@ -168,19 +170,32 @@ export function buildTreeGraph(
   // Nomor urut anak (terkecil bila ada beberapa baris untuk anak yang sama).
   // Dipakai agar urutan tampil tidak bergantung pada urutan array masukan.
   const orderIndexByChild = new Map<string, number>();
+  // Waktu dibuat paling awal per anak. Pemecah seri saat nomor urut sama,
+  // supaya urutan seri mengikuti urutan input, bukan kebetulan id.
+  const createdAtByChild = new Map<string, number>();
   for (const edge of data.childEdges) {
-    if (edge.orderIndex === undefined) continue;
-    const current = orderIndexByChild.get(edge.childId);
-    if (current === undefined || edge.orderIndex < current) {
-      orderIndexByChild.set(edge.childId, edge.orderIndex);
+    if (edge.orderIndex !== undefined) {
+      const current = orderIndexByChild.get(edge.childId);
+      if (current === undefined || edge.orderIndex < current) {
+        orderIndexByChild.set(edge.childId, edge.orderIndex);
+      }
+    }
+    const t = edge.createdAt ? new Date(edge.createdAt).getTime() : Number.NaN;
+    if (!Number.isNaN(t)) {
+      const current = createdAtByChild.get(edge.childId);
+      if (current === undefined || t < current) createdAtByChild.set(edge.childId, t);
     }
   }
-  // orderIndex tidak ada dianggap paling akhir, lalu childId menaik sebagai
-  // pemecah seri supaya urutannya deterministik.
+  // Urutan anak mengikuti setelan pengguna: orderIndex naik, lalu waktu dibuat
+  // (urutan input), lalu childId. Samakan dengan urutan daftar anak di panel
+  // admin supaya pohon selalu mencerminkan setelan "Naik/Turun".
   const compareChild = (a: string, b: string) => {
     const oa = orderIndexByChild.get(a) ?? Number.POSITIVE_INFINITY;
     const ob = orderIndexByChild.get(b) ?? Number.POSITIVE_INFINITY;
     if (oa !== ob) return oa - ob;
+    const ta = createdAtByChild.get(a) ?? Number.POSITIVE_INFINITY;
+    const tb = createdAtByChild.get(b) ?? Number.POSITIVE_INFINITY;
+    if (ta !== tb) return ta - tb;
     return a < b ? -1 : a > b ? 1 : 0;
   };
 
@@ -306,6 +321,12 @@ export function buildTreeGraph(
         }
       }
     }
+
+    // Setelah semua blok anak terkumpul, urutkan sekali secara global mengikuti
+    // setelan urutan anak (orderIndex lalu waktu dibuat). Tanpa ini, anak dari
+    // pernikahan berbeda tampil berkelompok per pasangan dan urutannya tidak
+    // sesuai daftar anak di panel admin.
+    blocks.sort((a, b) => compareChild(a.childId, b.childId));
 
     // Blok anak dikemas berdasarkan kontur per kedalaman. Kedalaman lokal d
     // blok anak dipetakan ke kedalaman lokal induk d+1 karena anak berada satu
