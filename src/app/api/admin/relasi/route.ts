@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Gender, ParentRole, PartnerStatus, Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
@@ -130,7 +131,7 @@ export async function POST(request: Request) {
             data: {
               parentId: targetPersonId,
               childId: personId,
-              parentRole: (role as any) ?? "UNKNOWN",
+              parentRole: (role as ParentRole) ?? "UNKNOWN",
               orderIndex: nomor,
             },
           });
@@ -171,7 +172,7 @@ export async function POST(request: Request) {
             data: {
               parentId: personId,
               childId: targetPersonId,
-              parentRole: (role as any) ?? "UNKNOWN",
+              parentRole: (role as ParentRole) ?? "UNKNOWN",
               orderIndex: nomor,
             },
           });
@@ -210,7 +211,7 @@ export async function POST(request: Request) {
           action: `RELATION_ADD_${relationType.toUpperCase()}`,
           entityType: "Person",
           entityId: personId,
-          afterData: { relationType, targetPersonId } as any,
+          afterData: { relationType, targetPersonId } as Prisma.InputJsonValue,
           actorUserId: session.user.id,
         });
 
@@ -293,7 +294,7 @@ export async function POST(request: Request) {
           const created = await tx.person.create({
             data: {
               fullName,
-              gender: gender as any,
+              gender: gender as Gender,
               birthDate: birthDateValue,
               birthPlace: birthPlace || null,
               branchId: person.branchId ?? undefined,
@@ -315,7 +316,7 @@ export async function POST(request: Request) {
               data: {
                 parentId: created.id,
                 childId: personId,
-                parentRole: parentRole as any,
+                parentRole: parentRole as ParentRole,
                 orderIndex: nomor,
               },
             });
@@ -326,7 +327,7 @@ export async function POST(request: Request) {
               data: {
                 parentId: personId,
                 childId: created.id,
-                parentRole: parentRole as any,
+                parentRole: parentRole as ParentRole,
                 orderIndex: await orderIndexForChild(created.id, [personId], tx as ChildOrderDb),
               },
             });
@@ -353,7 +354,7 @@ export async function POST(request: Request) {
           action: `RELATION_ADD_${relationType.toUpperCase()}_NEW`,
           entityType: "Person",
           entityId: personId,
-          afterData: { relationType, fullName } as any,
+          afterData: { relationType, fullName } as Prisma.InputJsonValue,
           actorUserId: session.user.id,
         });
 
@@ -472,6 +473,163 @@ export async function POST(request: Request) {
           actorUserId: session.user.id,
         });
 
+        return NextResponse.json({ ok: true });
+      }
+
+      case "edit-relation": {
+        const edgeId = body.edgeId as string;
+        const relationType = body.relationType as string;
+        if (!edgeId || (relationType !== "parent" && relationType !== "child")) {
+          return NextResponse.json(
+            { error: "edgeId dan relationType (\"parent\" atau \"child\") diperlukan" },
+            { status: 400 },
+          );
+        }
+
+        const edge = await prisma.personChild.findUnique({ where: { id: edgeId } });
+        if (!edge) return NextResponse.json({ error: "Relasi tidak ditemukan" }, { status: 404 });
+        await assertPersonAccess(scope, edge.parentId);
+        await assertPersonAccess(scope, edge.childId);
+
+        const newTargetPersonId = body.newTargetPersonId as string | undefined;
+        const attrs = {
+          parentRole: (body.parentRole as ParentRole | undefined) ?? edge.parentRole,
+          isStep: typeof body.isStep === "boolean" ? body.isStep : edge.isStep,
+          isAdopted: typeof body.isAdopted === "boolean" ? body.isAdopted : edge.isAdopted,
+        };
+
+        if (newTargetPersonId && newTargetPersonId !== (relationType === "child" ? edge.childId : edge.parentId)) {
+          const newChildId = relationType === "child" ? newTargetPersonId : edge.childId;
+          const newParentId = relationType === "parent" ? newTargetPersonId : edge.parentId;
+          await assertPersonAccess(scope, newTargetPersonId);
+
+          if (newParentId === newChildId) {
+            return NextResponse.json(
+              { error: "Seseorang tidak dapat menjadi orang tua bagi dirinya sendiri." },
+              { status: 409 },
+            );
+          }
+          const duplicate = await prisma.personChild.findFirst({
+            where: { parentId: newParentId, childId: newChildId },
+          });
+          if (duplicate) return NextResponse.json({ error: "Relasi sudah ada" }, { status: 409 });
+
+          if (relationType === "child") {
+            const parentCount = await prisma.personChild.count({ where: { childId: newChildId } });
+            if (parentCount >= MAX_PARENTS) {
+              return NextResponse.json(
+                { error: `Anggota ini sudah memiliki ${MAX_PARENTS} orang tua. Hapus salah satu relasi terlebih dahulu.` },
+                { status: 409 },
+              );
+            }
+          }
+          // Siklus standar: calon orang tua tidak boleh keturunan calon anak.
+          const invalid = await validateParentChild(newParentId, newChildId);
+          if (invalid) return NextResponse.json({ error: invalid }, { status: 409 });
+          // Saat mengganti sisi anak pada edge yang sudah ada, calon anak tidak
+          // boleh justru keturunan orang tua yang sama; relasi langsung semacam
+          // itu melipat cabang ke atas dirinya sendiri.
+          if (relationType === "child" && (await isDescendant(newParentId, newChildId))) {
+            return NextResponse.json(
+              { error: "Relasi ini akan membentuk siklus silsilah yang tidak valid." },
+              { status: 409 },
+            );
+          }
+
+          await prisma.$transaction(async (tx) => {
+            await tx.personChild.update({
+              where: { id: edgeId },
+              data:
+                relationType === "child"
+                  ? { childId: newChildId, ...attrs }
+                  : { parentId: newParentId, ...attrs },
+            });
+            const parents = await tx.personChild.findMany({
+              where: { childId: newChildId },
+              select: { parentId: true },
+            });
+            const parentIds = [...new Set(parents.map((row) => row.parentId))];
+            const nomor = await orderIndexForChild(
+              newChildId,
+              parentIds,
+              tx as unknown as ChildOrderDb,
+            );
+            await setChildOrderIndex(newChildId, nomor, tx as unknown as ChildOrderDb);
+          });
+          try { await recalculateGenerationLevel(newChildId); } catch {}
+        } else {
+          await prisma.personChild.update({ where: { id: edgeId }, data: attrs });
+          try { await recalculateGenerationLevel(edge.childId); } catch {}
+        }
+
+        await logAudit({
+          action: "RELATION_UPDATE_CHILD",
+          entityType: "Person",
+          entityId: edge.childId,
+          beforeData: edge as unknown as Prisma.InputJsonValue,
+          afterData: body as unknown as Prisma.InputJsonValue,
+          actorUserId: session.user.id,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      case "edit-partner": {
+        const edgeId = body.edgeId as string;
+        if (!edgeId) return NextResponse.json({ error: "edgeId diperlukan" }, { status: 400 });
+
+        const edge = await prisma.personPartner.findUnique({ where: { id: edgeId } });
+        if (!edge) return NextResponse.json({ error: "Relasi tidak ditemukan" }, { status: 404 });
+        await assertPersonAccess(scope, edge.partnerAId);
+        await assertPersonAccess(scope, edge.partnerBId);
+
+        const newPartnerId = body.newPartnerId as string | undefined;
+        const data: Prisma.PersonPartnerUncheckedUpdateInput = {};
+
+        if (newPartnerId && newPartnerId !== edge.partnerAId && newPartnerId !== edge.partnerBId) {
+          await assertPersonAccess(scope, newPartnerId);
+          const duplicate = await prisma.personPartner.findFirst({
+            where: {
+              OR: [
+                { partnerAId: edge.partnerAId, partnerBId: newPartnerId },
+                { partnerAId: newPartnerId, partnerBId: edge.partnerAId },
+              ],
+            },
+          });
+          if (duplicate) return NextResponse.json({ error: "Relasi sudah ada" }, { status: 409 });
+          data.partnerBId = newPartnerId;
+        }
+
+        if (body.status !== undefined) {
+          if (!["MARRIED", "DIVORCED", "WIDOWED", "UNKNOWN"].includes(body.status as string)) {
+            return NextResponse.json({ error: "Status pernikahan tidak valid" }, { status: 400 });
+          }
+          data.status = body.status as PartnerStatus;
+        }
+        for (const field of ["marriageDate", "divorceDate"] as const) {
+          if (body[field] !== undefined) {
+            if (body[field] === null || body[field] === "") {
+              data[field] = null;
+            } else {
+              const parsed = new Date(body[field] as string);
+              if (Number.isNaN(parsed.getTime())) {
+                return NextResponse.json({ error: "Tanggal tidak valid" }, { status: 400 });
+              }
+              data[field] = parsed;
+            }
+          }
+        }
+        if (body.notes !== undefined) data.notes = body.notes === null ? null : String(body.notes);
+
+        await prisma.personPartner.update({ where: { id: edgeId }, data });
+
+        await logAudit({
+          action: "RELATION_UPDATE_PARTNER",
+          entityType: "Person",
+          entityId: edge.partnerAId,
+          beforeData: edge as unknown as Prisma.InputJsonValue,
+          afterData: body as unknown as Prisma.InputJsonValue,
+          actorUserId: session.user.id,
+        });
         return NextResponse.json({ ok: true });
       }
 

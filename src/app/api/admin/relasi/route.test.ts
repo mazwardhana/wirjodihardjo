@@ -81,7 +81,7 @@ function loadModule(filename: string, requireMap: RequireMap) {
 }
 
 type AdminPersonRow = { id: string; branchId: string | null; gender: string };
-type ChildEdge = { parentId: string; childId: string; orderIndex: number };
+type ChildEdge = { id?: string; parentId: string; childId: string; orderIndex: number };
 
 type RelasiState = {
   person: AdminPersonRow | null;
@@ -96,10 +96,21 @@ type RelasiState = {
     where: { parentId_childId: { parentId: string; childId: string } };
     data: { orderIndex: number };
   }>;
+  personChildUpdateFull: Array<{ where: unknown; data: Record<string, unknown> }>;
   childEdges: ChildEdge[];
   personPartnerCreate: Array<{
     data: { partnerAId: string; partnerBId: string; status: string; orderIndex: number };
   }>;
+  partnerEdges: Array<{
+    id: string;
+    partnerAId: string;
+    partnerBId: string;
+    status: string;
+    marriageDate?: Date | null;
+    divorceDate?: Date | null;
+    notes?: string | null;
+  }>;
+  partnerUpdate: Array<{ where: { id: string }; data: Record<string, unknown> }>;
   userRole: "SUPER_ADMIN" | "BRANCH_ADMIN";
   branchAdminOf: { id: string } | null;
   moveChildCalls: Array<{ childId: string; direction: string }>;
@@ -116,8 +127,11 @@ function relasiFixture(): RelasiState {
     personCreate: [],
     personChildCreate: [],
     personChildUpdate: [],
+    personChildUpdateFull: [],
     childEdges: [],
     personPartnerCreate: [],
+    partnerEdges: [],
+    partnerUpdate: [],
     userRole: "SUPER_ADMIN" as "SUPER_ADMIN" | "BRANCH_ADMIN",
     branchAdminOf: null as { id: string } | null,
     moveChildCalls: [],
@@ -141,9 +155,14 @@ function loadRelasiRoute(state: RelasiState): { POST?: Handler } {
       }),
     },
     person: {
+      // Anggota yang tidak disemai dianggap ada di cabang yang sama supaya
+      // `assertPersonAccess` tidak menggagalkan tes yang hanya menguji logika
+      // relasi; tes akses tetap menyemai `person`/`persons` eksplisit.
       findUnique: async ({ where }: { where: { id: string } }) => {
         if (state.person && where.id === state.person.id) return state.person;
-        return state.persons[where.id] ?? null;
+        return (
+          state.persons[where.id] ?? { id: where.id, branchId: "cabang-1", gender: "MALE" }
+        );
       },
       create: async (args: { data: { fullName: string; branchId?: string; isMarriedInto?: boolean } }) => {
         state.personCreate.push(args);
@@ -151,7 +170,17 @@ function loadRelasiRoute(state: RelasiState): { POST?: Handler } {
       },
     },
     personChild: {
-      count: async () => state.parentCount,
+      // `state.parentCount` tetap dipakai tes lama sebagai override; graf
+      // `childEdges` ikut dihitung supaya tes edit relasi melihat jumlah nyata.
+      count: async (args?: { where?: { parentId?: string; childId?: string } }) => {
+        const where = args?.where;
+        const matching = state.childEdges.filter(
+          (row) =>
+            (where?.parentId === undefined || row.parentId === where.parentId) &&
+            (where?.childId === undefined || row.childId === where.childId),
+        ).length;
+        return state.parentCount + matching;
+      },
       findFirst: async (args: { where?: { parentId?: string; childId?: string } }) => {
         const where = args?.where ?? {};
         return (
@@ -192,15 +221,28 @@ function loadRelasiRoute(state: RelasiState): { POST?: Handler } {
         return { id: "pc-baru" };
       },
       update: async (args: {
-        where: { parentId_childId: { parentId: string; childId: string } };
-        data: { orderIndex: number };
+        where: { id?: string; parentId_childId?: { parentId: string; childId: string } };
+        data: Record<string, unknown>;
       }) => {
-        state.personChildUpdate.push(args);
-        const { parentId, childId } = args.where.parentId_childId;
-        const row = state.childEdges.find((edge) => edge.parentId === parentId && edge.childId === childId);
-        if (row) row.orderIndex = args.data.orderIndex;
+        // Jalur `edit-relation` mengubah baris lewat `where.id`; jalur order
+        // memakai kunci unik `parentId_childId`. Keduanya dibedakan di sini.
+        if (args.where.id !== undefined) {
+          state.personChildUpdateFull.push(args);
+          return { id: args.where.id };
+        }
+        const unique = args.where.parentId_childId!;
+        state.personChildUpdate.push({
+          where: { parentId_childId: unique },
+          data: { orderIndex: args.data.orderIndex as number },
+        });
+        const row = state.childEdges.find(
+          (edge) => edge.parentId === unique.parentId && edge.childId === unique.childId,
+        );
+        if (row) row.orderIndex = args.data.orderIndex as number;
         return { id: "pc-baru" };
       },
+      findUnique: async (args: { where: { id: string } }) =>
+        state.childEdges.find((row) => row.id === args.where.id) ?? null,
     },
     personPartner: {
       count: async () => state.partnerCount,
@@ -209,6 +251,34 @@ function loadRelasiRoute(state: RelasiState): { POST?: Handler } {
       }) => {
         state.personPartnerCreate.push(args);
         return { id: "pp-baru" };
+      },
+      findUnique: async (args: { where: { id: string } }) =>
+        state.partnerEdges.find((row) => row.id === args.where.id) ?? null,
+      findMany: async (args: { where?: { OR?: Array<Record<string, string>> } }) => {
+        const or = args?.where?.OR ?? [];
+        return state.partnerEdges.filter((row) =>
+          or.some(
+            (clause) =>
+              (clause.partnerAId === undefined || clause.partnerAId === row.partnerAId) &&
+              (clause.partnerBId === undefined || clause.partnerBId === row.partnerBId),
+          ),
+        );
+      },
+      findFirst: async (args: { where?: { OR?: Array<Record<string, string>> } }) => {
+        const or = args?.where?.OR ?? [];
+        return (
+          state.partnerEdges.find((row) =>
+            or.some(
+              (clause) =>
+                (clause.partnerAId === undefined || clause.partnerAId === row.partnerAId) &&
+                (clause.partnerBId === undefined || clause.partnerBId === row.partnerBId),
+            ),
+          ) ?? null
+        );
+      },
+      update: async (args: { where: { id: string }; data: Record<string, unknown> }) => {
+        state.partnerUpdate.push(args);
+        return { id: args.where.id };
       },
     },
     $transaction: async (fn: (tx: unknown) => Promise<string>) => fn(prismaPalsu),
@@ -471,4 +541,74 @@ test("reorder-child saat moveChild mengembalikan false dibalas 409 (409)", async
   assert.equal(body.error, "Anak tidak ditemukan atau sudah berada di urutan paling ujung.");
   assert.deepEqual(state.moveChildCalls, [{ childId: "C", direction: "down" }]);
   assert.equal(state.auditCalls.length, 0);
+});
+
+// ── harness `edit-relation` & `edit-partner` ─────────────────────────────
+
+test("edit-relation menolak ganti anak yang membentuk siklus (409)", async () => {
+  const state = relasiFixture();
+  state.childEdges.push({ id: "e1", parentId: "fokus", childId: "anak", orderIndex: 0 });
+  // "anak" adalah leluhur "cucu"; jadikan cucu anak baru fokus -> siklus
+  state.childEdges.push({ id: "e2", parentId: "anak", childId: "cucu", orderIndex: 0 });
+  const route = loadRelasiRoute(state);
+  const res = await route.POST!(postRequest({
+    action: "edit-relation", edgeId: "e1", relationType: "child", newTargetPersonId: "cucu",
+  }));
+  assert.equal(res.status, 409);
+});
+
+test("edit-relation menolak anak yang sudah punya 2 orang tua (409)", async () => {
+  const state = relasiFixture();
+  state.childEdges.push({ id: "e1", parentId: "fokus", childId: "anak", orderIndex: 0 });
+  state.childEdges.push({ id: "e2", parentId: "lain", childId: "target", orderIndex: 0 });
+  state.childEdges.push({ id: "e3", parentId: "lain2", childId: "target", orderIndex: 0 });
+  const route = loadRelasiRoute(state);
+  const res = await route.POST!(postRequest({
+    action: "edit-relation", edgeId: "e1", relationType: "child", newTargetPersonId: "target",
+  }));
+  assert.equal(res.status, 409);
+});
+
+test("edit-relation memperbarui atribut relasi tanpa ganti orang", async () => {
+  const state = relasiFixture();
+  state.childEdges.push({ id: "e1", parentId: "fokus", childId: "anak", orderIndex: 0 });
+  const route = loadRelasiRoute(state);
+  const res = await route.POST!(postRequest({
+    action: "edit-relation", edgeId: "e1", relationType: "child", parentRole: "FATHER", isStep: true, isAdopted: false,
+  }));
+  assert.equal(res.status, 200);
+  assert.equal(state.personChildUpdateFull.length, 1);
+  assert.ok(state.auditCalls.some((c) => c.action === "RELATION_UPDATE_CHILD"));
+});
+
+test("edit-partner memperbarui status dan tanggal", async () => {
+  const state = relasiFixture();
+  state.partnerEdges.push({ id: "p1", partnerAId: "fokus", partnerBId: "pasangan", status: "MARRIED" });
+  const route = loadRelasiRoute(state);
+  const res = await route.POST!(postRequest({
+    action: "edit-partner", edgeId: "p1", status: "DIVORCED", divorceDate: "2024-05-01", notes: "pisah",
+  }));
+  assert.equal(res.status, 200);
+  assert.equal(state.partnerUpdate.length, 1);
+  assert.equal((state.partnerUpdate[0].data as { status: string }).status, "DIVORCED");
+  assert.ok(state.auditCalls.some((c) => c.action === "RELATION_UPDATE_PARTNER"));
+});
+
+test("edit-partner menolak status tidak valid (400)", async () => {
+  const state = relasiFixture();
+  state.partnerEdges.push({ id: "p1", partnerAId: "fokus", partnerBId: "pasangan", status: "MARRIED" });
+  const route = loadRelasiRoute(state);
+  const res = await route.POST!(postRequest({ action: "edit-partner", edgeId: "p1", status: "PACARAN" }));
+  assert.equal(res.status, 400);
+});
+
+test("edit-partner menolak pasangan duplikat (409)", async () => {
+  const state = relasiFixture();
+  state.partnerEdges.push({ id: "p1", partnerAId: "fokus", partnerBId: "pasangan", status: "MARRIED" });
+  state.partnerEdges.push({ id: "p2", partnerAId: "fokus", partnerBId: "lain", status: "MARRIED" });
+  const route = loadRelasiRoute(state);
+  const res = await route.POST!(postRequest({
+    action: "edit-partner", edgeId: "p1", newPartnerId: "lain",
+  }));
+  assert.equal(res.status, 409);
 });
