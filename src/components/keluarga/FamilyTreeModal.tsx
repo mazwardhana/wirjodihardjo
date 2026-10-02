@@ -415,6 +415,120 @@ function ParentPicker({
   );
 }
 
+function ChildEditForm({
+  child,
+  busy,
+  onCancel,
+  onSave,
+}: {
+  child: ChildEntry;
+  busy: boolean;
+  onCancel: () => void;
+  onSave: (draft: {
+    parentRole: string;
+    isStep: boolean;
+    isAdopted: boolean;
+    newTargetPersonId?: string;
+  }) => void;
+}) {
+  const [parentRole, setParentRole] = useState("UNKNOWN");
+  const [isStep, setIsStep] = useState(child.isStep);
+  const [isAdopted, setIsAdopted] = useState(child.isAdopted);
+  const fieldId = `child-edit-${child.edgeId}`;
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSave({ parentRole, isStep, isAdopted });
+      }}
+      className="mt-2 space-y-3 rounded-md border border-wood/20 bg-cream p-3"
+    >
+      <p className="text-sm font-medium text-forest">Edit relasi anak: {child.fullName}</p>
+      <div>
+        <label htmlFor={`${fieldId}-role`} className="block text-sm font-medium text-forest">Peran orang tua</label>
+        <select id={`${fieldId}-role`} value={parentRole} onChange={(e) => setParentRole(e.target.value)} className={inputCls}>
+          <option value="UNKNOWN">Belum diketahui</option>
+          <option value="FATHER">Ayah</option>
+          <option value="MOTHER">Ibu</option>
+        </select>
+      </div>
+      <label className="flex items-center gap-2 text-sm text-forest">
+        <input type="checkbox" checked={isStep} onChange={(e) => setIsStep(e.target.checked)} className="h-4 w-4" />
+        Anak tiri
+      </label>
+      <label className="flex items-center gap-2 text-sm text-forest">
+        <input type="checkbox" checked={isAdopted} onChange={(e) => setIsAdopted(e.target.checked)} className="h-4 w-4" />
+        Anak angkat
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <button type="submit" disabled={busy} className="min-h-11 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream disabled:opacity-50">Simpan</button>
+        <button type="button" onClick={onCancel} disabled={busy} className="min-h-11 rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest disabled:opacity-50">Batal</button>
+      </div>
+    </form>
+  );
+}
+
+function PartnerEditForm({
+  partner,
+  busy,
+  onCancel,
+  onSave,
+}: {
+  partner: PartnerEntry;
+  busy: boolean;
+  onCancel: () => void;
+  onSave: (draft: {
+    status: string;
+    marriageDate: string;
+    divorceDate: string;
+    notes: string;
+  }) => void;
+}) {
+  const [status, setStatus] = useState(partner.status);
+  const [marriageDate, setMarriageDate] = useState(partner.marriageDate ? partner.marriageDate.slice(0, 10) : "");
+  const [divorceDate, setDivorceDate] = useState(partner.divorceDate ? partner.divorceDate.slice(0, 10) : "");
+  const [notes, setNotes] = useState(partner.notes ?? "");
+  const fieldId = `partner-edit-${partner.edgeId}`;
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSave({ status, marriageDate, divorceDate, notes });
+      }}
+      className="mt-2 space-y-3 rounded-md border border-wood/20 bg-cream p-3"
+    >
+      <p className="text-sm font-medium text-forest">Edit relasi pasangan: {partner.member.fullName}</p>
+      <div>
+        <label htmlFor={`${fieldId}-status`} className="block text-sm font-medium text-forest">Status</label>
+        <select id={`${fieldId}-status`} value={status} onChange={(e) => setStatus(e.target.value)} className={inputCls}>
+          <option value="MARRIED">Menikah</option>
+          <option value="DIVORCED">Cerai</option>
+          <option value="WIDOWED">Pasangan wafat</option>
+          <option value="UNKNOWN">Belum diketahui</option>
+        </select>
+      </div>
+      <div>
+        <label htmlFor={`${fieldId}-marriage`} className="block text-sm font-medium text-forest">Tanggal menikah</label>
+        <input id={`${fieldId}-marriage`} type="date" value={marriageDate} onChange={(e) => setMarriageDate(e.target.value)} className={inputCls} />
+      </div>
+      <div>
+        <label htmlFor={`${fieldId}-divorce`} className="block text-sm font-medium text-forest">Tanggal cerai</label>
+        <input id={`${fieldId}-divorce`} type="date" value={divorceDate} onChange={(e) => setDivorceDate(e.target.value)} className={inputCls} />
+      </div>
+      <div>
+        <label htmlFor={`${fieldId}-notes`} className="block text-sm font-medium text-forest">Catatan</label>
+        <input id={`${fieldId}-notes`} value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button type="submit" disabled={busy} className="min-h-11 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream disabled:opacity-50">Simpan</button>
+        <button type="button" onClick={onCancel} disabled={busy} className="min-h-11 rounded-md border border-wood/30 px-4 py-2 text-sm font-semibold text-forest disabled:opacity-50">Batal</button>
+      </div>
+    </form>
+  );
+}
+
 export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModalProps) {
   const [data, setData] = useState<RelasiPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -429,6 +543,8 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showPartnerForm, setShowPartnerForm] = useState(false);
   const [showChildForm, setShowChildForm] = useState(false);
+  const [editingChild, setEditingChild] = useState<ChildEntry | null>(null);
+  const [editingPartner, setEditingPartner] = useState<PartnerEntry | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -707,14 +823,47 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
                       <span className="font-medium">{partner.member.fullName}</span>
                       <span className="text-muted"> - {partnerStatusLabel(partner.status)}</span>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => removeRelation("partner", partner.edgeId)}
-                      disabled={removingEdgeId === partner.edgeId}
-                      className="min-h-11 rounded-md px-3 py-2 text-xs font-medium text-wood underline transition-colors hover:bg-wood/10 disabled:opacity-50"
-                    >
-                      Hapus relasi
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditingPartner(editingPartner?.edgeId === partner.edgeId ? null : partner)}
+                        disabled={saving}
+                        className="min-h-11 rounded-md px-3 py-2 text-xs font-medium text-gold-deep underline transition-colors hover:bg-wood/10 disabled:opacity-50"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeRelation("partner", partner.edgeId)}
+                        disabled={removingEdgeId === partner.edgeId}
+                        className="min-h-11 rounded-md px-3 py-2 text-xs font-medium text-wood underline transition-colors hover:bg-wood/10 disabled:opacity-50"
+                      >
+                        Hapus relasi
+                      </button>
+                    </div>
+                    {editingPartner?.edgeId === partner.edgeId && (
+                      <div className="w-full">
+                        <PartnerEditForm
+                          partner={partner}
+                          busy={saving}
+                          onCancel={() => setEditingPartner(null)}
+                          onSave={async (draft) => {
+                            const ok = await mutate(
+                              {
+                                action: "edit-partner",
+                                edgeId: partner.edgeId,
+                                status: draft.status,
+                                marriageDate: draft.marriageDate || null,
+                                divorceDate: draft.divorceDate || null,
+                                notes: draft.notes || null,
+                              },
+                              "Relasi pasangan diperbarui.",
+                            );
+                            if (ok) setEditingPartner(null);
+                          }}
+                        />
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -836,6 +985,14 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
+                        onClick={() => setEditingChild(editingChild?.edgeId === child.edgeId ? null : child)}
+                        disabled={saving}
+                        className="min-h-11 rounded-md px-3 py-2 text-xs font-medium text-gold-deep underline transition-colors hover:bg-wood/10 disabled:opacity-50"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
                         aria-label={"Naikkan urutan " + child.fullName}
                         onClick={() =>
                           mutate(
@@ -873,6 +1030,29 @@ export function FamilyTreeModal({ personId, branchId, onClose }: FamilyTreeModal
                         Hapus relasi
                       </button>
                     </div>
+                    {editingChild?.edgeId === child.edgeId && (
+                      <div className="w-full">
+                        <ChildEditForm
+                          child={child}
+                          busy={saving}
+                          onCancel={() => setEditingChild(null)}
+                          onSave={async (draft) => {
+                            const ok = await mutate(
+                              {
+                                action: "edit-relation",
+                                edgeId: child.edgeId,
+                                relationType: "child",
+                                parentRole: draft.parentRole,
+                                isStep: draft.isStep,
+                                isAdopted: draft.isAdopted,
+                              },
+                              "Relasi anak diperbarui.",
+                            );
+                            if (ok) setEditingChild(null);
+                          }}
+                        />
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
