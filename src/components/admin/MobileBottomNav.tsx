@@ -24,6 +24,7 @@ const overflowItems: AdminNavItem[] = [
   { href: "/admin/keluarga", label: "Keluarga", icon: "⊕", role: "ALL" },
   { href: "/admin/galeri", label: "Galeri", icon: "⊠", role: "ALL" },
   { href: "/admin/hall-of-fame", label: "Hall of Fame", icon: "★", role: "ALL" },
+  { href: "/admin/pengurus", label: "Kepengurusan", icon: "⌘", role: "SUPER_ONLY" },
   { href: "/admin/reuni", label: "Reuni", icon: "◈", role: "ALL" },
   { href: "/admin/pengguna", label: "Pengguna", icon: "☷", role: "SUPER_ONLY" },
   { href: "/admin/impor", label: "Impor Data", icon: "⇧", role: "SUPER_ONLY" },

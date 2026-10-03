@@ -81,11 +81,18 @@ export function governanceFixture() {
       return state.structures.find((s) => (id ? s.id === id : s.name === name)) ?? null;
     },
     findFirst: async (args: { where: Row }) => {
-      const where = args.where as { name?: string; id?: { not: string } };
+      const where = args.where as {
+        name?: string;
+        id?: { not: string };
+        isActive?: boolean;
+      };
       return (
-        state.structures.find(
-          (s) => s.name === where.name && s.id !== (where.id?.not ?? ""),
-        ) ?? null
+        state.structures.find((s) => {
+          if (where.name !== undefined && s.name !== where.name) return false;
+          if (where.id?.not !== undefined && s.id === where.id.not) return false;
+          if (where.isActive !== undefined && s.isActive !== where.isActive) return false;
+          return true;
+        }) ?? null
       );
     },
     create: async (args: { data: Row }) => {

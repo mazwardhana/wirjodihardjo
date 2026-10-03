@@ -115,7 +115,7 @@ function loadPage(state: State) {
             Fragment: "fragment",
           };
         }
-        return nativeRequire(id);
+        return nativeRequire(id.startsWith("@/") ? resolve("src", id.slice(2)) : id);
       },
     },
     { filename },
