@@ -37,25 +37,36 @@ export default async function AlbumPage({
   if (!album || !album.isPublished) notFound();
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-      <h1 className="font-display text-3xl font-semibold text-forest">
-        {album.title}
-      </h1>
-      {album.eventDate && (
-        <p className="mt-1 text-sm text-wood">{formatDate(album.eventDate)}</p>
-      )}
+    <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
       <Link
         href="/galeri"
-        className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-gold-deep underline hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+        className="group inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-forest"
       >
-        Kembali ke Galeri
+        <span
+          aria-hidden="true"
+          className="transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-x-1"
+        >
+          ←
+        </span>
+        Galeri Keluarga
       </Link>
-      {album.description && (
-        <p className="mt-3 max-w-2xl text-muted">{album.description}</p>
-      )}
+
+      <header className="mt-4 border-b border-wood/20 pb-8">
+        <h1 className="font-display text-4xl font-semibold text-balance text-forest sm:text-5xl">
+          {album.title}
+        </h1>
+        <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+          {album.eventDate && <span>{formatDate(album.eventDate)}</span>}
+          {album.eventDate && <span aria-hidden="true" className="text-wood/40">•</span>}
+          <span>{album.media.length} foto</span>
+        </p>
+        {album.description && (
+          <p className="mt-4 max-w-2xl text-muted">{album.description}</p>
+        )}
+      </header>
 
       {album.media.length === 0 ? (
-        <div className="mt-6">
+        <div className="mt-10">
           <EmptyState
             title="Album ini belum memiliki foto yang disetujui"
             description="Foto akan muncul di sini setelah admin menyetujui penggunaan media."
