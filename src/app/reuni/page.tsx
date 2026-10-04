@@ -2,14 +2,11 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { auth } from "@/lib/auth";
 
 // Jadwal reuni dibaca langsung dari basis data saat diminta.
 export const dynamic = "force-dynamic";
 
 export default async function ReuniPage() {
-  const session = await auth();
-
   const reunions = await prisma.reunion.findMany({
     where: { status: "PUBLISHED" },
     include: {
