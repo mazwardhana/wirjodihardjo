@@ -676,21 +676,27 @@ function RowField({
   error,
   children,
   stagger,
+  className,
 }: {
   rowIndex: number;
   field: string;
-  label: string;
+  /** Kosongkan bila children sudah membawa label sendiri (mis. checkbox). */
+  label?: string;
   error?: string;
   children: React.ReactNode;
   stagger?: React.CSSProperties;
+  /** Penempatan kolom saat baris berbaris di layar lebar (xl). */
+  className?: string;
 }) {
   const id = rowFieldId(rowIndex, field);
   const errorId = `${id}-galat`;
   return (
-    <div style={stagger}>
-      <label htmlFor={id} className="block text-xs font-medium text-muted xl:sr-only">
-        {label}
-      </label>
+    <div className={className} style={stagger}>
+      {label ? (
+        <label htmlFor={id} className="block text-xs font-medium text-muted xl:sr-only">
+          {label}
+        </label>
+      ) : null}
       {children}
       {error && (
         <p id={errorId} className="mt-1.5 flex items-start gap-1 text-xs font-medium text-wood">
@@ -809,6 +815,7 @@ function LedgerLine({
     <li
       className={cn(
         "grid grid-cols-1 gap-x-4 gap-y-3 py-4 xl:items-end xl:gap-y-1 xl:py-3",
+        LEDGER_COLUMNS,
         !isLast && "border-b border-wood/15",
         entering && "ledger-row-enter",
       )}
@@ -840,6 +847,7 @@ function LedgerLine({
         label="Nama panggilan"
         stagger={stagger(0)}
         error={fieldErrorOf(rowErrors, rowIndex, "namaPanggilan")}
+        className="xl:col-start-2 xl:row-start-1"
       >
         <RuleInput
           id={rowFieldId(rowIndex, "namaPanggilan")}
@@ -859,6 +867,7 @@ function LedgerLine({
         label="Nama lengkap"
         stagger={stagger(1)}
         error={fieldErrorOf(rowErrors, rowIndex, "namaLengkap")}
+        className="xl:col-start-3 xl:row-start-1"
       >
         <RuleInput
           id={rowFieldId(rowIndex, "namaLengkap")}
@@ -878,6 +887,7 @@ function LedgerLine({
         label="Laki-laki (L) atau perempuan (P)"
         stagger={stagger(2)}
         error={fieldErrorOf(rowErrors, rowIndex, "gender")}
+        className="xl:col-start-4 xl:row-start-1"
       >
         <RuleSelect
           id={rowFieldId(rowIndex, "gender")}
@@ -898,6 +908,7 @@ function LedgerLine({
         label="Status"
         stagger={stagger(3)}
         error={fieldErrorOf(rowErrors, rowIndex, "status")}
+        className="xl:col-start-5 xl:row-start-1"
       >
         <RuleSelect
           id={rowFieldId(rowIndex, "status")}
@@ -919,9 +930,9 @@ function LedgerLine({
       <RowField
         rowIndex={rowIndex}
         field="hadir"
-        label="Hadir di reuni"
         stagger={stagger(4)}
         error={fieldErrorOf(rowErrors, rowIndex, "hadir")}
+        className="xl:col-start-6 xl:row-start-1"
       >
         <label
           htmlFor={rowFieldId(rowIndex, "hadir")}

@@ -30,8 +30,16 @@ export default async function ReuniPage() {
       </h1>
       <p className="mt-3 max-w-2xl text-muted">
         Jadwal pertemuan keluarga yang akan datang dan arsip reuni sebelumnya.
-        Pendaftaran tersedia untuk anggota yang sudah login.
+        Belum punya akun? Isi data keluarga Anda lewat halaman registrasi, lalu
+        Anda bisa mendaftar reuni dan menyimpan silsilah keluarga sendiri.
       </p>
+
+      <Link
+        href="/registrasi"
+        className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-sm bg-forest px-5 py-2.5 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+      >
+        Registrasi data keluarga
+      </Link>
 
       {reunions.length === 0 ? (
         <div className="mt-10">

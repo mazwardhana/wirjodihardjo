@@ -441,3 +441,51 @@ test("bantuan administrator menjelaskan aturan baris kosong dan baris sebagian",
   assert.ok(html.includes("Baris yang terisi sebagian akan ditandai"));
   assert.ok(html.includes(REUNI_TITLE), "judul reuni nyata ikut tampil, bukan karangan");
 });
+
+/* ── Regresi: kolom ledger ─────────────────────────────────────── */
+
+test("kepala kolom dan baris memakai template kolom yang sama", () => {
+  const html = renderForm([branch()]);
+  const templates = [...html.matchAll(/xl:grid-cols-\[[^\]]+\]/g)].map((m) => m[0]);
+
+  // Regresi: template hanya pernah menempel di kepala kolom, sehingga baris
+  // isian memakai grid otomatis dan nomor baris tidak sejajar dengan nama kolom.
+  assert.ok(templates.length >= 2, `template kolom dipakai di kepala dan baris (ditemukan ${templates.length})`);
+  const unique = new Set(templates);
+  assert.equal(unique.size, 1, `semua pemakaian harus template yang sama, dapat: ${[...unique].join(" vs ")}`);
+});
+
+test("nomor baris, isian, dan kepala kolom berpijak pada kolom yang sama", () => {
+  const html = renderForm([branch()]);
+  for (const col of [2, 3, 4, 5, 6]) {
+    assert.ok(
+      html.includes(`xl:col-start-${col} xl:row-start-1`),
+      `isian kolom ${col} dipatok ke posisinya, bukan dibiarkan otomatis`,
+    );
+  }
+  assert.ok(html.includes("xl:col-start-1 xl:row-start-1"), "nomor baris di kolom pertama");
+  assert.ok(html.includes("xl:col-start-7 xl:row-start-1"), "tombol hapus di kolom terakhir");
+});
+
+/* ── Regresi: label ganda ──────────────────────────────────────── */
+
+test("setiap isian punya tepat satu label", () => {
+  const html = renderForm([branch()]);
+  const targets = [...html.matchAll(/<label[^>]*\sfor="([^"]+)"/g)].map((m) => m[1]);
+
+  // Regresi: kolom "Hadir" pernah memasang dua <label for> untuk checkbox yang
+  // sama, sehingga teks label tampil dua kali di layar kecil dan dibaca
+  // pembaca layar dua kali.
+  const counts = new Map<string, number>();
+  for (const t of targets) counts.set(t, (counts.get(t) ?? 0) + 1);
+  const doubled = [...counts.entries()].filter(([, n]) => n > 1);
+  assert.deepEqual(doubled, [], `id dengan label ganda: ${doubled.map(([id]) => id).join(", ")}`);
+});
+
+test("kolom Hadir menamai checkbox-nya tepat sekali", () => {
+  const html = renderForm([branch()]);
+  const hadirLabels = [...html.matchAll(/<label[^>]*\sfor="baris-1-hadir"[^>]*>([\s\S]*?)<\/label>/g)].map(
+    (m) => m[1].replace(/<[^>]*>/g, "").trim(),
+  );
+  assert.deepEqual(hadirLabels, ["Hadir di reuni"], "satu label untuk checkbox hadir");
+});
