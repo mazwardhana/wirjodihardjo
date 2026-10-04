@@ -108,6 +108,23 @@ export type StatisticsDb = {
   };
 };
 
+/**
+ * Menyempikan Prisma client ke kontrak data layer.
+ *
+ * Prisma client memenuhi kontrak ini saat runtime, tapi setiap metodenya
+ * generik (`<T extends PersonCountArgs>`) sehingga tipe hasilnya tidak pernah
+ * bisa disamakan dengan struktur sempit di atas. Daripada menulis
+ * `as unknown as` berulang di tiap halaman, penyempitan dikumpulkan di sini:
+ * satu helper, satu alasan, satu tempat.
+ *
+ *_Type-only_: tidak ada data yang diubah atau disembunyikan oleh helper ini.
+ * Jangan pakai untuk membungkus db pada kode yang butuh narrowing karena
+ * bentuk datanya memang salah.
+ */
+export function asStatisticsDb<T extends StatisticsDb = StatisticsDb>(client: unknown): T {
+  return client as T;
+}
+
 function percent(part: number, total: number): number {
   if (total <= 0) return 0;
   return Math.round((part / total) * 100);
@@ -261,15 +278,21 @@ export async function getStatistics(db: StatisticsDb): Promise<StatisticsBundle>
 }
 
 /**
+ * Bentuk db yang dibutuhkan laporan kredensial. Sengaja terpisah dari
+ * `StatisticsDb` agar halaman admin bisa menarik hanya tabel `user`.
+ */
+export type CredentialDb = {
+  user: {
+    findMany(args: unknown): Promise<CredentialRow[]>;
+  };
+};
+
+/**
  * Daftar akun yang dibuat lewat form publik, lengkap dengan nama pemiliknya.
  * Dipakai laporan admin untuk membagikan kredensial awal ke pemilik akun.
  */
 export async function getRegistrationCredentials(
-  db: Pick<StatisticsDb, "person"> & {
-    user: {
-      findMany(args: unknown): Promise<CredentialRow[]>;
-    };
-  },
+  db: CredentialDb,
   options: { take?: number } = {},
 ): Promise<CredentialRow[]> {
   const rows = await db.user.findMany({

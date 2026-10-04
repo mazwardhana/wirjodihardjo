@@ -1,24 +1,35 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+
+type RevealProps = {
+  children: ReactNode;
+  className?: string;
+  delay?: number;
+  as?: "div" | "section" | "li" | "article";
+  style?: CSSProperties;
+} & Record<string, unknown>;
 
 /**
  * Mengungkap konten saat masuk viewport.
  * Alasan: memandu perhatian pembaca mengikuti alur cerita tanpa animasi seragam
- * di setiap elemen. Otomatis nonaktif bila OS meminta gerak minimum.
+ * di setiap elemen. Gerak dimatikan lewat CSS bila OS meminta gerak minimum.
+ *
+ * Properti lain (mis. `aria-labelledby`, `id`, `data-*`) diteruskan ke elemen
+ * yang dirender. Tanpa itu, atribut aksesibilitas yang ditulis di pemanggil
+ * hilang diam-diam: nama atribut berawalan tanda hubung lolos dari
+ * pemeriksaan properti berlebih, jadi TypeScript tidak protes, sementara
+ * atributnya tidak pernah sampai ke DOM.
  */
 export function Reveal({
   children,
   className,
   delay = 0,
   as: Tag = "div",
-}: {
-  children: ReactNode;
-  className?: string;
-  delay?: number;
-  as?: "div" | "section" | "li" | "article";
-}) {
+  style,
+  ...rest
+}: RevealProps) {
   const ref = useRef<HTMLElement | null>(null);
   const [visible, setVisible] = useState(false);
 
@@ -26,13 +37,10 @@ export function Reveal({
     const node = ref.current;
     if (!node) return;
 
-    if (
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      setVisible(true);
-      return;
-    }
-
+    // Tidak ada cabang khusus reduced-motion di sini: globals.css sudah
+    // memaksa `.reveal` terlihat (opacity 1, tanpa transform) ketika pengguna
+    // meminta gerak minimum, dan durasi transisinya dititipkan ke 0.001ms.
+    // Observer tetap dipasang supaya isi tetap benar saat preferensi berubah.
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -49,9 +57,10 @@ export function Reveal({
 
   return (
     <Tag
+      {...rest}
       ref={ref as never}
       className={cn("reveal", visible && "is-visible", className)}
-      style={delay ? { transitionDelay: `${delay}ms` } : undefined}
+      style={delay ? { ...style, transitionDelay: `${delay}ms` } : style}
     >
       {children}
     </Tag>
