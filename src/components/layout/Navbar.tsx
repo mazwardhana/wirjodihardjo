@@ -82,7 +82,7 @@ export function Navbar() {
           </span>
         </Link>
 
-        <nav aria-label="Navigasi utama" className="hidden md:block">
+        <nav aria-label="Navigasi utama" className="hidden lg:block">
           <ul className="flex items-center gap-1">
             {NAV_LINKS.map((link) => {
               const active = pathname === link.href;
@@ -107,7 +107,7 @@ export function Navbar() {
           </ul>
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           {status === "loading" ? (
             <span className="h-11 w-11" aria-hidden="true" />
           ) : user ? (
@@ -201,7 +201,7 @@ export function Navbar() {
           aria-expanded={open}
           aria-controls="menu-mobile"
           aria-label={open ? "Tutup menu" : "Buka menu"}
-          className="grid h-11 w-11 place-items-center rounded-md text-forest hover:bg-wood/10 md:hidden"
+          className="grid h-11 w-11 place-items-center rounded-md text-forest hover:bg-wood/10 lg:hidden"
         >
           <svg
             width="22"
@@ -233,7 +233,7 @@ export function Navbar() {
         <nav
           id="menu-mobile"
           aria-label="Navigasi mobile"
-          className="border-t border-wood/15 bg-cream md:hidden"
+          className="border-t border-wood/15 bg-cream lg:hidden"
         >
           <ul className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
             {NAV_LINKS.map((link) => (
