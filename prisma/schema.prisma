@@ -115,6 +115,7 @@ model Branch {
   members               Person[]               @relation("PersonBranch")
   governanceAssignments GovernanceAssignment[]
   branchRepresentatives BranchRepresentative[]
+  registrationBatches   RegistrationBatch[]
 }
 
 model Person {
@@ -417,7 +418,9 @@ model Reunion {
   title                String
   slug                 String        @unique
   description          String?
-  startAt              DateTime
+  // Tanggal boleh kosong: jadwal bisa belum ditetapkan saat reuni diumumkan.
+  // Selama startAt null, pendaftaran tetap dibuka.
+  startAt              DateTime?
   endAt                DateTime?
   locationName         String?
   locationUrl          String?
@@ -452,6 +455,27 @@ model ReunionRegistration {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([reunionId, userId])
+}
+
+// ──────────────────────────────────────
+// Registrasi keluarga (form publik)
+// ──────────────────────────────────────
+
+// Jejak satu kiriman form registrasi publik: cabang asal, jumlah baris,
+// akun yang dibuat, dan peserta reuni. Dipakai untuk audit + statistik.
+model RegistrationBatch {
+  id            String   @id @default(uuid())
+  branchId      String
+  branch        Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  rowCount      Int      @default(0)
+  accountsMade  Int      @default(0)
+  attendees     Int      @default(0)
+  submittedAt   DateTime @default(now())
+  submitterIp   String?
+  notes         String?
+
+  @@index([branchId])
+  @@index([submittedAt])
 }
 
 // ──────────────────────────────────────
