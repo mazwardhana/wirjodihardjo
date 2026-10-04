@@ -64,6 +64,22 @@ export function Footer() {
               </li>
               <li>
                 <Link
+                  href="/registrasi"
+                  className="text-cream/80 transition-colors hover:text-gold-light"
+                >
+                  Registrasi Data Keluarga
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/statistik"
+                  className="text-cream/80 transition-colors hover:text-gold-light"
+                >
+                  Statistik Keluarga
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/pengurus"
                   className="text-cream/80 transition-colors hover:text-gold-light"
                 >

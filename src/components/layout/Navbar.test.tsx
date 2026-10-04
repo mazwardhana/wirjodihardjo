@@ -80,3 +80,34 @@ test("tab Pengurus aktif saat berada di /pengurus", () => {
   assert.ok(tag, "tautan Pengurus ada");
   assert.ok(tag![0].includes('aria-current="page"'), "harus ditandai aktif");
 });
+
+test("navbar menautkan halaman Registrasi dan Statistik", () => {
+  const html = renderNavbar("/");
+  for (const [href, label] of [
+    ["/registrasi", "Registrasi"],
+    ["/statistik", "Statistik"],
+  ]) {
+    assert.ok(html.includes(`href="${href}"`), `navbar harus punya tautan ${href}`);
+    assert.ok(html.includes(`>${label}<`), `label ${label} harus tampil`);
+  }
+});
+
+test("tautan Registrasi tidak ikut aktif di sub-rute lain", () => {
+  const html = renderNavbar("/registrasi");
+  const tag = [...html.matchAll(/<a\b[^>]*>/g)].find((t) =>
+    t[0].includes('href="/registrasi"'),
+  );
+  assert.ok(tag, "tautan Registrasi ada");
+  assert.ok(
+    tag![0].includes('aria-current="page"'),
+    "halaman registrasi harus menandai tautannya aktif",
+  );
+});
+
+test("halaman statistik tidak menyalakan tautan lain yang berbagi awalan", () => {
+  const html = renderNavbar("/statistik");
+  const aktif = [...html.matchAll(/<a\b[^>]*aria-current="page"[^>]*>/g)].map((t) =>
+    t[0].match(/href="([^"]+)"/)?.[1],
+  );
+  assert.deepEqual(aktif, ["/statistik"]);
+});

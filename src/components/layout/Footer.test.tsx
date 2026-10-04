@@ -54,3 +54,11 @@ test("footer menautkan ke halaman Pengurus", () => {
   assert.ok(html.includes('href="/pengurus"'), "footer harus punya tautan /pengurus");
   assert.ok(html.includes("Pengurus"), "label Pengurus harus tampil");
 });
+
+test("footer menautkan ke Registrasi dan Statistik", () => {
+  const html = renderFooter();
+  assert.ok(html.includes('href="/registrasi"'), "footer harus punya tautan /registrasi");
+  assert.ok(html.includes("Registrasi Data Keluarga"), "label registrasi harus tampil");
+  assert.ok(html.includes('href="/statistik"'), "footer harus punya tautan /statistik");
+  assert.ok(html.includes("Statistik Keluarga"), "label statistik harus tampil");
+});
