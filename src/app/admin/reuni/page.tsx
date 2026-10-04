@@ -136,7 +136,7 @@ export default async function AdminReuniPage({
                       {r.title}
                     </Link>
                     <p className="mt-1 text-sm text-muted">
-                      {formatDateTime(r.startAt)}
+                      {r.startAt ? formatDateTime(r.startAt) : "Jadwal menyusul"}
                       {r.locationName ? ` · ${r.locationName}` : ""}
                     </p>
                     <p className="text-xs text-muted">

@@ -85,7 +85,7 @@ export function ReunionForm({
         title: form.title,
         slug: form.slug || undefined,
         description: form.description || undefined,
-        startAt: form.startAt,
+        startAt: form.startAt || undefined,
         endAt: form.endAt || undefined,
         locationName: form.locationName || undefined,
         locationUrl: form.locationUrl || undefined,
@@ -204,15 +204,15 @@ export function ReunionForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label htmlFor="startAt" className={labelCls}>Tanggal Mulai</label>
+          <label htmlFor="startAt" className={labelCls}>Tanggal Mulai (opsional)</label>
           <input
             id="startAt"
             type="datetime-local"
             value={form.startAt}
             onChange={(e) => set("startAt", e.target.value)}
             className={inputCls}
-            required
           />
+          <p className="mt-1 text-xs text-muted">Kosongkan bila jadwal belum ditetapkan.</p>
         </div>
         <div>
           <label htmlFor="endAt" className={labelCls}>Tanggal Selesai (opsional)</label>

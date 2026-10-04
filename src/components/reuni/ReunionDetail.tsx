@@ -10,7 +10,7 @@ export type ReunionDetailData = {
   title: string;
   slug: string;
   description: string | null;
-  startAt: Date;
+  startAt: Date | null;
   endAt: Date | null;
   locationName: string | null;
   locationUrl: string | null;
@@ -46,8 +46,11 @@ export function ReunionDetail({
   const deadlinePassed =
     reunion.registrationDeadline !== null &&
     new Date(reunion.registrationDeadline) < now;
+  // Selama jadwal belum ditetapkan, pendaftaran tetap dibuka.
   const isOpen =
-    reunion.status === "PUBLISHED" && new Date(reunion.startAt) > now && !deadlinePassed;
+    reunion.status === "PUBLISHED" &&
+    (reunion.startAt === null || new Date(reunion.startAt) > now) &&
+    !deadlinePassed;
   const isFull = reunion.capacity !== null && attendeeCount >= reunion.capacity;
   const status = statusMeta[reunion.status];
 
@@ -93,8 +96,11 @@ export function ReunionDetail({
         <div className="flex flex-wrap gap-x-3">
           <dt className="min-w-24 font-medium text-forest">Waktu</dt>
           <dd className="text-muted">
-            {formatDateTime(reunion.startAt)}
-            {reunion.endAt ? ` s/d ${formatDateTime(reunion.endAt)}` : ""}
+            {reunion.startAt
+              ? `${formatDateTime(reunion.startAt)}${
+                  reunion.endAt ? ` s/d ${formatDateTime(reunion.endAt)}` : ""
+                }`
+              : "Tanggal & waktu menyusul"}
           </dd>
         </div>
         <div className="flex flex-wrap gap-x-3">

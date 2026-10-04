@@ -18,8 +18,10 @@ export default async function ReuniPage() {
     orderBy: { startAt: "asc" },
   });
 
-  const upcoming = reunions.filter((r) => new Date(r.startAt) > new Date());
-  const past = reunions.filter((r) => new Date(r.startAt) <= new Date());
+  const now = new Date();
+  // Reuni tanpa tanggal (jadwal menyusul) tetap dianggap akan datang.
+  const upcoming = reunions.filter((r) => r.startAt === null || new Date(r.startAt) > now);
+  const past = reunions.filter((r) => r.startAt !== null && new Date(r.startAt) <= now);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
@@ -59,8 +61,8 @@ export default async function ReuniPage() {
                       {reunion.title}
                     </h3>
                     <p className="mt-1 text-sm text-wood">
-                      {formatDate(reunion.startAt)}
-                      {reunion.endAt && ` - ${formatDate(reunion.endAt)}`}
+                      {reunion.startAt ? formatDate(reunion.startAt) : "Tanggal menyusul"}
+                      {reunion.startAt && reunion.endAt && ` - ${formatDate(reunion.endAt)}`}
                     </p>
                     {reunion.locationName && (
                       <p className="text-sm text-muted">{reunion.locationName}</p>

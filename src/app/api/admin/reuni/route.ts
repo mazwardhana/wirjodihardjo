@@ -58,8 +58,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Judul reuni wajib diisi" }, { status: 400 });
   }
 
-  if (!startAt || typeof startAt !== "string") {
-    return NextResponse.json({ error: "Tanggal mulai wajib diisi" }, { status: 400 });
+  if (startAt !== undefined && startAt !== null && startAt !== "") {
+    if (typeof startAt !== "string" || Number.isNaN(new Date(startAt).getTime())) {
+      return NextResponse.json({ error: "Tanggal mulai tidak valid" }, { status: 400 });
+    }
   }
 
   const finalSlug = slug && typeof slug === "string" && slug.trim()
@@ -77,7 +79,7 @@ export async function POST(request: Request) {
       title: title.trim(),
       slug: finalSlug,
       description: description ? (description as string).trim() : null,
-      startAt: new Date(startAt as string),
+      startAt: startAt ? new Date(startAt as string) : null,
       endAt: endAt ? new Date(endAt as string) : null,
       locationName: locationName ? (locationName as string).trim() : null,
       locationUrl: locationUrl ? (locationUrl as string).trim() : null,
@@ -177,7 +179,7 @@ export async function PUT(request: Request) {
     updateData.description = (description as string)?.trim() || null;
   }
   if (startAt !== undefined) {
-    updateData.startAt = new Date(startAt as string);
+    updateData.startAt = startAt ? new Date(startAt as string) : null;
   }
   if (endAt !== undefined) {
     updateData.endAt = endAt ? new Date(endAt as string) : null;

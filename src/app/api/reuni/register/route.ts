@@ -35,7 +35,8 @@ export async function POST(request: Request) {
   }
 
   const now = new Date();
-  if (new Date(reunion.startAt) <= now) {
+  // Tanpa tanggal, reuni belum berlangsung: pendaftaran tetap dibuka.
+  if (reunion.startAt && new Date(reunion.startAt) <= now) {
     return NextResponse.json({ error: "Reuni sudah berlangsung, pendaftaran ditutup." }, { status: 400 });
   }
   if (reunion.registrationDeadline && new Date(reunion.registrationDeadline) < now) {

@@ -163,6 +163,7 @@ export async function recordUpcomingReunionReminders(userId: string) {
   });
 
   for (const reg of registrations) {
+    if (!reg.reunion.startAt) continue;
     const link = `/reuni/${reg.reunion.slug}`;
     if (await notificationExists({ userId, type: "REUNION_REMINDER", link })) continue;
     await createNotification({

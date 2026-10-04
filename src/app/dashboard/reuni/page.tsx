@@ -56,7 +56,9 @@ export default async function DashboardReuniPage() {
                 >
                   {r.reunion.title}
                 </Link>
-                <p className="mt-1 text-sm text-muted">{formatDate(r.reunion.startAt)}</p>
+                <p className="mt-1 text-sm text-muted">
+                  {r.reunion.startAt ? formatDate(r.reunion.startAt) : "Jadwal menyusul"}
+                </p>
                 <p className={`mt-1 text-xs ${statusColor}`}>
                   {statusText}
                   {r.guestCount > 1 ? ` untuk ${r.guestCount} orang` : ""}
