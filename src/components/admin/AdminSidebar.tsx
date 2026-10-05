@@ -15,6 +15,7 @@ const menu = [
   { href: "/admin/artikel", label: "Artikel", icon: "▤", role: "ALL" as const },
   { href: "/admin/pengurus", label: "Kepengurusan", icon: "⌘", role: "SUPER_ONLY" as const },
   { href: "/admin/impor", label: "Impor Data", icon: "⇧", role: "SUPER_ONLY" as const },
+  { href: "/admin/registrasi", label: "Registrasi", icon: "✎", role: "SUPER_ONLY" as const },
   { href: "/admin/reuni", label: "Reuni", icon: "◈", role: "ALL" as const },
   { href: "/admin/statistik", label: "Statistik", icon: "◔", role: "SUPER_ONLY" as const },
   { href: "/admin/pengguna", label: "Pengguna", icon: "☷", role: "SUPER_ONLY" as const },

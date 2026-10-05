@@ -58,6 +58,7 @@ const SUPER_ONLY = [
   "/admin/cabang",
   "/admin/pengurus",
   "/admin/impor",
+  "/admin/registrasi",
   "/admin/pengguna",
   "/admin/audit-log",
   "/admin/statistik",
@@ -95,10 +96,27 @@ test("no two menu entries share the same icon glyph", () => {
   const icons = [...html.matchAll(/<span class="w-5 text-center text-xs">([^<]*)<\/span>/g)].map(
     (m) => m[1],
   );
-  // 14 menu entries for super admin; footer "Dashboard"/"Keluar" are not icon spans.
-  assert.equal(icons.length, 14, `expected 14 menu icons, got ${icons.length}`);
+  // 15 menu entries for super admin; footer "Dashboard"/"Keluar" are not icon spans.
+  assert.equal(icons.length, 15, `expected 15 menu icons, got ${icons.length}`);
   const unique = new Set(icons);
-  assert.equal(unique.size, icons.length, `duplicate icon glyphs: ${JSON.stringify([...icons])}`);
+  assert.equal(unique.size, icons.length, `duplicate icon glyphs: ${JSON.stringify([...unique])}`);
+});
+
+test("Registrasi import entry is SUPER-only and sits next to Impor Data", () => {
+  const superHtml = render("/admin/registrasi", "SUPER_ADMIN");
+  const branchHtml = render("/admin/registrasi", "BRANCH_ADMIN");
+
+  assert.ok(superHtml.includes("Registrasi"), "Registrasi label is rendered for SUPER_ADMIN");
+  assert.ok(!branchHtml.includes('href="/admin/registrasi"'), "BRANCH_ADMIN must not see /admin/registrasi");
+
+  const tags = [...superHtml.matchAll(/<a\b[^>]*>/g)];
+  const entryTag = tags.find((t) => t[0].includes('href="/admin/registrasi"'));
+  assert.ok(entryTag, "/admin/registrasi link exists for SUPER_ADMIN");
+  assert.ok(entryTag[0].includes("bg-forest/10"), "/admin/registrasi is active on its own page");
+
+  const imporIndex = tags.findIndex((t) => t[0].includes('href="/admin/impor"'));
+  const registrasiIndex = tags.findIndex((t) => t[0].includes('href="/admin/registrasi"'));
+  assert.equal(imporIndex + 1, registrasiIndex, "Registrasi entry follows Impor Data");
 });
 
 test("active highlight uses prefix match; /admin does not light on sub-routes", () => {
