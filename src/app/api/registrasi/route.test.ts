@@ -69,6 +69,10 @@ before(() => {
         captured.push({ kind: "batch", data: args.data });
         return { id: "batch-1" };
       },
+      update: async (args: { where: { id: string }; data: Record<string, unknown> }) => {
+        captured.push({ kind: "batch-update", data: args.data });
+        return { id: args.where.id };
+      },
     },
   };
 

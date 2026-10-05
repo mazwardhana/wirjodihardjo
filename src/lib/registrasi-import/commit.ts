@@ -47,7 +47,10 @@ type CommitTx = {
     findMany(args: unknown): Promise<{ username: string }[]>;
   };
   reunionRegistration: { create(args: unknown): Promise<{ id: string }> };
-  registrationBatch: { create(args: unknown): Promise<{ id: string }> };
+  registrationBatch: {
+    create(args: unknown): Promise<{ id: string }>;
+    update(args: unknown): Promise<{ id: string }>;
+  };
 };
 
 export async function commitRegistrasiImport(

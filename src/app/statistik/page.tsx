@@ -492,6 +492,21 @@ export default async function StatistikPage() {
             publik, dan berapa banyak akun yang sudah terbentuk darinya.
           </p>
 
+          {/* Daftar nama sengaja tidak ditampilkan di sini: halaman statistik
+              hanya memuat hitungan. Nama-namanya dibuka lewat tautan ini ke
+              daftar anggota di bawah form registrasi. */}
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
+            Ingin melihat <span className="font-medium text-forest">siapa saja</span> yang sudah
+            tercatat beserta keluarga cabangnya? Buka{" "}
+            <Link
+              href="/registrasi#daftar-anggota"
+              className="font-medium text-forest underline decoration-gold-deep decoration-2 underline-offset-4 transition-colors hover:text-gold-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+            >
+              daftar anggota tercatat
+            </Link>{" "}
+            di halaman registrasi — bisa difilter per keluarga cabang dan dicari namanya.
+          </p>
+
           {registration.batchCount === 0 ? (
             <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
               Belum ada formulir yang dikirim. Bagian ini terisi sendiri begitu

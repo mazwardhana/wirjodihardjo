@@ -42,6 +42,12 @@ function branch(overrides: Partial<Branch> = {}): Branch {
 function loadPage(branches: Branch[]) {
   const prisma = { branch: { findMany: async () => branches } };
   const received: { branches: Branch[]; reuniTitle: string }[] = [];
+  const registryReceived: {
+    branchId: string;
+    q: string;
+    branches: Branch[];
+    rows: unknown[];
+  }[] = [];
   let dbArgument: unknown = null;
 
   const exports: Record<string, unknown> = {};
@@ -57,6 +63,39 @@ function loadPage(branches: Branch[]) {
             getRegistrationBranches: async (db: { branch: { findMany: () => Promise<Branch[]> } }) => {
               dbArgument = db;
               return db.branch.findMany();
+            },
+          };
+        }
+        if (id === "@/lib/registrasi-registry") {
+          return {
+            REGISTRY_PAGE_SIZE: 20,
+            asRegistryDb: (client: unknown) => client,
+            // Query tidak dipakai di sini: filter diteruskan ke komponen,
+            // bukan ke db. Nol baris cukup untuk menguji pem passers-through.
+            getPublicMembers: async () => ({
+              rows: [],
+              total: 0,
+              page: 1,
+              pageSize: 20,
+              branches,
+            }),
+          };
+        }
+        if (id === "@/components/registrasi/MemberRegistry") {
+          return {
+            MemberRegistry: (props: {
+              result: { branches: Branch[]; rows: unknown[] };
+              branches: Branch[];
+              branchId: string;
+              q: string;
+            }) => {
+              registryReceived.push({
+                branchId: props.branchId,
+                q: props.q,
+                branches: props.branches,
+                rows: props.result.rows,
+              });
+              return React.createElement("div", { "data-registry": "1" }, "daftar anggota");
             },
           };
         }
@@ -79,8 +118,14 @@ function loadPage(branches: Branch[]) {
   );
 
   return {
-    Page: exports.default as () => Promise<React.ReactElement>,
+    Page: (params: { branchId?: string; q?: string; page?: string } = {}) =>
+      (exports.default as (args: {
+        searchParams: Promise<unknown>;
+      }) => Promise<React.ReactElement>)({
+        searchParams: Promise.resolve(params),
+      }),
     received,
+    registryReceived,
     prismaArg: () => dbArgument,
   };
 }
@@ -118,6 +163,35 @@ test("halaman tetap merender form ketika belum ada keluarga besar", async () => 
   assert.ok(html.includes("Registrasi Data Keluarga Wirjodihardjo"));
   assert.equal(received.length, 1, "form tetap dirender");
   assert.deepEqual(plain(received[0].branches), [], "form menerima daftar kosong");
+});
+
+test("halaman merender daftar anggota di bawah form", async () => {
+  const { Page, registryReceived } = loadPage([branch()]);
+  const html = renderToStaticMarkup(await Page());
+
+  assert.ok(
+    html.includes('data-registry="1"'),
+    "bagian daftar anggota tampil sebagai elemen terpisah dari form",
+  );
+  assert.equal(registryReceived.length, 1, "daftar anggota dirender sekali");
+  assert.equal(registryReceived[0].branchId, "", "tanpa filter, branchId kosong");
+  assert.equal(registryReceived[0].q, "", "tanpa pencarian, q kosong");
+});
+
+test("filter cabang dan pencarian diteruskan ke daftar anggota", async () => {
+  const { Page, registryReceived } = loadPage([branch()]);
+  // `MemberRegistry` hanya dipanggil saat React me-render pohon, jadi elemen
+  // hasil `Page()` harus dirender lebih dulu sebelum `registryReceived` terisi.
+  renderToStaticMarkup(await Page({ branchId: "b-1", q: "  Budi " }));
+
+  assert.equal(registryReceived[0].branchId, "b-1", "branchId diteruskan");
+  assert.equal(registryReceived[0].q, "Budi", "q dipangkas sebelum diteruskan");
+});
+
+test("halaman tidak melempar bila searchParams kosong atau tidak valid", async () => {
+  const { Page } = loadPage([branch()]);
+  const html = renderToStaticMarkup(await Page({ page: "bukan-angka" }));
+  assert.ok(html.includes("Registrasi Data Keluarga Wirjodihardjo"));
 });
 
 /* ── Komponen client ─────────────────────────────────────────── */

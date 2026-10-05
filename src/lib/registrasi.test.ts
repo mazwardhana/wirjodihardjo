@@ -113,6 +113,10 @@ function fakeDb(options: { taken?: string[]; branchValid?: boolean; captured?: R
         captured.push({ kind: "batch", ...args.data });
         return { id: "batch-1" };
       },
+      update: async (args: { where: { id: string }; data: Record<string, unknown> }) => {
+        captured.push({ kind: "batch-update", ...args.data });
+        return { id: args.where.id };
+      },
     },
   };
   const db = {
@@ -143,6 +147,35 @@ test("registrasi membuat person + akun untuk tiap baris, termasuk yang wafat", a
   assert.equal(users.length, 2, "termasuk yang wafat tetap dibuatkan akun");
   assert.equal(result.accountsMade, 2);
   assert.equal((captured.find((c) => c.kind === "person" && c.isDeceased === true) as Record<string, unknown>).fullName, "Alm. Sutrisno");
+});
+
+test("batch dibuat lebih dulu, lalu tiap person menunjuk ke sana", async () => {
+  const { db, captured } = fakeDb();
+  const validation = validateRegistration([
+    row({ namaPanggilan: "Budi" }),
+    row({ namaPanggilan: "Siti" }),
+  ]);
+
+  await createRegistrations(db, { branchId: "b1", rows: validation.rows, reunionId: null });
+
+  // Urutan: batch-create, person-create (dengan registrationBatchId), lalu
+  // batch-update menulis hitungan akhir.
+  const batchIdx = captured.findIndex((c) => c.kind === "batch");
+  const firstPersonIdx = captured.findIndex((c) => c.kind === "person");
+  const updateIdx = captured.findIndex((c) => c.kind === "batch-update");
+  assert.ok(batchIdx !== -1 && firstPersonIdx !== -1 && updateIdx !== -1);
+  assert.ok(batchIdx < firstPersonIdx, "batch dibuat sebelum person");
+  assert.ok(firstPersonIdx < updateIdx, "hitungan ditulis setelah semua person");
+
+  const persons = captured.filter((c) => c.kind === "person");
+  for (const p of persons) {
+    assert.equal(p.registrationBatchId, "batch-1", "tiap person terkait ke batch");
+  }
+
+  const update = captured.find((c) => c.kind === "batch-update") as Record<string, unknown>;
+  assert.equal(update.rowCount, 2);
+  assert.equal(update.accountsMade, 2);
+  assert.equal(update.attendees, 0);
 });
 
 test("hanya yang hadir dan masih hidup yang menjadi peserta reuni", async () => {

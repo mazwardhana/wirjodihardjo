@@ -93,7 +93,10 @@ export type RegistrationTx = {
     findMany(args: unknown): Promise<{ username: string }[]>;
   };
   reunionRegistration: { create(args: unknown): Promise<{ id: string }> };
-  registrationBatch: { create(args: unknown): Promise<{ id: string }> };
+  registrationBatch: {
+    create(args: unknown): Promise<{ id: string }>;
+    update(args: unknown): Promise<{ id: string }>;
+  };
 };
 
 export function normalizeGender(value: string): Gender | null {
@@ -213,6 +216,10 @@ export type CreateRegistrationsInput = {
  * `createRegistrations` agar jalur impor multi-cabang dapat menjalankan
  * beberapa kelompok cabang dalam satu transaksi (semua-atau-tidak-sama-sekali).
  *
+ * Batch dibuat lebih dulu lalu tiap Person menunjuk ke sana lewat
+ * `registrationBatchId`; hitungan akhir baru ditulis setelah semua baris
+ * selesai. Dengan begitu asal data tiap orang tertanam permanen.
+ *
  * Mengembalikan kredensial akun yang benar-benar dibuat; pemanggil bertanggung
  * jawab tidak mengirimkannya ke API publik.
  */
@@ -221,6 +228,21 @@ export async function createRegistrationsInTx(
   input: CreateRegistrationsInput & { passwordHash: string },
 ): Promise<RegistrationTxResult> {
   const { branchId, rows, reunionId, submitterIp, notes, passwordHash } = input;
+
+  // Batch dibuat lebih dulu dengan hitungan awal nol: setiap Person yang lahir
+  // dari baris ini menunjuk ke sini lewat `registrationBatchId`, sehingga asal
+  // data tiap orang tertanam sejak awal — bukan ditebak belakangan. Hitungan
+  // akhir ditulis di transaksi yang sama setelah semua baris selesai.
+  const batch = await tx.registrationBatch.create({
+    data: {
+      branchId,
+      rowCount: 0,
+      accountsMade: 0,
+      attendees: 0,
+      submitterIp: submitterIp ?? null,
+      notes: notes ?? null,
+    },
+  });
 
   const bases = rows.map((row) => deriveBaseUsername(row.namaPanggilan, row.namaLengkap));
   const taken = await loadTakenUsernames(tx, bases);
@@ -238,6 +260,7 @@ export async function createRegistrationsInTx(
         gender: row.gender,
         isDeceased: row.isDeceased,
         branchId,
+        registrationBatchId: batch.id,
       },
     });
 
@@ -274,15 +297,12 @@ export async function createRegistrationsInTx(
     });
   }
 
-  const batch = await tx.registrationBatch.create({
-    data: {
-      branchId,
-      rowCount: rows.length,
-      accountsMade,
-      attendees,
-      submitterIp: submitterIp ?? null,
-      notes: notes ?? null,
-    },
+  // Setelah semua baris selesai, tulis hitungan akhir ke batch yang sudah
+  // dibuat di awal. Tetap dalam transaksi yang sama: bila ada kegagalan di
+  // tengah jalan, batch ikut batal bersama orang-orangnya.
+  await tx.registrationBatch.update({
+    where: { id: batch.id },
+    data: { rowCount: rows.length, accountsMade, attendees },
   });
 
   return { batchId: batch.id, rowCount: rows.length, accountsMade, attendees, credentials };

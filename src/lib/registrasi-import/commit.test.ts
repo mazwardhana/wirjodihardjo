@@ -9,7 +9,12 @@ import type { ParsedRegistrasi, RegistrasiImportRow } from "./types";
 
 type Row = Record<string, unknown>;
 
-type PersonCreate = { fullName: string; namaPanggilan: string; branchId: string };
+type PersonCreate = {
+  fullName: string;
+  namaPanggilan: string;
+  branchId: string;
+  registrationBatchId: string;
+};
 type UserCreate = { username: string; role: string; mustChangeCredentials: boolean; personId: string };
 type RegCreate = { reunionId: string | null; userId: string; guestCount: number; status: string };
 
@@ -24,6 +29,7 @@ let failTransactionWith: unknown;
 let personCreates: PersonCreate[];
 let userCreates: UserCreate[];
 let regCreates: RegCreate[];
+let batchUpdates: Row[];
 let batchUpdateArgs: { where: Row; data: Row } | null;
 let auditArgs: Row | null;
 let transactionOptions: Row | undefined;
@@ -74,6 +80,10 @@ const tx = {
   registrationBatch: {
     async create() {
       return { id: "regbatch-1" };
+    },
+    async update(args: { where: Row; data: Row }) {
+      batchUpdates.push(args.data);
+      return { id: args.where.id };
     },
   },
   importBatch: {
@@ -154,6 +164,7 @@ function reset() {
   personCreates = [];
   userCreates = [];
   regCreates = [];
+  batchUpdates = [];
   batchUpdateArgs = null;
   auditArgs = null;
   transactionOptions = undefined;

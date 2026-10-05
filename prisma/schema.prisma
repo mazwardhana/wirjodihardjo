@@ -147,6 +147,12 @@ model Person {
   branch       Branch? @relation("PersonBranch", fields: [branchId], references: [id])
   rootedBranch Branch? @relation("BranchRoot")
 
+  // Jejak asal data: baris ini dibuat lewat form publik /registrasi atau impor
+  // Excel registrasi. Kosong berarti anggota berasal dari jalur lain (seed,
+  // silsilah, impor anggota). Dipakai tabel publik untuk menandai baris baru.
+  registrationBatchId String?
+  registrationBatch   RegistrationBatch? @relation("RegistrationBatchPersons", fields: [registrationBatchId], references: [id])
+
   private  PersonPrivate?
   user     User?
   statuses PersonStatus[]
@@ -473,6 +479,10 @@ model RegistrationBatch {
   submittedAt   DateTime @default(now())
   submitterIp   String?
   notes         String?
+
+  // Person yang dibuat oleh batch ini. Jarak nullable: data lama tidak punya
+  // batch, dan batch impor bisa dihapus tanpa menghapus orangnya.
+  persons Person[] @relation("RegistrationBatchPersons")
 
   @@index([branchId])
   @@index([submittedAt])
