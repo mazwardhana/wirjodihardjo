@@ -1,5 +1,4 @@
 import type { Gender } from "@prisma/client";
-import type { NormalizedRow } from "@/lib/registrasi";
 import { normalizeFullName } from "@/lib/import/validate";
 import { deriveBaseUsername, deriveUniqueUsername } from "@/lib/import/username";
 import type {

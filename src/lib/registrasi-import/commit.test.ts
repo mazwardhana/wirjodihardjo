@@ -8,7 +8,6 @@ import type { ParsedRegistrasi, RegistrasiImportRow } from "./types";
 // palsu sebelum modul diimpor (pola sama seperti importer.test).
 
 type Row = Record<string, unknown>;
-type Call = { model: string; op: string; args: unknown };
 
 type PersonCreate = { fullName: string; namaPanggilan: string; branchId: string };
 type UserCreate = { username: string; role: string; mustChangeCredentials: boolean; personId: string };
@@ -167,9 +166,9 @@ before(async () => {
   previousPrisma = globalCache.prisma;
   globalCache.prisma = fakePrisma as unknown as PrismaClient;
 
-  const module = await import("./commit");
-  commitRegistrasiImport = module.commitRegistrasiImport;
-  RegistrasiImportError = module.RegistrasiImportError;
+  const commitModule = await import("./commit");
+  commitRegistrasiImport = commitModule.commitRegistrasiImport;
+  RegistrasiImportError = commitModule.RegistrasiImportError;
 });
 
 after(() => {
