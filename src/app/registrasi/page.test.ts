@@ -39,15 +39,10 @@ function branch(overrides: Partial<Branch> = {}): Branch {
 
 /* ── Halaman server ──────────────────────────────────────────── */
 
-function loadPage(branches: Branch[]) {
+function loadPage(branches: Branch[], memberCount = 0) {
   const prisma = { branch: { findMany: async () => branches } };
   const received: { branches: Branch[]; reuniTitle: string }[] = [];
-  const registryReceived: {
-    branchId: string;
-    q: string;
-    branches: Branch[];
-    rows: unknown[];
-  }[] = [];
+  const cardReceived: { count: number }[] = [];
   let dbArgument: unknown = null;
 
   const exports: Record<string, unknown> = {};
@@ -68,34 +63,21 @@ function loadPage(branches: Branch[]) {
         }
         if (id === "@/lib/registrasi-registry") {
           return {
-            REGISTRY_PAGE_SIZE: 20,
             asRegistryDb: (client: unknown) => client,
-            // Query tidak dipakai di sini: filter diteruskan ke komponen,
-            // bukan ke db. Nol baris cukup untuk menguji pem passers-through.
-            getPublicMembers: async () => ({
-              rows: [],
-              total: 0,
-              page: 1,
-              pageSize: 20,
-              branches,
-            }),
+            // Halaman ini hanya menghitung, tidak menarik nama: kartu cukup
+            // tahu banyaknya anggota untuk menyebutkannya.
+            countPublicMembers: async () => memberCount,
           };
         }
-        if (id === "@/components/registrasi/MemberRegistry") {
+        if (id === "@/components/registrasi/MemberRegistryCard") {
           return {
-            MemberRegistry: (props: {
-              result: { branches: Branch[]; rows: unknown[] };
-              branches: Branch[];
-              branchId: string;
-              q: string;
-            }) => {
-              registryReceived.push({
-                branchId: props.branchId,
-                q: props.q,
-                branches: props.branches,
-                rows: props.result.rows,
-              });
-              return React.createElement("div", { "data-registry": "1" }, "daftar anggota");
+            MemberRegistryCard: (props: { count: number }) => {
+              cardReceived.push({ count: props.count });
+              return React.createElement(
+                "a",
+                { href: "/registrasi/anggota", "data-card": "1" },
+                `daftar anggota tercatat: ${props.count}`,
+              );
             },
           };
         }
@@ -118,14 +100,10 @@ function loadPage(branches: Branch[]) {
   );
 
   return {
-    Page: (params: { branchId?: string; q?: string; page?: string } = {}) =>
-      (exports.default as (args: {
-        searchParams: Promise<unknown>;
-      }) => Promise<React.ReactElement>)({
-        searchParams: Promise.resolve(params),
-      }),
+    Page: () =>
+      (exports.default as (args?: unknown) => Promise<React.ReactElement>)(),
     received,
-    registryReceived,
+    cardReceived,
     prismaArg: () => dbArgument,
   };
 }
@@ -165,33 +143,33 @@ test("halaman tetap merender form ketika belum ada keluarga besar", async () => 
   assert.deepEqual(plain(received[0].branches), [], "form menerima daftar kosong");
 });
 
-test("halaman merender daftar anggota di bawah form", async () => {
-  const { Page, registryReceived } = loadPage([branch()]);
+test("halaman merender kartu daftar anggota, bukan tabelnya", async () => {
+  const { Page, cardReceived } = loadPage([branch()]);
   const html = renderToStaticMarkup(await Page());
 
+  assert.ok(html.includes('data-card="1"'), "kartu daftar anggota tampil");
   assert.ok(
-    html.includes('data-registry="1"'),
-    "bagian daftar anggota tampil sebagai elemen terpisah dari form",
+    html.includes('href="/registrasi/anggota"'),
+    "kartu mengarah ke halaman daftar yang punya halamannya sendiri",
   );
-  assert.equal(registryReceived.length, 1, "daftar anggota dirender sekali");
-  assert.equal(registryReceived[0].branchId, "", "tanpa filter, branchId kosong");
-  assert.equal(registryReceived[0].q, "", "tanpa pencarian, q kosong");
+  assert.ok(!html.includes('data-registry="1"'), "tabel tidak lagi dirender inline di sini");
+  assert.equal(cardReceived.length, 1, "kartu dirender sekali");
 });
 
-test("filter cabang dan pencarian diteruskan ke daftar anggota", async () => {
-  const { Page, registryReceived } = loadPage([branch()]);
-  // `MemberRegistry` hanya dipanggil saat React me-render pohon, jadi elemen
-  // hasil `Page()` harus dirender lebih dulu sebelum `registryReceived` terisi.
-  renderToStaticMarkup(await Page({ branchId: "b-1", q: "  Budi " }));
+test("jumlah anggota pada kartu berasal dari hitungan buku besar", async () => {
+  const { Page, cardReceived } = loadPage([branch()], 128);
+  const html = renderToStaticMarkup(await Page());
 
-  assert.equal(registryReceived[0].branchId, "b-1", "branchId diteruskan");
-  assert.equal(registryReceived[0].q, "Budi", "q dipangkas sebelum diteruskan");
+  assert.equal(cardReceived[0].count, 128, "jumlah diteruskan apa adanya ke kartu");
+  assert.ok(html.includes("daftar anggota tercatat: 128"), "angka ikut tampil di kartu");
 });
 
-test("halaman tidak melempar bila searchParams kosong atau tidak valid", async () => {
-  const { Page } = loadPage([branch()]);
-  const html = renderToStaticMarkup(await Page({ page: "bukan-angka" }));
-  assert.ok(html.includes("Registrasi Data Keluarga Wirjodihardjo"));
+test("kartu tetap tampil ketika buku besar masih kosong", async () => {
+  const { Page, cardReceived } = loadPage([branch()], 0);
+  const html = renderToStaticMarkup(await Page());
+
+  assert.ok(html.includes('data-card="1"'), "kartu tidak hilang saat belum ada anggota");
+  assert.equal(cardReceived[0].count, 0);
 });
 
 /* ── Komponen client ─────────────────────────────────────────── */

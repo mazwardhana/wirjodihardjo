@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  countPublicMembers,
   getPublicMembers,
   genderLabel,
   genderShort,
@@ -141,4 +142,36 @@ test("label jenis kelamin", () => {
   assert.equal(genderShort("MALE"), "L");
   assert.equal(genderShort("FEMALE"), "P");
   assert.equal(genderShort("OTHER"), "—");
+});
+
+test("countPublicMembers menghitung anggota yang belum dihapus saja", async () => {
+  const db = fakeDb([
+    person(),
+    person({ id: "p2" }),
+    person({ id: "p3", deletedAt: new Date("2026-01-01") }),
+  ]);
+  // Kartu di halaman registrasi memakai angka ini, jadi angka yang dihapus
+  // tidak boleh ikut terhitung.
+  assert.equal(await countPublicMembers(db), 2);
+});
+
+test("countPublicMembers tidak menyaring apa pun selain deletedAt", async () => {
+  let seen: unknown = null;
+  const db = {
+    person: {
+      count: async (args: unknown) => {
+        seen = args;
+        return 0;
+      },
+      findMany: async () => [],
+    },
+    branch: { findMany: async () => [] },
+  } as unknown as RegistryDb;
+
+  assert.equal(await countPublicMembers(db), 0);
+  assert.deepEqual(
+    seen,
+    { where: { deletedAt: null } },
+    "tanpa branchId maupun OR nama: yang dihitung buku besar seluruhnya",
+  );
 });

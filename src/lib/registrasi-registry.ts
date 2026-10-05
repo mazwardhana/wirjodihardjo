@@ -131,6 +131,16 @@ export async function getPublicMembers(
   };
 }
 
+/**
+ * Jumlah seluruh anggota buku besar yang belum dihapus.
+ *
+ * Dipakai kartu pintu masuk di halaman registrasi: kartu itu hanya menyebut
+ * banyaknya anggota, tanpa menarik satu baris nama pun.
+ */
+export async function countPublicMembers(db: RegistryDb): Promise<number> {
+  return db.person.count({ where: { deletedAt: null } });
+}
+
 function clampPageSize(value: number | undefined): number {
   if (!value || !Number.isFinite(value)) return REGISTRY_PAGE_SIZE;
   return Math.min(100, Math.max(1, Math.floor(value)));

@@ -102,6 +102,7 @@ function loadComponent() {
       branchId: string;
       q: string;
       basePath: string;
+      headingLevel?: "h1" | "h2";
     }) => React.ReactElement;
   };
 }
@@ -110,7 +111,14 @@ const component = loadComponent();
 
 function render(
   rows: Row[],
-  options: { total?: number; page?: number; pageSize?: number; branchId?: string; q?: string } = {},
+  options: {
+    total?: number;
+    page?: number;
+    pageSize?: number;
+    branchId?: string;
+    q?: string;
+    headingLevel?: "h1" | "h2";
+  } = {},
 ): string {
   const pageSize = options.pageSize ?? 20;
   return renderToStaticMarkup(
@@ -126,6 +134,7 @@ function render(
       branchId: options.branchId ?? "",
       q: options.q ?? "",
       basePath: "/registrasi",
+      ...(options.headingLevel ? { headingLevel: options.headingLevel } : {}),
     }),
   );
 }
@@ -245,4 +254,27 @@ test("halaman pertama tidak menautkan dirinya sendiri", () => {
   // Tombol Sebelumnya nonaktif (span, bukan tautan) di halaman pertama.
   assert.ok(html.includes('aria-disabled="true"'), "navigasi yang tak tersedia dinonaktifkan");
   assert.ok(!html.includes('rel="prev"'), "tidak ada tautan ke halaman sebelumnya di halaman 1");
+});
+
+test("tingkat judul mengikuti headingLevel, bawaannya h2", () => {
+  const bawaan = render([row()]);
+  assert.ok(
+    bawaan.includes('<h2 id="judul-daftar-anggota"'),
+    "tanpa prop, bagian ini subsection sehingga judulnya h2",
+  );
+
+  const h1 = render([row()], { headingLevel: "h1" });
+  assert.ok(
+    h1.includes('<h1 id="judul-daftar-anggota"'),
+    "di halaman daftar penuh, bagian ini halaman itu sendiri sehingga judulnya h1",
+  );
+  assert.ok(!h1.includes('<h2 id="judul-daftar-anggota"'), "h2 lama tidak ikut dirender");
+});
+
+test("aria-labelledby tetap menunjuk id judul yang sama di kedua tingkat", () => {
+  for (const headingLevel of [undefined, "h1" as const]) {
+    const html = render([row()], { headingLevel });
+    assert.ok(html.includes('aria-labelledby="judul-daftar-anggota"'), "seksi ditautkan ke judulnya");
+    assert.ok(html.includes('id="judul-daftar-anggota"'), "judulnya punya id untuk ditautkan");
+  }
 });

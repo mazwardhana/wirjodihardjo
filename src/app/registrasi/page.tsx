@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getRegistrationBranches, REUNI_2027_TITLE } from "@/lib/registrasi";
-import {
-  asRegistryDb,
-  getPublicMembers,
-  REGISTRY_PAGE_SIZE,
-} from "@/lib/registrasi-registry";
-import { MemberRegistry } from "@/components/registrasi/MemberRegistry";
+import { asRegistryDb, countPublicMembers } from "@/lib/registrasi-registry";
+import { MemberRegistryCard } from "@/components/registrasi/MemberRegistryCard";
 import { RegistrasiForm } from "./RegistrasiForm";
 
 // Daftar keluarga besar dibaca dari basis data saat halaman diminta; form ini
@@ -19,24 +15,10 @@ export const metadata: Metadata = {
     "Catat anggota keluarga besar Wirjodihardjo di buku besar keluarga dan daftarkan kehadirannya untuk reuni. Tanpa perlu masuk akun.",
 };
 
-export default async function RegistrasiPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ branchId?: string; q?: string; page?: string }>;
-}) {
-  const params = await searchParams;
-  const branchId = typeof params.branchId === "string" ? params.branchId.trim() : "";
-  const q = typeof params.q === "string" ? params.q.trim() : "";
-  const page = params.page ? Number.parseInt(params.page, 10) : 1;
-
-  const [branches, members] = await Promise.all([
+export default async function RegistrasiPage() {
+  const [branches, memberCount] = await Promise.all([
     getRegistrationBranches(prisma),
-    getPublicMembers(asRegistryDb(prisma), {
-      branchId,
-      q,
-      page: Number.isFinite(page) ? page : 1,
-      pageSize: REGISTRY_PAGE_SIZE,
-    }),
+    countPublicMembers(asRegistryDb(prisma)),
   ]);
 
   return (
@@ -70,17 +52,11 @@ export default async function RegistrasiPage({
         <RegistrasiForm branches={branches} reuniTitle={REUNI_2027_TITLE} />
       </div>
 
-      {/* Daftar anggota tercatat. Terpisah dari form: form mengganti dirinya
-          sendiri setelah terkirim, sedangkan daftar ini harus tetap terbaca
-          sebagai referensi "siapa yang sudah tercatat". */}
+      {/* Daftar anggota tidak lagi inline di sini: form mengganti dirinya
+          sendiri setelah terkirim, dan tabel sepanjang itu membuat halaman
+          terasa berat. Yang tersisa satu kartu yang membawa ke halamannya. */}
       <div className="mt-16">
-        <MemberRegistry
-          result={members}
-          branches={members.branches}
-          branchId={branchId}
-          q={q}
-          basePath="/registrasi"
-        />
+        <MemberRegistryCard count={memberCount} />
       </div>
     </div>
   );

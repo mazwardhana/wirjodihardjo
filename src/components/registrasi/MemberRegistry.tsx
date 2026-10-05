@@ -11,9 +11,9 @@ import {
  * per keluarga cabang. Ditulis sebagai komponen server dengan form GET —
  * tanpa JavaScript, filter dan paginasi tetap berfungsi lewat URL.
  *
- * Bagian ini sengaja terpisah dari form registrasi di atasnya: form itu
- * adalah klien yang mengganti dirinya sendiri setelah terkirim, sedangkan
- * daftar ini harus tetap ada walau form sedang menampilkan konfirmasi.
+ * `basePath` menentukan ke mana filter dan paginasi mengirim pengguna, supaya
+ * komponen ini tetap benar baik di halaman daftar penuh maupun dipanggil dari
+ * halaman lain.
  */
 export function MemberRegistry({
   result,
@@ -21,6 +21,7 @@ export function MemberRegistry({
   branchId,
   q,
   basePath,
+  headingLevel = "h2",
 }: {
   result: PublicMembersResult;
   branches: RegistryBranch[];
@@ -28,7 +29,13 @@ export function MemberRegistry({
   q: string;
   /** Path halaman pemanggil; filter dibangun relatif terhadapnya. */
   basePath: string;
+  /**
+   * Tag judul bagian. Halaman daftar penuh memakainya sebagai `h1`; di
+   * halaman registrasi yang punya judul sendiri, cukup `h2` (bawaan).
+   */
+  headingLevel?: "h1" | "h2";
 }) {
+  const Heading = headingLevel;
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
   const from = result.total === 0 ? 0 : (result.page - 1) * result.pageSize + 1;
   const to = Math.min(result.total, result.page * result.pageSize);
@@ -49,7 +56,7 @@ export function MemberRegistry({
   return (
     <section aria-labelledby="judul-daftar-anggota" id="daftar-anggota" className="scroll-mt-24">
       <div className="border-t border-wood/20 pt-8">
-        <h2
+        <Heading
           id="judul-daftar-anggota"
           className="flex items-center gap-2 font-display text-xl font-semibold text-forest sm:text-2xl"
         >
@@ -57,7 +64,7 @@ export function MemberRegistry({
             <IkonBuku />
           </span>
           Daftar anggota tercatat
-        </h2>
+        </Heading>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
           Seluruh anggota yang sudah tercatat di buku besar keluarga, beserta
           keluarga cabang asalnya. Gunakan filter di bawah untuk menelusuri satu

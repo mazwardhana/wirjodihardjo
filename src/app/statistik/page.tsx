@@ -494,17 +494,17 @@ export default async function StatistikPage() {
 
           {/* Daftar nama sengaja tidak ditampilkan di sini: halaman statistik
               hanya memuat hitungan. Nama-namanya dibuka lewat tautan ini ke
-              daftar anggota di bawah form registrasi. */}
+              halaman daftar anggota tercatat. */}
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
             Ingin melihat <span className="font-medium text-forest">siapa saja</span> yang sudah
             tercatat beserta keluarga cabangnya? Buka{" "}
             <Link
-              href="/registrasi#daftar-anggota"
+              href="/registrasi/anggota"
               className="font-medium text-forest underline decoration-gold-deep decoration-2 underline-offset-4 transition-colors hover:text-gold-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
             >
               daftar anggota tercatat
             </Link>{" "}
-            di halaman registrasi — bisa difilter per keluarga cabang dan dicari namanya.
+            — bisa difilter per keluarga cabang dan dicari namanya.
           </p>
 
           {registration.batchCount === 0 ? (
