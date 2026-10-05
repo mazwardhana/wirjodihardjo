@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { RegistrationButton } from "@/components/reuni/RegistrationButton";
+import { ReunionAttendanceByBranch } from "@/components/reuni/ReunionAttendanceByBranch";
+import type { ReunionAttendanceResult } from "@/lib/statistik";
 
 type ReunionStatus = "DRAFT" | "PUBLISHED" | "CANCELLED" | "COMPLETED";
 
@@ -36,11 +38,13 @@ export function ReunionDetail({
   attendeeCount,
   registration,
   isLoggedIn,
+  attendanceByBranch,
 }: {
   reunion: ReunionDetailData;
   attendeeCount: number;
   registration: { status: string; guestCount: number } | null;
   isLoggedIn: boolean;
+  attendanceByBranch: ReunionAttendanceResult;
 }) {
   const now = new Date();
   const deadlinePassed =
@@ -132,6 +136,8 @@ export function ReunionDetail({
           </dd>
         </div>
       </dl>
+
+      <ReunionAttendanceByBranch attendanceByBranch={attendanceByBranch} />
 
       {reunion.description && (
         <div className="mt-6 whitespace-pre-line leading-relaxed text-wood">

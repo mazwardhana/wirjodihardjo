@@ -121,12 +121,16 @@ export async function notifyReunionPublished(reunionId: string) {
   });
   if (!reunion) return;
 
+  // Pendaftaran yang dibuat panitia bisa ditautkan lewat `personId` saja, tanpa
+  // akun. Notifikasi hanya bisa dikirim ke pemilik akun, jadi baris tanpa
+  // `userId` dilewati.
   const registrations = await prisma.reunionRegistration.findMany({
-    where: { reunionId, status: { not: "CANCELLED" } },
+    where: { reunionId, status: { not: "CANCELLED" }, userId: { not: null } },
     select: { userId: true },
   });
 
   for (const reg of registrations) {
+    if (!reg.userId) continue;
     const link = `/dashboard/reuni`;
     if (await notificationExists({ userId: reg.userId, type: "REUNION_PUBLISHED", link })) continue;
     await createNotification({

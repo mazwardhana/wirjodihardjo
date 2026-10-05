@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { ReunionDetail } from "@/components/reuni/ReunionDetail";
+import { asAttendanceDb, getReunionAttendanceByBranch } from "@/lib/statistik";
 
 export async function generateMetadata({
   params,
@@ -37,9 +38,9 @@ export default async function ReuniSlugPage({
   const isAdmin = viewer?.role === "SUPER_ADMIN" || viewer?.role === "BRANCH_ADMIN";
   if (reunion.status === "DRAFT" && !isAdmin) notFound();
 
-  // Empat pembacaan independen (jumlah peserta plus pendaftaran diri) dijalankan
-  // paralel; sebelumnya tiga `await` berurutan.
-  const [confirmedAgg, waitlistAgg, ownRegistration] = await Promise.all([
+  // Empat pembacaan independen (jumlah peserta, pendaftaran diri, rekap
+  // kehadiran per cabang) dijalankan paralel.
+  const [confirmedAgg, waitlistAgg, ownRegistration, attendanceByBranch] = await Promise.all([
     prisma.reunionRegistration.aggregate({
       where: { reunionId: reunion.id, status: "CONFIRMED" },
       _sum: { guestCount: true },
@@ -56,6 +57,7 @@ export default async function ReuniSlugPage({
           select: { status: true, guestCount: true },
         })
       : Promise.resolve(null),
+    getReunionAttendanceByBranch(asAttendanceDb(prisma), reunion.id),
   ]);
 
   const attendeeCount =
@@ -85,6 +87,7 @@ export default async function ReuniSlugPage({
       attendeeCount={attendeeCount}
       registration={registration}
       isLoggedIn={!!session?.user}
+      attendanceByBranch={attendanceByBranch}
     />
   );
 }

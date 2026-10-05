@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { ReunionForm } from "@/components/admin/ReunionForm";
 import { ReunionRegistrations } from "@/components/admin/ReunionRegistrations";
+import { AddReunionParticipant } from "@/components/admin/AddReunionParticipant";
 
 const statusMeta: Record<string, { label: string; className: string }> = {
   DRAFT: { label: "Draf", className: "bg-muted/10 text-muted" },
@@ -36,6 +37,16 @@ export default async function AdminReuniDetailPage({
       registrations: {
         orderBy: { createdAt: "desc" },
         include: {
+          // Baris yang dibuat panitia hanya menunjuk `person`; baris lama dari
+          // pendaftaran mandiri tidak punya `personId`, jadi nama diambil dari
+          // profil pemilik akun sebagai cadangan.
+          person: {
+            select: {
+              fullName: true,
+              namaPanggilan: true,
+              branch: { select: { name: true, branchNumber: true } },
+            },
+          },
           user: { select: { person: { select: { fullName: true } } } },
         },
       },
@@ -43,6 +54,30 @@ export default async function AdminReuniDetailPage({
   });
 
   if (!reunion) notFound();
+
+  // Kandidat peserta manual: anggota yang belum punya baris pendaftaran untuk
+  // reuni ini. Diambil terpisah agar daftar peserta yang sudah ada tetap ringkas.
+  //
+  // Pendaftaran bisa menunjuk orang lewat `personId` (dibuat panitia) atau lewat
+  // akun peminjamnya, `userId` (daftar mandiri). Keduanya harus dicek, kalau tidak
+  // anggota yang sudah terdaftar akan ikut muncul sebagai kandidat.
+  const candidates = await prisma.person.findMany({
+    where: {
+      deletedAt: null,
+      reunionRegistrations: { none: { reunionId: reunion.id } },
+      OR: [
+        { user: { is: null } },
+        { user: { is: { reunionRegistrations: { none: { reunionId: reunion.id } } } } },
+      ],
+    },
+    orderBy: { fullName: "asc" },
+    select: {
+      id: true,
+      fullName: true,
+      namaPanggilan: true,
+      branch: { select: { name: true } },
+    },
+  });
 
   const meta = statusMeta[reunion.status] ?? statusMeta.DRAFT;
 
@@ -126,21 +161,24 @@ export default async function AdminReuniDetailPage({
 
       {/* Registrations */}
       <div className="mt-14">
-        <h2 className="font-display text-xl font-semibold text-forest">
-          Daftar Peserta
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-display text-xl font-semibold text-forest">
+            Daftar Peserta
+          </h2>
+          <AddReunionParticipant reunionId={reunion.id} candidates={candidates} />
+        </div>
         <div className="mt-4">
           <ReunionRegistrations
             registrations={reunion.registrations.map((r) => ({
               id: r.id,
+              personId: r.personId,
               guestCount: r.guestCount,
               notes: r.notes,
               status: r.status,
+              attendance: r.attendance,
               createdAt: r.createdAt.toISOString(),
-              user: {
-                id: r.userId,
-                person: { fullName: r.user.person.fullName },
-              },
+              fullName: r.person?.fullName ?? r.user?.person.fullName ?? "(tanpa profil)",
+              branchName: r.person?.branch?.name ?? null,
             }))}
           />
         </div>

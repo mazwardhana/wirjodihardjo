@@ -7,7 +7,9 @@ import {
   getRegistrationStats,
   getStatistics,
   getRegistrationCredentials,
+  getReunionAttendanceByBranch,
   type StatisticsDb,
+  type AttendanceDb,
 } from "./statistik";
 
 type Person = { branchId: string | null; isDeceased: boolean; gender: "MALE" | "FEMALE" | "OTHER" };
@@ -241,4 +243,173 @@ test("daftar kredensial memetakan nama dan cabang pemilik akun", async () => {
   assert.equal(rows[0].fullName, "Budi Santoso");
   assert.equal(rows[0].branchName, "Keluarga Soedjinah");
   assert.equal(rows[1].branchName, null);
+});
+
+/* ── Rekap kehadiran per keluarga cabang ── */
+
+type RegRow = {
+  attendance: string;
+  status: string;
+  personId: string | null;
+  person: { branchId: string | null } | null;
+  user: { person: { branchId: string | null } | null } | null;
+};
+
+function reg(overrides: Partial<RegRow> = {}): RegRow {
+  return {
+    attendance: "ATTENDING",
+    status: "CONFIRMED",
+    personId: "p1",
+    person: { branchId: "b1" },
+    user: null,
+    ...overrides,
+  };
+}
+
+const ATTENDANCE_BRANCHES = [
+  { id: "b1", name: "Keluarga Soedjinah", branchNumber: 1 },
+  { id: "b2", name: "Keluarga Suwito", branchNumber: 2 },
+  { id: "b3", name: "Keluarga Suyatno", branchNumber: 3 },
+];
+
+function attendanceDb(
+  regs: RegRow[],
+  branches: Array<{ id: string; name: string; branchNumber: number | null }> = ATTENDANCE_BRANCHES,
+) {
+  return {
+    branch: { findMany: async () => branches },
+    reunionRegistration: {
+      // Tiruan ini benar-benar menyaring `where` yang dikirim fungsi, sehingga
+      // tes di bawah menguji kondisi query-nya, bukan hanya isi larinya.
+      findMany: async (args: {
+        where: { attendance: string; status: { not: string } };
+      }) =>
+        regs.filter(
+          (r) =>
+            r.attendance === args.where.attendance && r.status !== args.where.status.not,
+        ),
+    },
+  } as unknown as AttendanceDb;
+}
+
+test("kehadiran hanya menghitung peserta berstatus ATTENDING", async () => {
+  const result = await getReunionAttendanceByBranch(
+    attendanceDb([
+      reg({ personId: "p1", person: { branchId: "b1" } }),
+      reg({ personId: "p2", person: { branchId: "b1" }, attendance: "NOT_ATTENDING" }),
+      reg({ personId: "p3", person: { branchId: "b2" } }),
+    ]),
+    "r1",
+  );
+  assert.equal(result.rows[0].attending, 1);
+  assert.equal(result.rows[1].attending, 1);
+  assert.equal(result.total, 2);
+});
+
+test("pendaftaran yang dibatalkan tidak dihitung meski ditandai hadir", async () => {
+  const result = await getReunionAttendanceByBranch(
+    attendanceDb([
+      reg({ personId: "p1", person: { branchId: "b1" }, status: "CANCELLED" }),
+      reg({ personId: "p2", person: { branchId: "b1" }, status: "WAITLIST" }),
+    ]),
+    "r1",
+  );
+  assert.equal(result.rows[0].attending, 1);
+  assert.equal(result.total, 1);
+});
+
+test("cabang tanpa peserta pun tetap dikembalikan", async () => {
+  const result = await getReunionAttendanceByBranch(
+    attendanceDb([reg({ personId: "p1", person: { branchId: "b1" } })]),
+    "r1",
+  );
+  assert.deepEqual(
+    result.rows.map((r) => [r.branchName, r.attending]),
+    [
+      ["Keluarga Soedjinah", 1],
+      ["Keluarga Suwito", 0],
+      ["Keluarga Suyatno", 0],
+    ],
+  );
+});
+
+test("peserta tanpa cabang dikumpulkan di baris tersendiri", async () => {
+  const result = await getReunionAttendanceByBranch(
+    attendanceDb([
+      reg({ personId: "p1", person: null, user: null }),
+      reg({ personId: "p2", person: { branchId: null }, user: null }),
+    ]),
+    "r1",
+  );
+  const last = result.rows[result.rows.length - 1];
+  assert.equal(last.branchId, null);
+  assert.equal(last.branchNumber, null);
+  assert.equal(last.branchName, "Belum ditugaskan");
+  assert.equal(last.attending, 2);
+  assert.equal(result.total, 2);
+});
+
+test("baris tanpa cabang tidak muncul bila memang tidak ada", async () => {
+  const result = await getReunionAttendanceByBranch(
+    attendanceDb([reg({ personId: "p1", person: { branchId: "b1" } })]),
+    "r1",
+  );
+  assert.equal(result.rows.length, 3);
+  assert.ok(!result.rows.some((r) => r.branchId === null));
+});
+
+test("baris diurutkan menurut nomor cabang, bukan urutan balasan database", async () => {
+  const result = await getReunionAttendanceByBranch(
+    attendanceDb(
+      [reg({ personId: "p1", person: { branchId: "b2" } })],
+      [
+        { id: "b2", name: "Keluarga Suwito", branchNumber: 2 },
+        { id: "b1", name: "Keluarga Soedjinah", branchNumber: 1 },
+      ],
+    ),
+    "r1",
+  );
+  assert.deepEqual(
+    result.rows.map((r) => r.branchNumber),
+    [1, 2],
+  );
+});
+
+test("personId dipakai lebih dulu daripada profil akun peminjam", async () => {
+  // `personId` menunjuk anggota cabang b1, sementara akun peminjamnya berasal
+  // dari cabang lain. Yang dihitung adalah cabang dari `personId`.
+  const result = await getReunionAttendanceByBranch(
+    attendanceDb([
+      reg({
+        personId: "p1",
+        person: { branchId: "b1" },
+        user: { person: { branchId: "b2" } },
+      }),
+    ]),
+    "r1",
+  );
+  assert.equal(result.rows[0].attending, 1);
+  assert.equal(result.rows[1].attending, 0);
+});
+
+test("pendaftaran lama tanpa personId memakai cabang profil akun", async () => {
+  const result = await getReunionAttendanceByBranch(
+    attendanceDb([
+      reg({ personId: null, person: null, user: { person: { branchId: "b2" } } }),
+    ]),
+    "r1",
+  );
+  assert.equal(result.rows[0].attending, 0);
+  assert.equal(result.rows[1].attending, 1);
+  assert.equal(result.total, 1);
+});
+
+test("rekap kosong tetap memuat seluruh cabang dengan angka nol", async () => {
+  const result = await getReunionAttendanceByBranch(attendanceDb([]), "r1");
+  assert.deepEqual(result.rows, [
+    { branchId: "b1", branchName: "Keluarga Soedjinah", branchNumber: 1, attending: 0 },
+    { branchId: "b2", branchName: "Keluarga Suwito", branchNumber: 2, attending: 0 },
+    { branchId: "b3", branchName: "Keluarga Suyatno", branchNumber: 3, attending: 0 },
+  ]);
+  assert.equal(result.total, 0);
 });

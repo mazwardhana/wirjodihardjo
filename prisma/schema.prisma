@@ -72,6 +72,14 @@ enum RegistrationStatus {
   WAITLIST
 }
 
+// Kehadiran aktual peserta reuni, terpisah dari status pendaftaran: orang bisa
+// tetap terdaftar (CONFIRMED) tetapi ternyata tidak ikut. Inilah yang diedit
+// panitia menjelang/di hari-H.
+enum AttendanceStatus {
+  ATTENDING
+  NOT_ATTENDING
+}
+
 enum EntryType {
   ACHIEVEMENT
   IN_MEMORIAM
@@ -173,6 +181,7 @@ model Person {
   socialLinks               SocialLink[]
   governanceAssignments     GovernanceAssignment[] @relation("PersonGovernanceAssignments")
   branchRepresentativeSlots BranchRepresentative[] @relation("PersonBranchRepresentatives")
+  reunionRegistrations      ReunionRegistration[]
 
   @@index([fullName])
   @@index([slug])
@@ -451,16 +460,25 @@ model ReunionRegistration {
   guestCount Int                @default(1)
   notes      String?
   status     RegistrationStatus @default(CONFIRMED)
+  // Kehadiran aktual; diisi panitia. Berbeda dari `status` pendaftaran.
+  attendance AttendanceStatus   @default(ATTENDING)
   createdAt  DateTime           @default(now())
   updatedAt  DateTime           @updatedAt
 
   reunionId String
   reunion   Reunion @relation(fields: [reunionId], references: [id], onDelete: Cascade)
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Pendaftaran mandiri (login) memakai userId; pendaftaran yang dibuat panitia
+  // bisa hanya menunjuk Person — anggota lama belum tentu punya akun. Keduanya
+  // nullable: satu baris cukup punya salah satu.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  personId String?
+  person   Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
 
   @@unique([reunionId, userId])
+  @@unique([reunionId, personId])
 }
 
 // ──────────────────────────────────────

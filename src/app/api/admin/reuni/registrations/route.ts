@@ -39,7 +39,7 @@ export async function GET(request: Request) {
   return NextResponse.json(registrations);
 }
 
-// PUT: update registration status (confirm/cancel)
+// PUT: update registration status (confirm/cancel) dan/atau kehadiran
 export async function PUT(request: Request) {
   const user = await requireAdmin();
   if (!user) {
@@ -50,14 +50,32 @@ export async function PUT(request: Request) {
   try { body = await request.json(); }
   catch { return NextResponse.json({ error: "Body tidak valid" }, { status: 400 }); }
 
-  const { id, status } = body;
+  const { id, status, attendance } = body;
 
   if (!id || typeof id !== "string") {
     return NextResponse.json({ error: "ID pendaftaran diperlukan" }, { status: 400 });
   }
 
-  if (!status || !["CONFIRMED", "CANCELLED"].includes(status as string)) {
+  // Kedua field opsional, tapi setidaknya satu harus dikirim: PUT tanpa satu
+  // pun tidak mengubah apa pun, jadi lebih baik ditolak agar tidak disalahartikan.
+  const hasStatus = status !== undefined && status !== null;
+  const hasAttendance = attendance !== undefined && attendance !== null;
+  if (!hasStatus && !hasAttendance) {
+    return NextResponse.json(
+      { error: "Kirim status atau attendance (minimal salah satu)" },
+      { status: 400 },
+    );
+  }
+
+  if (hasStatus && !["CONFIRMED", "CANCELLED"].includes(status as string)) {
     return NextResponse.json({ error: "Status harus CONFIRMED atau CANCELLED" }, { status: 400 });
+  }
+
+  if (hasAttendance && !["ATTENDING", "NOT_ATTENDING"].includes(attendance as string)) {
+    return NextResponse.json(
+      { error: "Attendance harus ATTENDING atau NOT_ATTENDING" },
+      { status: 400 },
+    );
   }
 
   const existing = await prisma.reunionRegistration.findUnique({ where: { id } });
@@ -65,21 +83,112 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Pendaftaran tidak ditemukan" }, { status: 404 });
   }
 
+  const nextStatus = hasStatus
+    ? (status as "CONFIRMED" | "CANCELLED")
+    : undefined;
+  const nextAttendance = hasAttendance
+    ? (attendance as "ATTENDING" | "NOT_ATTENDING")
+    : undefined;
+
+  // Hanya field yang benar-benar dikirim yang ditulis, supaya `status` tidak
+  // ikut berubah ketika panitia hanya menandai kehadiran.
   const registration = await prisma.reunionRegistration.update({
     where: { id },
-    data: { status: status as "CONFIRMED" | "CANCELLED" },
+    data: { status: nextStatus, attendance: nextAttendance },
+  });
+
+  // Kehadiran punya aksi audit sendiri: perubahan "hadir/tidak ikut" sering
+  // terjadi tanpa status ikut bergeser.
+  if (hasAttendance) {
+    await logAudit({
+      action: "ATTENDANCE_SET",
+      entityType: "ReunionRegistration",
+      entityId: id,
+      beforeData: { attendance: existing.attendance },
+      afterData: { attendance },
+      actorUserId: user.id,
+    });
+  }
+
+  if (hasStatus) {
+    await logAudit({
+      action: status === "CANCELLED" ? "REGISTRATION_CANCEL" : "REGISTRATION_CONFIRM",
+      entityType: "ReunionRegistration",
+      entityId: id,
+      beforeData: { status: existing.status },
+      afterData: { status: nextStatus },
+      actorUserId: user.id,
+    });
+  }
+
+  return NextResponse.json(registration);
+}
+
+// POST: tambah peserta secara manual (anggota yang belum punya akun)
+// Dipakai panitia untuk mendaftarkan anggota yang tidak bisa mendaftar sendiri.
+export async function POST(request: Request) {
+  const user = await requireAdmin();
+  if (!user) {
+    return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
+  }
+
+  let body: Record<string, unknown>;
+  try { body = await request.json(); }
+  catch { return NextResponse.json({ error: "Body tidak valid" }, { status: 400 }); }
+
+  const { reunionId, personId } = body;
+  if (!reunionId || typeof reunionId !== "string") {
+    return NextResponse.json({ error: "ID reuni diperlukan" }, { status: 400 });
+  }
+  if (!personId || typeof personId !== "string") {
+    return NextResponse.json({ error: "ID anggota diperlukan" }, { status: 400 });
+  }
+
+  // `userId` ikut diambil: baris pendaftaran diarahkan ke akun bila ada, agar
+  // anggota yang punya akun bisa dikenali dari sisi akunnya juga.
+  const person = await prisma.person.findUnique({
+    where: { id: personId },
+    select: { id: true, fullName: true, user: { select: { id: true } } },
+  });
+  if (!person) {
+    return NextResponse.json({ error: "Anggota tidak ditemukan" }, { status: 404 });
+  }
+
+  const userId = person.user?.id ?? null;
+  const duplicate = await prisma.reunionRegistration.findFirst({
+    where: {
+      reunionId,
+      OR: [{ personId }, ...(userId ? [{ userId }] : [])],
+    },
+    select: { id: true },
+  });
+  if (duplicate) {
+    return NextResponse.json(
+      { error: "Anggota ini sudah terdaftar di reuni tersebut" },
+      { status: 409 },
+    );
+  }
+
+  const registration = await prisma.reunionRegistration.create({
+    data: {
+      reunionId,
+      personId,
+      userId,
+      status: "CONFIRMED",
+      attendance: "ATTENDING",
+      guestCount: 1,
+    } as never,
   });
 
   await logAudit({
-    action: status === "CANCELLED" ? "REGISTRATION_CANCEL" : "REGISTRATION_CONFIRM",
+    action: "REGISTRATION_CREATE_MANUAL",
     entityType: "ReunionRegistration",
-    entityId: id,
-    beforeData: { status: existing.status } as any,
-    afterData: { status } as any,
+    entityId: registration.id,
+    afterData: { reunionId, personId, userId, status: "CONFIRMED", attendance: "ATTENDING" },
     actorUserId: user.id,
   });
 
-  return NextResponse.json(registration);
+  return NextResponse.json(registration, { status: 201 });
 }
 
 // DELETE: delete a registration entirely
@@ -107,7 +216,7 @@ export async function DELETE(request: Request) {
     action: "REGISTRATION_DELETE",
     entityType: "ReunionRegistration",
     entityId: id,
-    beforeData: { status: existing.status } as any,
+    beforeData: { status: existing.status },
     actorUserId: user.id,
   });
 

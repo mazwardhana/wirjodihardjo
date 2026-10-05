@@ -322,3 +322,104 @@ export async function getRegistrationCredentials(
     };
   });
 }
+
+export type BranchAttendance = {
+  branchId: string | null;
+  branchName: string;
+  branchNumber: number | null;
+  attending: number;
+};
+
+export type ReunionAttendanceResult = { rows: BranchAttendance[]; total: number };
+
+/** Baris pendaftaran yang ikut dihitung kehadiran, sesuai select di bawah. */
+type AttendanceRow = {
+  personId: string | null;
+  person: { branchId: string | null } | null;
+  user: { person: { branchId: string | null } | null } | null;
+};
+
+/**
+ * Bentuk db khusus rekap kehadiran. Sengaja tidak memakai `StatisticsDb`:
+ * halaman publik hanya butuh dua tabel (branch + registration), jadi batas
+ * sempitnya lebih mudah diuji dengan tiruan.
+ */
+export type AttendanceDb = {
+  branch: {
+    findMany(args: unknown): Promise<
+      Array<{ id: string; name: string; branchNumber: number | null }>
+    >;
+  };
+  reunionRegistration: {
+    findMany(args: unknown): Promise<AttendanceRow[]>;
+  };
+};
+
+/** Penyempitan Prisma client untuk `AttendanceDb`, cara yang sama seperti `asStatisticsDb`. */
+export function asAttendanceDb<T extends AttendanceDb = AttendanceDb>(client: unknown): T {
+  return client as T;
+}
+
+/**
+ * Rekap kehadiran per keluarga cabang untuk satu reuni.
+ *
+ * Yang dihitung adalah `attendance === ATTENDING` pada pendaftaran yang belum
+ * dibatalkan, bukan status pendaftaran: peserta waitlist tetap bisa hadir.
+ * Setiap cabang tetap muncul walau nol orang agar tabel publik tidak
+ * menyembunyikan keluarga yang belum punya peserta.
+ */
+export async function getReunionAttendanceByBranch(
+  db: AttendanceDb,
+  reunionId: string,
+): Promise<ReunionAttendanceResult> {
+  const [branches, registrations] = await Promise.all([
+    db.branch.findMany({
+      orderBy: { branchNumber: "asc" },
+      select: { id: true, name: true, branchNumber: true },
+    }),
+    db.reunionRegistration.findMany({
+      where: { reunionId, attendance: "ATTENDING", status: { not: "CANCELLED" } },
+      select: {
+        personId: true,
+        person: { select: { branchId: true } },
+        user: { select: { person: { select: { branchId: true } } } },
+      },
+    }),
+  ]);
+
+  const counts = new Map<string, number>();
+  let unassigned = 0;
+  for (const reg of registrations) {
+    // Pendaftaran yang dibuat panitia menunjuk `personId`; pendaftaran mandiri
+    // hanya tahu akun peminjamnya, jadi cabangnya dibaca dari `user.person`.
+    const branchId = reg.person?.branchId ?? reg.user?.person?.branchId ?? null;
+    if (branchId === null) {
+      unassigned += 1;
+      continue;
+    }
+    counts.set(branchId, (counts.get(branchId) ?? 0) + 1);
+  }
+
+  // `orderBy` sudah diminta ke db, tapi diurutkan ulang di sini supaya urutan
+  // tabel publik tidak bergantung pada urutan balasan database.
+  const rows: BranchAttendance[] = [...branches]
+    .sort((a, b) => (a.branchNumber ?? Number.MAX_SAFE_INTEGER) - (b.branchNumber ?? Number.MAX_SAFE_INTEGER))
+    .map((branch) => ({
+      branchId: branch.id,
+      branchName: branch.name,
+      branchNumber: branch.branchNumber,
+      attending: counts.get(branch.id) ?? 0,
+    }));
+
+  // Baris tanpa cabang tidak punya nomor, jadi ditaruh paling akhir.
+  if (unassigned > 0) {
+    rows.push({
+      branchId: null,
+      branchName: "Belum ditugaskan",
+      branchNumber: null,
+      attending: unassigned,
+    });
+  }
+
+  return { rows, total: rows.reduce((sum, row) => sum + row.attending, 0) };
+}
