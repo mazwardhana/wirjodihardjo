@@ -109,7 +109,9 @@ function IconRegistrasi() {
 // yang dapat diisi tanpa akun.
 function itemsFor(authenticated: boolean) {
   return [
-    { href: "/dashboard", label: "Beranda", icon: <IconBeranda /> },
+    // Beranda mengarah ke dashboard anggota bila sudah masuk, atau ke halaman
+    // depan publik (landing) bila belum masuk.
+    { href: authenticated ? "/dashboard" : "/", label: "Beranda", icon: <IconBeranda /> },
     { href: "/silsilah", label: "Silsilah", icon: <IconSilsilah /> },
     { href: "/galeri", label: "Galeri", icon: <IconGaleri /> },
     { href: "/reuni", label: "Reuni", icon: <IconReuni /> },

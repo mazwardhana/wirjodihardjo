@@ -87,6 +87,17 @@ test("shows Registrasi instead of Profil when not authenticated", () => {
   assert.ok(!html.includes(">Profil<"), "Profil label must be hidden when logged out");
 });
 
+test("points Beranda to the landing page when not authenticated", () => {
+  const html = render("/", "unauthenticated");
+  assert.ok(html.includes('href="/"'), "Beranda must link to / when logged out");
+  assert.ok(!html.includes('href="/dashboard"'), "dashboard must not be linked when logged out");
+});
+
+test("points Beranda to the dashboard when authenticated", () => {
+  const html = render("/dashboard", "authenticated");
+  assert.ok(html.includes('href="/dashboard"'), "Beranda must link to /dashboard when logged in");
+});
+
 test("keeps Profil and drops Registrasi when authenticated", () => {
   const html = render("/dashboard", "authenticated");
   assert.ok(html.includes('href="/dashboard/profil"'));
