@@ -57,6 +57,21 @@ export type RegistrationResult = {
   attendees: number;
 };
 
+/**
+ * Kredensial akun yang benar-benar dibuat. Hanya untuk laporan admin; tidak
+ * pernah disertakan pada respons API registrasi publik agar username tidak
+ * bocor ke pengunjung.
+ */
+export type RegistrationCredential = {
+  fullName: string;
+  username: string;
+  isDeceased: boolean;
+  willAttend: boolean;
+};
+
+/** Hasil internal `createRegistrationsInTx`, termasuk kredensial untuk laporan admin. */
+export type RegistrationTxResult = RegistrationResult & { credentials: RegistrationCredential[] };
+
 export type RegistrationBranch = { id: string; name: string; branchNumber: number };
 
 /** Minimal boundary yang dibutuhkan modul ini, agar mudah diuji dengan Prisma palsu. */
@@ -81,7 +96,7 @@ export type RegistrationTx = {
   registrationBatch: { create(args: unknown): Promise<{ id: string }> };
 };
 
-function normalizeGender(value: string): Gender | null {
+export function normalizeGender(value: string): Gender | null {
   const key = value.trim().toLowerCase();
   if (key === "l" || key === "male" || key === "laki-laki" || key === "pria") return "MALE";
   if (key === "p" || key === "female" || key === "perempuan" || key === "wanita") return "FEMALE";
@@ -89,7 +104,7 @@ function normalizeGender(value: string): Gender | null {
   return null;
 }
 
-function normalizeStatus(value: string): RegistrationStatus | null {
+export function normalizeStatus(value: string): RegistrationStatus | null {
   const key = value.trim().toLowerCase();
   if (key === "alive" || key === "hidup") return "ALIVE";
   if (key === "deceased" || key === "wafat" || key === "meninggal") return "DECEASED";
@@ -182,6 +197,97 @@ async function loadTakenUsernames(tx: RegistrationTx, bases: string[]): Promise<
   return new Set(users.map((u) => u.username));
 }
 
+export type CreateRegistrationsInput = {
+  branchId: string;
+  rows: NormalizedRow[];
+  reunionId: string | null;
+  submitterIp?: string | null;
+  /** Catatan batch (mis. nama berkas impor). */
+  notes?: string | null;
+  /** Hash password yang sudah dihitung; dipakai jalur impor agar hashing sekali saja. */
+  passwordHash?: string;
+};
+
+/**
+ * Inti pembuatan data di dalam satu transaksi. Dipisah dari
+ * `createRegistrations` agar jalur impor multi-cabang dapat menjalankan
+ * beberapa kelompok cabang dalam satu transaksi (semua-atau-tidak-sama-sekali).
+ *
+ * Mengembalikan kredensial akun yang benar-benar dibuat; pemanggil bertanggung
+ * jawab tidak mengirimkannya ke API publik.
+ */
+export async function createRegistrationsInTx(
+  tx: RegistrationTx,
+  input: CreateRegistrationsInput & { passwordHash: string },
+): Promise<RegistrationTxResult> {
+  const { branchId, rows, reunionId, submitterIp, notes, passwordHash } = input;
+
+  const bases = rows.map((row) => deriveBaseUsername(row.namaPanggilan, row.namaLengkap));
+  const taken = await loadTakenUsernames(tx, bases);
+
+  let accountsMade = 0;
+  let attendees = 0;
+  const credentials: RegistrationCredential[] = [];
+
+  for (const row of rows) {
+    const person = await tx.person.create({
+      data: {
+        fullName: row.namaLengkap,
+        namaPanggilan: row.namaPanggilan,
+        nickname: row.namaPanggilan,
+        gender: row.gender,
+        isDeceased: row.isDeceased,
+        branchId,
+      },
+    });
+
+    const username = deriveUniqueUsername(row.namaPanggilan, row.namaLengkap, taken);
+    taken.add(username);
+
+    const user = await tx.user.create({
+      data: {
+        username,
+        email: null,
+        passwordHash,
+        role: "MEMBER",
+        isActive: true,
+        isVerified: true,
+        mustChangeCredentials: true,
+        personId: person.id,
+      },
+    });
+    accountsMade++;
+
+    const willAttend = Boolean(reunionId && row.hadir && !row.isDeceased);
+    if (willAttend) {
+      await tx.reunionRegistration.create({
+        data: { reunionId, userId: user.id, guestCount: 1, status: "CONFIRMED" },
+      });
+      attendees++;
+    }
+
+    credentials.push({
+      fullName: row.namaLengkap,
+      username,
+      isDeceased: row.isDeceased,
+      willAttend,
+    });
+  }
+
+  const batch = await tx.registrationBatch.create({
+    data: {
+      branchId,
+      rowCount: rows.length,
+      accountsMade,
+      attendees,
+      submitterIp: submitterIp ?? null,
+      notes: notes ?? null,
+    },
+  });
+
+  return { batchId: batch.id, rowCount: rows.length, accountsMade, attendees, credentials };
+}
+
 /**
  * Buat data anggota + akun untuk setiap baris, lalu catat batch. Semua baris
  * termasuk yang wafat tetap dibuatkan akun (sesuai keputusan pengurus), tetapi
@@ -189,74 +295,25 @@ async function loadTakenUsernames(tx: RegistrationTx, bases: string[]): Promise<
  *
  * Tanpa dedup: nama yang sama tetap dibuat (bisa jadi orang berbeda); admin
  * dapat menyunting atau menghapusnya kemudian.
+ *
+ * Kredensial tidak disertakan pada hasil agar API publik tidak membocorkan
+ * username; jalur impor memakai `createRegistrationsInTx` yang mengembalikannya.
  */
 export async function createRegistrations(
   db: RegistrationDb,
-  input: { branchId: string; rows: NormalizedRow[]; reunionId: string | null; submitterIp?: string | null },
+  input: CreateRegistrationsInput,
 ): Promise<RegistrationResult> {
-  const { branchId, rows, reunionId, submitterIp } = input;
+  const { branchId, rows, reunionId, submitterIp, notes, passwordHash: presetHash } = input;
 
   const branch = await db.branch.findUnique({ where: { id: branchId } });
   if (!branch || !branch.isActive || branch.slug === EXCLUDED_BRANCH_SLUG) {
     throw new Error("BRANCH_INVALID");
   }
 
-  const passwordHash = await bcrypt.hash(DEFAULT_REGISTRATION_PASSWORD, REGISTRATION_BCRYPT_ROUNDS);
+  const passwordHash =
+    presetHash ?? (await bcrypt.hash(DEFAULT_REGISTRATION_PASSWORD, REGISTRATION_BCRYPT_ROUNDS));
 
-  return db.$transaction(async (tx) => {
-    const bases = rows.map((row) => deriveBaseUsername(row.namaPanggilan, row.namaLengkap));
-    const taken = await loadTakenUsernames(tx, bases);
-
-    let accountsMade = 0;
-    let attendees = 0;
-
-    for (const row of rows) {
-      const person = await tx.person.create({
-        data: {
-          fullName: row.namaLengkap,
-          namaPanggilan: row.namaPanggilan,
-          nickname: row.namaPanggilan,
-          gender: row.gender,
-          isDeceased: row.isDeceased,
-          branchId,
-        },
-      });
-
-      const username = deriveUniqueUsername(row.namaPanggilan, row.namaLengkap, taken);
-      taken.add(username);
-
-      const user = await tx.user.create({
-        data: {
-          username,
-          email: null,
-          passwordHash,
-          role: "MEMBER",
-          isActive: true,
-          isVerified: true,
-          mustChangeCredentials: true,
-          personId: person.id,
-        },
-      });
-      accountsMade++;
-
-      if (reunionId && row.hadir && !row.isDeceased) {
-        await tx.reunionRegistration.create({
-          data: { reunionId, userId: user.id, guestCount: 1, status: "CONFIRMED" },
-        });
-        attendees++;
-      }
-    }
-
-    const batch = await tx.registrationBatch.create({
-      data: {
-        branchId,
-        rowCount: rows.length,
-        accountsMade,
-        attendees,
-        submitterIp: submitterIp ?? null,
-      },
-    });
-
-    return { batchId: batch.id, rowCount: rows.length, accountsMade, attendees };
-  });
+  return db.$transaction((tx) =>
+    createRegistrationsInTx(tx, { branchId, rows, reunionId, submitterIp, notes, passwordHash }),
+  );
 }

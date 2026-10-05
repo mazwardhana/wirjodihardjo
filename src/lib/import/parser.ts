@@ -1,18 +1,18 @@
 import ExcelJS from "exceljs";
 import { parse } from "csv-parse/sync";
-import { MAX_IMPORT_BYTES } from "./types";
 import type { ParsedData, Gender } from "./types";
-
-const MAX_ROWS = 5000;
-const MAX_CELLS = 100_000;
-const MAX_COLUMNS = 50;
-const MAX_CELL_LENGTH = 32_767;
-type Budget = { rows: number; cells: number };
-type Values = Record<string, string>;
-
-function normalizeHeader(value: string): string {
-  return value.replace(/\uFEFF/g, "").replace(/\*/g, "").trim().toLowerCase().replace(/[\s-]+/g, "_");
-}
+import {
+  MAX_ROWS,
+  MAX_COLUMNS,
+  MAX_CELL_LENGTH,
+  normalizeHeader,
+  checkBuffer,
+  checkCell,
+  cellString,
+  consumeRow,
+  type Budget,
+  type Values,
+} from "./guards";
 
 const HEADER_MAP: Record<string, string> = {
   kode_cabang_keluarga: "cabangKe",
@@ -58,42 +58,6 @@ function mapHeaders(headers: string[]): (string | undefined)[] {
     }
   }
   return columns;
-}
-
-function checkBuffer(buffer: Buffer): void {
-  if (buffer.length > MAX_IMPORT_BYTES) throw new Error("Ukuran file maksimal 10MB.");
-}
-
-function checkCell(value: string, location: string): string {
-  const trimmed = value.trim();
-  if (trimmed.length > MAX_CELL_LENGTH) throw new Error(`${location}: isi sel terlalu panjang.`);
-  if (/^[=@]/.test(trimmed) || /^[+-](?![\d\s().-]+$)/.test(trimmed)) {
-    throw new Error(`${location}: formula tidak diperbolehkan.`);
-  }
-  return trimmed;
-}
-
-function cellString(cell: ExcelJS.Cell, sheet: string): string {
-  const location = `${sheet}!${cell.address}`;
-  const value = cell.value;
-  if (value === null || value === undefined) return "";
-  if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) throw new Error(`${location}: tanggal tidak valid.`);
-    return value.toISOString().slice(0, 10);
-  }
-  if (typeof value === "object") throw new Error(`${location}: formula atau objek sel tidak diperbolehkan.`);
-  if (typeof value === "number" && !Number.isFinite(value)) throw new Error(`${location}: angka tidak valid.`);
-  return checkCell(String(value), location);
-}
-
-function consumeRow(values: string[], budget: Budget): boolean {
-  if (values.length > MAX_COLUMNS) throw new Error(`Maksimal ${MAX_COLUMNS} kolom per baris.`);
-  budget.cells += values.length;
-  if (budget.cells > MAX_CELLS) throw new Error(`Maksimal ${MAX_CELLS} sel per file.`);
-  if (values.every((value) => !value)) return false;
-  budget.rows++;
-  if (budget.rows > MAX_ROWS) throw new Error(`Maksimal ${MAX_ROWS} baris data per file.`);
-  return true;
 }
 
 function appendRow(data: ParsedData, columns: (string | undefined)[], cells: string[], row: number): void {
