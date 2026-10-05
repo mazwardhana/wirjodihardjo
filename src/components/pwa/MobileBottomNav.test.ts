@@ -11,7 +11,10 @@ import ts from "typescript";
 const filename = resolve("src/components/pwa/MobileBottomNav.tsx");
 const require = createRequire(filename);
 
-function render(pathname: string): string {
+function render(
+  pathname: string,
+  status: "authenticated" | "unauthenticated" = "authenticated",
+): string {
   const output = ts.transpileModule(readFileSync(filename, "utf8"), {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -28,6 +31,14 @@ function render(pathname: string): string {
       exports,
       require: (id: string) => {
         if (id === "next/navigation") return { usePathname: () => pathname };
+        if (id === "@/lib/auth-client") {
+          return {
+            useSession: () => ({
+              data: status === "authenticated" ? { user: { name: "Anggota" } } : null,
+              status,
+            }),
+          };
+        }
         if (id === "next/link")
           return {
             __esModule: true,
@@ -64,6 +75,32 @@ test("renders five member nav items with Indonesian labels", () => {
   assert.ok(html.includes('href="/galeri"'));
   assert.ok(html.includes('href="/reuni"'));
   assert.ok(html.includes('href="/dashboard/profil"'));
+});
+
+test("shows Registrasi instead of Profil when not authenticated", () => {
+  const html = render("/dashboard", "unauthenticated");
+  for (const label of ["Beranda", "Silsilah", "Galeri", "Reuni", "Registrasi"]) {
+    assert.ok(html.includes(label), `missing label ${label}`);
+  }
+  assert.ok(html.includes('href="/registrasi"'));
+  assert.ok(!html.includes('href="/dashboard/profil"'), "Profil must be hidden when logged out");
+  assert.ok(!html.includes(">Profil<"), "Profil label must be hidden when logged out");
+});
+
+test("keeps Profil and drops Registrasi when authenticated", () => {
+  const html = render("/dashboard", "authenticated");
+  assert.ok(html.includes('href="/dashboard/profil"'));
+  assert.ok(html.includes(">Profil<"));
+  assert.ok(!html.includes('href="/registrasi"'));
+  assert.ok(!html.includes(">Registrasi<"));
+});
+
+test("activates the Registrasi item on /registrasi when not authenticated", () => {
+  const html = render("/registrasi", "unauthenticated");
+  const activeHrefs = [...html.matchAll(/href="([^"]+)"[^>]*aria-current="page"/g)].map(
+    (m) => m[1],
+  );
+  assert.deepEqual(activeHrefs, ["/registrasi"]);
 });
 
 test("marks the current route active with aria-current and a gold indicator", () => {

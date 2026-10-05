@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useSession } from "@/lib/auth-client";
 
 // Rute yang tidak memakai nav member (admin, auth, onboarding).
 const HIDDEN_PREFIXES = ["/admin", "/login", "/onboarding", "/sso"] as const;
@@ -91,17 +92,41 @@ function IconProfil() {
   );
 }
 
-const ITEMS = [
-  { href: "/dashboard", label: "Beranda", icon: <IconBeranda /> },
-  { href: "/silsilah", label: "Silsilah", icon: <IconSilsilah /> },
-  { href: "/galeri", label: "Galeri", icon: <IconGaleri /> },
-  { href: "/reuni", label: "Reuni", icon: <IconReuni /> },
-  { href: "/dashboard/profil", label: "Profil", icon: <IconProfil /> },
-];
+// Ikon clipboard berisi satu baris centang — untuk menu Registrasi (form buku
+// besar keluarga) yang menggantikan Profil saat pengunjung belum masuk.
+function IconRegistrasi() {
+  return (
+    <NavIcon>
+      <path d="M9 4.5H7.5A1.5 1.5 0 0 0 6 6v13a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 19V6a1.5 1.5 0 0 0-1.5-1.5H15" />
+      <rect x="9" y="3" width="6" height="3.2" rx="1" />
+      <path d="m9.2 13.2 2 2 3.6-3.8" />
+    </NavIcon>
+  );
+}
+
+// Item pertama selalu sama. Item terakhir menyesuaikan: anggota melihat Profil,
+// sedangkan pengunjung yang belum masuk melihat Registrasi (form /registrasi)
+// yang dapat diisi tanpa akun.
+function itemsFor(authenticated: boolean) {
+  return [
+    { href: "/dashboard", label: "Beranda", icon: <IconBeranda /> },
+    { href: "/silsilah", label: "Silsilah", icon: <IconSilsilah /> },
+    { href: "/galeri", label: "Galeri", icon: <IconGaleri /> },
+    { href: "/reuni", label: "Reuni", icon: <IconReuni /> },
+    authenticated
+      ? { href: "/dashboard/profil", label: "Profil", icon: <IconProfil /> }
+      : { href: "/registrasi", label: "Registrasi", icon: <IconRegistrasi /> },
+  ];
+}
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const { status } = useSession();
+  // Selama sesi dimuat, anggap belum login agar pengunjung anonim langsung melihat
+  // Registrasi tanpa beralih ke Profil. Anggota hanya melihatnya sesaat lalu kembali.
+  const authenticated = status === "authenticated";
   const hidden = isHiddenPath(pathname);
+  const items = itemsFor(authenticated);
 
   return (
     <nav
@@ -110,7 +135,7 @@ export function MobileBottomNav() {
       className="member-bottom-nav fixed inset-x-0 bottom-0 z-[120] border-t border-wood/15 bg-cream/95 backdrop-blur-sm md:hidden"
     >
       <ul className="mx-auto grid max-w-lg grid-cols-5 px-1 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-        {ITEMS.map((item) => {
+        {items.map((item) => {
           const active = isActivePath(pathname, item.href);
           return (
             <li key={item.href} className="relative">
