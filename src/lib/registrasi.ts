@@ -14,7 +14,7 @@ export const REUNI_2027_SLUG = "reuni-wirjodihardjo-2-0-blitar-2027";
 export const REUNI_2027_TITLE = "Reuni Wirjodihardjo 2.0 - Blitar, 2027";
 export const REUNI_2027_LOCATION = "Lesehan d'Dadoz, Blitar";
 export const REUNI_2027_DESCRIPTION =
-  "Reuni Keluarga Besar Wirjodihardjo di Lesehan d'Dadoz, Blitar. Catat tanggalnya: Sabtu, 13 Maret 2027. Sampai jumpa di sana.";
+  "Reuni Keluarga Besar Wirjodihardjo di Lesehan d'Dadoz, Blitar pada Sabtu, 13 Maret 2027. Jam pelaksanaan akan diinformasikan kemudian.";
 
 export const MIN_ROWS = 1;
 export const MAX_ROWS = 50;

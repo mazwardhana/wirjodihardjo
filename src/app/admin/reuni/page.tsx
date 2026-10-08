@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTimeOrDate } from "@/lib/utils";
 import { AdminReuniActions } from "@/components/admin/AdminReuniActions";
 import { FilterBar } from "@/components/admin/FilterBar";
 import { ReunionCreateModal } from "./ReunionCreateModal";
@@ -136,7 +136,7 @@ export default async function AdminReuniPage({
                       {r.title}
                     </Link>
                     <p className="mt-1 text-sm text-muted">
-                      {r.startAt ? formatDateTime(r.startAt) : "Jadwal menyusul"}
+                      {r.startAt ? formatDateTimeOrDate(r.startAt) : "Jadwal menyusul"}
                       {r.locationName ? ` · ${r.locationName}` : ""}
                     </p>
                     <p className="text-xs text-muted">

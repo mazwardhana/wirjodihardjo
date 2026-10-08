@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { formatDate, formatDateTimeOrDate } from "@/lib/utils";
 import { RegistrationButton } from "@/components/reuni/RegistrationButton";
 import { ReunionAttendanceByBranch } from "@/components/reuni/ReunionAttendanceByBranch";
 import type { ReunionAttendanceResult } from "@/lib/statistik";
@@ -101,8 +101,8 @@ export function ReunionDetail({
           <dt className="min-w-24 font-medium text-forest">Waktu</dt>
           <dd className="text-muted">
             {reunion.startAt
-              ? `${formatDateTime(reunion.startAt)}${
-                  reunion.endAt ? ` s/d ${formatDateTime(reunion.endAt)}` : ""
+              ? `${formatDateTimeOrDate(reunion.startAt)}${
+                  reunion.endAt ? ` s/d ${formatDateTimeOrDate(reunion.endAt)}` : ""
                 }`
               : "Tanggal & waktu menyusul"}
           </dd>

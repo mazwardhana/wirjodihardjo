@@ -5,7 +5,7 @@ import {
   asStatisticsDb,
   type BranchStat,
 } from "@/lib/statistik";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, formatDateTimeOrDate } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Reveal } from "@/components/ui/Reveal";
 
@@ -395,7 +395,7 @@ export default async function StatistikPage() {
                   <dt className="text-sm text-muted">Jadwal</dt>
                   <dd className="mt-1 text-forest">
                     {reunion.startAt ? (
-                      formatDateTime(reunion.startAt)
+                      formatDateTimeOrDate(reunion.startAt)
                     ) : (
                       <span className="text-wood">Tanggal &amp; waktu menyusul</span>
                     )}

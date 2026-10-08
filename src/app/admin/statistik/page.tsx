@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, formatDateTimeOrDate } from "@/lib/utils";
 import { DEFAULT_REGISTRATION_PASSWORD } from "@/lib/registrasi";
 import { getStatistics, getRegistrationCredentials } from "@/lib/statistik";
 import { asStatisticsDb, type StatisticsDb, type CredentialDb } from "@/lib/statistik";
@@ -281,7 +281,7 @@ export default async function AdminStatistikPage({
               </p>
               <p className="mt-1 text-sm text-muted">
                 {reunion.startAt
-                  ? formatDateTime(reunion.startAt)
+                  ? formatDateTimeOrDate(reunion.startAt)
                   : "Tanggal & waktu menyusul"}
               </p>
               <p className="text-sm text-muted">

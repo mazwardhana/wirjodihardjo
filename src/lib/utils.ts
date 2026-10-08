@@ -8,6 +8,30 @@ export function cn(...inputs: ClassValue[]) {
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "-";
   const d = typeof date === "string" ? new Date(date) : date;
+  return printDateOnly(d);
+}
+
+export function formatDateTime(date: Date | string | null | undefined): string {
+  if (!date) return "-";
+  const d = typeof date === "string" ? new Date(date) : date;
+  return printDateAndTime(d);
+}
+
+/** formatDateTime, tapi kalau jam tengah malam (00:00 lokal) tampilkan tanggal
+ * saja tanpa "pukul 00.00". Dipakai untuk jadwal reuni yang belum tahu jamnya
+ * — pengunjung cukup melihat "13 Maret 2027", bukan "13 Maret 2027 pukul 00.00".
+ */
+export function formatDateTimeOrDate(date: Date | string | null | undefined): string {
+  if (!date) return "-";
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0) {
+    return printDateOnly(d);
+  }
+  return printDateAndTime(d);
+}
+
+/** Tanggal saja (dipakai oleh formatDate & formatDateTimeOrDate kalau midnight). */
+function printDateOnly(d: Date): string {
   return new Intl.DateTimeFormat("id-ID", {
     day: "numeric",
     month: "long",
@@ -15,9 +39,8 @@ export function formatDate(date: Date | string | null | undefined): string {
   }).format(d);
 }
 
-export function formatDateTime(date: Date | string | null | undefined): string {
-  if (!date) return "-";
-  const d = typeof date === "string" ? new Date(date) : date;
+/** Tanggal + jam (dipakai oleh formatDateTime & formatDateTimeOrDate kalau bukan midnight). */
+function printDateAndTime(d: Date): string {
   return new Intl.DateTimeFormat("id-ID", {
     day: "numeric",
     month: "long",

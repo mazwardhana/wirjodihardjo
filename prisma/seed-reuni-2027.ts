@@ -12,11 +12,10 @@ const prisma = new PrismaClient({ adapter })
 export const REUNI_SLUG = 'reuni-wirjodihardjo-2-0-blitar-2027'
 export const REUNI_TITLE = 'Reuni Wirjodihardjo 2.0 - Blitar, 2027'
 export const REUNI_LOCATION = "Lesehan d'Dadoz, Blitar"
+export const REUNI_START_AT = new Date('2027-03-13T00:00:00+07:00')
+export const REUNI_END_AT = null
 export const REUNI_DESCRIPTION =
-  "Reuni Keluarga Besar Wirjodihardjo di Lesehan d'Dadoz, Blitar. Catat tanggalnya: Sabtu, 13 Maret 2027. Sampai jumpa di sana."
-// 09.00–13.00 WIB. Offset ditulis eksplisit supaya tidak bergantung zona server.
-export const REUNI_START_AT = new Date('2027-03-13T09:00:00+07:00')
-export const REUNI_END_AT = new Date('2027-03-13T13:00:00+07:00')
+  "Reuni Keluarga Besar Wirjodihardjo di Lesehan d'Dadoz, Blitar pada Sabtu, 13 Maret 2027. Jam pelaksanaan akan diinformasikan kemudian."
 
 async function main() {
   const admin = await prisma.user.findFirst({
