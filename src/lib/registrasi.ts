@@ -12,9 +12,9 @@ export const REGISTRATION_BCRYPT_ROUNDS = 12;
 /** Event reuni yang menjadi tujuan pendaftaran pada form registrasi. */
 export const REUNI_2027_SLUG = "reuni-wirjodihardjo-2-0-blitar-2027";
 export const REUNI_2027_TITLE = "Reuni Wirjodihardjo 2.0 - Blitar, 2027";
-export const REUNI_2027_LOCATION = "Blitar";
+export const REUNI_2027_LOCATION = "Lesehan d'Dadoz, Blitar";
 export const REUNI_2027_DESCRIPTION =
-  "Reuni Keluarga Besar Wirjodihardjo di Blitar. Tanggal dan waktu pelaksanaan menyusul, masih dalam pembahasan pengurus.";
+  "Reuni Keluarga Besar Wirjodihardjo di Lesehan d'Dadoz, Blitar. Catat tanggalnya: Sabtu, 13 Maret 2027. Sampai jumpa di sana.";
 
 export const MIN_ROWS = 1;
 export const MAX_ROWS = 50;

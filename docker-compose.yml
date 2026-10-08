@@ -17,6 +17,9 @@ services:
       AUTH_TRUST_HOST: "true"
       UPLOAD_DIR: /app/uploads
       REDIS_URL: redis://wirjodihardjo-redis:6379
+      # Waktu Indonesia Barat: jam yang tampil ke pengunjung dan nilai form
+      # tanggal admin harus memakai zona yang sama, kalau tidak jadwal bergeser.
+      TZ: Asia/Jakarta
       UPLOADTHING_SECRET: "${UPLOADTHING_SECRET:-}"
       UPLOADTHING_APP_ID: "${UPLOADTHING_APP_ID:-}"
     depends_on:
