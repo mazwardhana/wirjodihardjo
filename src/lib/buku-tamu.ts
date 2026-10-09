@@ -152,7 +152,8 @@ export async function checkIn(
     branchId: string;
     rows: CheckInRowInput[];
     source: CheckInSource;
-    actorUserId: string;
+    // Buku tamu publik tidak punya aktor; admin mengisi id pengguna.
+    actorUserId: string | null;
   },
 ): Promise<CheckInResult> {
   const { reunionId, branchId, rows, source } = params;
