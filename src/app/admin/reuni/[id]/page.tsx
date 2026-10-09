@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ReunionForm } from "@/components/admin/ReunionForm";
 import { ReunionRegistrations } from "@/components/admin/ReunionRegistrations";
 import { AddReunionParticipant } from "@/components/admin/AddReunionParticipant";
+import { BukuTamuQrPanel, buildCheckInUrl } from "@/components/admin/BukuTamuQrPanel";
 
 const statusMeta: Record<string, { label: string; className: string }> = {
   DRAFT: { label: "Draf", className: "bg-muted/10 text-muted" },
@@ -12,6 +13,15 @@ const statusMeta: Record<string, { label: string; className: string }> = {
   CANCELLED: { label: "Dibatalkan", className: "bg-wood/10 text-wood" },
   COMPLETED: { label: "Selesai", className: "bg-gold/20 text-gold-deep" },
 };
+
+/* Cetak QR: saat mencetak dari halaman ini, hanya area QR yang tampil. */
+const printCss = `
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; inset: 0; margin: 0; }
+}
+`;
 
 export default async function AdminReuniDetailPage({
   params,
@@ -101,6 +111,7 @@ export default async function AdminReuniDetailPage({
 
   return (
     <div className="p-8">
+      <style>{printCss}</style>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-semibold text-forest">
@@ -131,6 +142,18 @@ export default async function AdminReuniDetailPage({
         <div className="rounded-lg border border-wood/15 bg-cream p-4 text-center">
           <p className="text-2xl font-bold text-wood">{cancelledCount}</p>
           <p className="text-xs text-muted">Dibatalkan</p>
+        </div>
+      </div>
+
+      {/* Edit form */}
+      <div className="mt-10">
+        <h2 className="font-display text-xl font-semibold text-forest">
+          Buku Tamu Hari-H
+        </h2>
+        <div className="mt-4">
+          <BukuTamuQrPanel
+            url={buildCheckInUrl(process.env.NEXTAUTH_URL ?? "https://wirjodihardjo.teknoloka.id")}
+          />
         </div>
       </div>
 
