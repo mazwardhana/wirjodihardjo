@@ -94,8 +94,18 @@ export async function lookupCandidates(
   if (!branchId) throw new Error("BRANCH_ID_REQUIRED");
 
   const persons = (await db.person.findMany({
-    where: { fullName: { contains: q, mode: "insensitive" }, branchId, deletedAt: null },
+    // Nama panggilan ikut dicari: di keluarga besar orang lebih sering dikenal
+    // lewat panggilan ("Yuni") daripada nama lengkap di akta.
+    where: {
+      deletedAt: null,
+      branchId,
+      OR: [
+        { fullName: { contains: q, mode: "insensitive" } },
+        { namaPanggilan: { contains: q, mode: "insensitive" } },
+      ],
+    },
     take: MAX_LOOKUP_RESULTS,
+    orderBy: { fullName: "asc" },
     include: { branch: { select: { name: true, branchNumber: true } } },
   })) as Array<{
     id: string;
