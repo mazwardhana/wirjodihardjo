@@ -100,16 +100,23 @@ export async function POST(request: Request) {
     );
   }
 
-  // Reuni mungkin belum dibuat. Bila belum ada, anggota tetap diproses tanpa
-  // pendaftaran reuni (reunionId kosong).
+  // Reuni harus ada: tanpa baris reuni, absen akan menulis pendaftaran tanpa
+  // induk dan gagal di foreign key. Lebih baik ditolak dengan pesan jelas.
   const reunion = await prisma.reunion.findUnique({
     where: { slug: REUNI_2027_SLUG },
     select: { id: true },
   });
 
+  if (!reunion) {
+    return NextResponse.json(
+      { error: "Buku tamu belum dibuka. Hubungi pengurus reuni." },
+      { status: 503 },
+    );
+  }
+
   try {
     const result = await checkIn(prisma, {
-      reunionId: reunion?.id ?? "",
+      reunionId: reunion.id,
       branchId,
       rows,
       source: "QR_SELF",

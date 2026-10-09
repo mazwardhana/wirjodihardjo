@@ -36,8 +36,9 @@ export async function GET(request: Request) {
     );
   }
 
-  // Reuni mungkin belum dibuat. Bila belum ada, tetap layani pencarian dengan
-  // reunionId kosong sehingga alreadyRegistered/checkedIn bernilai false.
+  // Reuni harus ada agar status terdaftar/absen bisa dihitung. Bila belum ada,
+  // pencarian tetap mungkin berguna untuk telusur nama, jadi kembalikan rows
+  // dengan alreadyRegistered/checkedIn false semua (reunionId kosong).
   const reunion = await prisma.reunion.findUnique({
     where: { slug: REUNI_2027_SLUG },
     select: { id: true },

@@ -184,12 +184,13 @@ test("POST mengembalikan groupId dan pemisahan checkedIn", async () => {
   assert.equal(state.lastCheckIn?.reunionId, "r-1");
 });
 
-test("POST tetap memproses bila reuni belum ada (reunionId kosong)", async () => {
+test("POST menolak 503 bila reuni belum ada, bukan menulis pendaftaran yatim", async () => {
   const { POST, state } = makeFixture();
   state.reunion = null;
   const res = await POST(json({ branchId: "b1", rows: [{ personId: "p1" }] }));
-  assert.equal(res.status, 201);
-  assert.equal(state.lastCheckIn?.reunionId, "");
+  assert.equal(res.status, 503);
+  // Tidak boleh ada tulisan sama sekali: baris tanpa induk akan gagal foreign key.
+  assert.equal(state.lastCheckIn, null);
 });
 
 test("POST menolak lebih dari dua puluh baris", async () => {
