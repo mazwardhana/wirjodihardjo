@@ -34,12 +34,22 @@ export default async function ReuniPage() {
         Anda bisa mendaftar reuni dan menyimpan silsilah keluarga sendiri.
       </p>
 
-      <Link
-        href="/registrasi"
-        className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-sm bg-forest px-5 py-2.5 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
-      >
-        Registrasi data keluarga
-      </Link>
+      <div className="mt-5 flex flex-wrap gap-3">
+        <Link
+          href="/registrasi"
+          className="inline-flex min-h-11 items-center gap-2 rounded-sm bg-forest px-5 py-2.5 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+        >
+          Registrasi data keluarga
+        </Link>
+        {reunions.length > 0 && (
+          <Link
+            href="/reuni/buku-tamu"
+            className="inline-flex min-h-11 items-center gap-2 rounded-sm border border-forest/40 px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-forest/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          >
+            Buku tamu hari-H
+          </Link>
+        )}
+      </div>
 
       {reunions.length === 0 ? (
         <div className="mt-10">
