@@ -80,6 +80,14 @@ enum AttendanceStatus {
   NOT_ATTENDING
 }
 
+// Cara baris kehadiran ini terisi: tamu memindai QR sendiri di lokasi, atau
+// dicatat panitia dari panel admin. Kosong berarti baris lama dari pendaftaran
+// reuni biasa (form /registrasi atau impor), yang belum melewati buku tamu.
+enum CheckInSource {
+  QR_SELF
+  ADMIN
+}
+
 enum EntryType {
   ACHIEVEMENT
   IN_MEMORIAM
@@ -462,6 +470,13 @@ model ReunionRegistration {
   status     RegistrationStatus @default(CONFIRMED)
   // Kehadiran aktual; diisi panitia. Berbeda dari `status` pendaftaran.
   attendance AttendanceStatus   @default(ATTENDING)
+  // Buku tamu hari-H. `attendance` di atas tetap berarti rencana hadir; kolom
+  // ini yang membuktikan orang benar-benar datang dan kapan.
+  checkedInAt    DateTime?
+  checkInSource  CheckInSource?
+  // Satu kiriman buku tamu menghasilkan satu grup. Dipakai admin untuk melihat
+  // "rombongan ini datang bersama" dan membatalkan satu kiriman sekaligus.
+  checkInGroupId String?
   createdAt  DateTime           @default(now())
   updatedAt  DateTime           @updatedAt
 
@@ -479,6 +494,8 @@ model ReunionRegistration {
 
   @@unique([reunionId, userId])
   @@unique([reunionId, personId])
+  @@index([reunionId, checkedInAt])
+  @@index([checkInGroupId])
 }
 
 // ──────────────────────────────────────
