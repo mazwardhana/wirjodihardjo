@@ -6,6 +6,7 @@ import { ReunionForm } from "@/components/admin/ReunionForm";
 import { ReunionRegistrations } from "@/components/admin/ReunionRegistrations";
 import { AddReunionParticipant } from "@/components/admin/AddReunionParticipant";
 import { BukuTamuQrPanel, buildCheckInUrl } from "@/components/admin/BukuTamuQrPanel";
+import { BukuTamuRombongan } from "@/components/admin/BukuTamuRombongan";
 
 const statusMeta: Record<string, { label: string; className: string }> = {
   DRAFT: { label: "Draf", className: "bg-muted/10 text-muted" },
@@ -145,7 +146,7 @@ export default async function AdminReuniDetailPage({
         </div>
       </div>
 
-      {/* Edit form */}
+      {/* Buku tamu: QR untuk dicetak + rombongan yang sudah absen */}
       <div className="mt-10">
         <h2 className="font-display text-xl font-semibold text-forest">
           Buku Tamu Hari-H
@@ -154,6 +155,9 @@ export default async function AdminReuniDetailPage({
           <BukuTamuQrPanel
             url={buildCheckInUrl(process.env.NEXTAUTH_URL ?? "https://wirjodihardjo.teknoloka.id")}
           />
+        </div>
+        <div className="mt-6">
+          <BukuTamuRombongan reunionId={reunion.id} />
         </div>
       </div>
 
