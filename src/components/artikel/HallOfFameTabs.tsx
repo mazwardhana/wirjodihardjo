@@ -20,7 +20,8 @@ export function HallOfFameTabs({
   const [active, setActive] = useState<TabKey>("apresiasi");
 
   const tabCls = (key: TabKey) =>
-    `border-b-2 px-1 pb-3 text-sm font-semibold transition-colors ${
+    // min-h-11: tab juga target sentuh (gerbang DESIGN.md bagian 8).
+    `min-h-11 border-b-2 px-1 pb-3 text-sm font-semibold transition-colors ${
       active === key
         ? "border-gold text-forest"
         : "border-transparent text-muted hover:text-forest"

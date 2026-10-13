@@ -190,9 +190,13 @@
       // sehingga semua node terukur 4px. Kontrol navigasi (Controls) tetap
       // diukur karena berada di luar viewport yang di-zoom.
       const inCanvas = el.closest('.react-flow__viewport') !== null;
-      // Tautan inline di dalam teks bukan kontrol sentuh.
-      const inlineInText = el.tagName === 'A' && el.closest('p, li') && r.height < 30;
-      if (!inCanvas && !inlineInText && (r.width < MIN_TAP || r.height < MIN_TAP)) {
+      // Tautan inline di dalam teks bukan kontrol sentuh. Ambang tinggi 36px
+      // menampung tautan teks dua baris di layar sempit.
+      const inlineInText = el.tagName === 'A' && el.closest('p, li') && r.height < 36;
+      // Skip-link sr-only disembunyikan sampai difokus keyboard; ukuran 1x1
+      // saat tersembunyi bukan pelanggaran. Saat terlihat ia jauh di atas 44px.
+      const skipLink = el.classList.contains('sr-only');
+      if (!inCanvas && !inlineInText && !skipLink && (r.width < MIN_TAP || r.height < MIN_TAP)) {
         report.tapTargets.push({
           selector: sel(el),
           text: text(el),
