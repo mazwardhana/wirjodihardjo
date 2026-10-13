@@ -52,7 +52,7 @@ export function GalleryLightbox({ items }: { items: Item[] }) {
                 src={item.url}
                 alt={item.caption ?? `Foto ${i + 1}`}
                 loading="lazy"
-                className="w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
               />
             </button>
           </li>

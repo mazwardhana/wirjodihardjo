@@ -23,8 +23,8 @@ export function BranchCard({ branch, className }: BranchCardProps) {
     <Link
       href={`/silsilah?branchId=${encodeURIComponent(branch.id)}`}
       className={cn(
-        "group block h-full rounded-lg border border-wood/20 bg-cream transition-all duration-300",
-        "hover:-translate-y-1 hover:border-gold/60 hover:shadow-lg hover:shadow-wood/15",
+        "group block h-full rounded-lg border border-wood/20 bg-cream shadow-sm transition-all duration-300",
+        "hover:-translate-y-1 hover:border-gold/60 hover:shadow-md hover:shadow-wood/15",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold focus-visible:outline-offset-2",
         className
       )}

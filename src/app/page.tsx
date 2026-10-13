@@ -32,7 +32,7 @@ export default async function HomePage() {
     <>
       {/* ── HERO ── */}
       <section className="relative overflow-hidden border-b border-wood/15">
-        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:px-8 lg:py-28">
+        <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:px-8 lg:py-24">
           <div>
             <p className="font-display text-sm font-medium tracking-wide text-gold-deep">
               Catatan trah &amp; silaturahmi keluarga
@@ -47,7 +47,7 @@ export default async function HomePage() {
               hingga keturunan terkini, menyimpan kenangan bersama, dan
               menjaga hubungan lintas keluarga cabang serta generasi.
             </p>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-6 flex flex-col gap-4 sm:flex-row">
               <Link
                 href="/silsilah"
                 className="inline-flex h-12 items-center justify-center rounded-md bg-gold px-6 text-base font-semibold text-ink transition-colors hover:bg-gold-deep hover:text-cream"
@@ -74,13 +74,13 @@ export default async function HomePage() {
       <Scrollytelling />
 
       {/* ── CITA-CITA / TUJUAN (bukan kartu seragam) ── */}
-      <SectionReveal className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-        <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[0.9fr_1.1fr]">
+      <SectionReveal className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+        <div className="grid gap-x-12 gap-y-8 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
             <h2 className="font-display text-3xl font-semibold leading-tight text-forest sm:text-4xl">
               Empat hal yang kami rawat di sini
             </h2>
-            <div className="motif-divider mt-5 max-w-[180px]" aria-hidden="true" />
+            <div className="motif-divider mt-4 max-w-[180px]" aria-hidden="true" />
           </div>
           <dl className="divide-y divide-wood/15">
             {[
@@ -114,7 +114,7 @@ export default async function HomePage() {
 
       {/* ── STRUKTUR KELUARGA (angka dari data nyata) ── */}
       <SectionReveal className="border-y border-wood/15 bg-parchment/60">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
           <h2 className="font-display text-3xl font-semibold text-forest sm:text-4xl">
             Struktur keluarga
           </h2>
@@ -130,7 +130,7 @@ export default async function HomePage() {
             />
           ) : (
             <>
-              <div className="mt-10 flex flex-wrap items-end gap-x-10 gap-y-6">
+              <div className="mt-12 flex flex-wrap items-end gap-x-12 gap-y-6">
                 <Stat value={total} label="Anggota tercatat" />
                 <Stat value={branches.length} label="Keluarga Cabang keturunan" />
                 <Stat
@@ -140,8 +140,7 @@ export default async function HomePage() {
               </div>
 
               {/* Sebaran per generasi */}
-              <div className="mt-12">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
+              <div className="mt-12">                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
                   Sebaran anggota per generasi
                 </h3>
                 <ul className="mt-4 space-y-2">
@@ -162,7 +161,7 @@ export default async function HomePage() {
 
       {/* ── KELUARGA CABANG ── */}
       {branches.length > 0 && (
-        <SectionReveal className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+        <SectionReveal className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
           <h2 className="font-display text-3xl font-semibold text-forest sm:text-4xl">
             Keluarga Cabang keturunan
           </h2>
@@ -182,7 +181,7 @@ export default async function HomePage() {
 
       {/* ── AJAKAN ── */}
       <section className="border-t border-wood/15 bg-forest">
-        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-4 py-16 sm:px-6 md:flex-row md:items-center lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-8 px-4 py-12 sm:px-6 sm:py-16 md:flex-row md:items-center lg:px-8">
           <div>
             <h2 className="font-display text-3xl font-semibold text-cream">
               Anggota keluarga Wirjodihardjo?
@@ -207,7 +206,7 @@ export default async function HomePage() {
 function Stat({ value, label }: { value: number; label: string }) {
   return (
     <div>
-      <div className="font-display text-5xl font-semibold leading-none text-forest">
+      <div className="font-display text-5xl font-semibold leading-none tabular-nums text-forest">
         {value.toLocaleString("id-ID")}
       </div>
       <div className="mt-2 text-sm font-medium text-muted">{label}</div>
@@ -260,20 +259,20 @@ function TreeMotif({ branchCount }: { branchCount: number }) {
       role="img"
       aria-label="Ilustrasi pohon keluarga dengan dua pendiri dan keluarga cabang keturunannya"
     >
-      <g stroke="#8a6238" strokeOpacity="0.5" strokeWidth="1.5" fill="none">
+      <g className="stroke-wood-soft/50" strokeWidth="1.5" fill="none">
         {Array.from({ length: kids }).map((_, i) => (
           <path key={i} d={`M160 78 C160 130 ${160 + childX(i)} 130 ${160 + childX(i)} 168`} />
         ))}
       </g>
       {Array.from({ length: kids }).map((_, i) => (
         <g key={i}>
-          <circle cx={160 + childX(i)} cy={180} r={13} fill="#efe3c8" stroke="#6f4a2b" strokeWidth="1.5" />
-          <circle cx={160 + childX(i)} cy={180} r={4} fill="#2c4f3b" />
+          <circle cx={160 + childX(i)} cy={180} r={13} className="fill-parchment stroke-wood" strokeWidth="1.5" />
+          <circle cx={160 + childX(i)} cy={180} r={4} className="fill-forest-soft" />
         </g>
       ))}
-      <circle cx={143} cy={66} r={19} fill="#1f3a2b" />
-      <circle cx={177} cy={66} r={19} fill="#b4872a" />
-      <circle cx={160} cy={232} r={9} fill="none" stroke="#b4872a" strokeWidth="1.5" strokeDasharray="3 3" />
+      <circle cx={143} cy={66} r={19} className="fill-forest" />
+      <circle cx={177} cy={66} r={19} className="fill-gold" />
+      <circle cx={160} cy={232} r={9} fill="none" className="stroke-gold" strokeWidth="1.5" strokeDasharray="3 3" />
     </svg>
   );
 }

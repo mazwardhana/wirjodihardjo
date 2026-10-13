@@ -65,7 +65,7 @@ export function DataTable<T extends { id: string }>({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm" role="grid">
+      <table className="w-full text-left text-sm tabular-nums" role="grid">
         <thead>
           <tr className="border-b border-wood/15 text-xs font-medium uppercase tracking-wide text-muted">
             {columns.map((col) => (

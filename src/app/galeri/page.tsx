@@ -76,7 +76,7 @@ export default async function GaleriPage() {
                     <img
                       src={leadCover}
                       alt={`Sampul album ${lead.title}`}
-                      className="h-full w-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]"
+                      className="h-full w-full object-cover transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-sm text-muted">
@@ -140,7 +140,7 @@ export default async function GaleriPage() {
                                 src={cover}
                                 alt={`Sampul album ${album.title}`}
                                 loading="lazy"
-                                className="h-full w-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]"
+                                className="h-full w-full object-cover transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]"
                               />
                             ) : (
                               <div className="flex h-full items-center justify-center text-sm text-muted">

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { FaInbox } from "react-icons/fa6";
 
 /**
  * State kosong yang jujur: tanpa konten karangan.
@@ -15,7 +16,8 @@ export function EmptyState({
 }) {
   return (
     <div className="rounded-lg border border-dashed border-wood/30 bg-parchment/40 px-6 py-14 text-center">
-      <h2 className="font-display text-lg font-semibold text-forest">{title}</h2>
+      <FaInbox className="mx-auto size-8 text-wood" aria-hidden="true" />
+      <h2 className="mt-3 font-display text-lg font-semibold text-forest">{title}</h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted">
         {description}
       </p>
