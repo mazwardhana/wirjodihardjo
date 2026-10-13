@@ -10,7 +10,7 @@ export function Footer() {
           <div>
             <div className="flex items-center gap-2.5">
               <span
-                className="grid h-9 w-9 place-items-center rounded-md bg-gold font-display text-lg font-semibold text-forest"
+                className="grid h-9 w-9 place-items-center rounded-md bg-gold font-display text-lg font-semibold text-ink"
                 aria-hidden="true"
               >
                 W

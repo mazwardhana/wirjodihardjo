@@ -264,7 +264,7 @@ export function BukuTamuClient({ branches }: { branches: RegistrationBranch[] })
             id="buku-tamu-cabang"
             value={branchId}
             onChange={(event) => setBranchId(event.target.value)}
-            className="mt-2 block min-h-11 w-full rounded-sm border border-wood/35 bg-cream px-3 py-2 text-sm text-ink focus:border-forest/70"
+            className="mt-2 block min-h-11 w-full rounded-sm border border-wood/35 bg-cream px-3 py-2 text-base text-ink focus:border-forest/70"
           >
             <option value="">Pilih keluarga besar</option>
             {branches.map((branch) => (

@@ -400,7 +400,7 @@ function RelationAdder({
             type="button"
             onClick={attach}
             disabled={busy}
-            className="rounded-md bg-gold px-3 py-1.5 text-xs font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50"
+            className="rounded-md bg-gold px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-gold-deep disabled:opacity-50"
           >
             {busy ? "Menyimpan..." : "Simpan relasi"}
           </button>

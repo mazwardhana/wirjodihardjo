@@ -169,7 +169,7 @@ export default async function AdminGaleriPage({
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
                           album.isPublished
-                            ? "bg-forest/10 text-forest"
+                            ? "bg-forest/10 text-ink"
                             : "bg-gold/20 text-gold-deep"
                         }`}
                       >

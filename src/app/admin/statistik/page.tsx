@@ -467,7 +467,7 @@ export default async function AdminStatistikPage({
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
                             row.isVerified
-                              ? "bg-forest/10 text-forest"
+                              ? "bg-forest/10 text-ink"
                               : "bg-gold/20 text-gold-deep"
                           }`}
                         >

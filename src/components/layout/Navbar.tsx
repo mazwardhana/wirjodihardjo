@@ -68,7 +68,7 @@ export function Navbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="flex items-center gap-2.5"
+          className="flex min-h-11 items-center gap-2.5"
           aria-label="Beranda Keluarga Besar Wirjodihardjo"
         >
           <span

@@ -23,7 +23,7 @@ export function PenggunaCreateModal({ persons }: { persons: { id: string; fullNa
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="min-h-11 rounded-md bg-gold px-4 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep"
+        className="min-h-11 rounded-md bg-gold px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-gold-deep"
       >
         Tambah pengguna
       </button>

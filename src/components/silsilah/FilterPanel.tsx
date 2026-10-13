@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getGenerationLabel } from "@/lib/generations";
 
 const selectCls =
-  "min-h-11 rounded-md border border-wood/25 bg-cream px-2.5 py-1.5 text-xs text-forest focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest";
+  // text-base (16px), bukan text-xs: di bawah 16px iOS auto-zoom saat fokus dan
+  // tata letak lompat. Lihat DESIGN.md bagian 3.
+  "min-h-11 rounded-md border border-wood/25 bg-cream px-2.5 py-1.5 text-base text-forest focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest";
 
 const resetCls =
   "min-h-11 rounded-md border border-wood/25 px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest";

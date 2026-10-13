@@ -15,10 +15,55 @@
   const MAX_PER_SECTION = 25; // keep the payload out of the context budget
 
   const parseColor = (s) => {
+    if (!s) return null;
+    // Tailwind v4 / CSS Color 4: oklab(L a b / alpha) dan oklch(L C h / alpha).
+    // Tanpa ini, latar semi-transparan (bg-ink/75) jatuh ke warna leluhur dan
+    // menghasilkan temuan palsu seperti "1.13:1" padahal sebenarnya lulus.
+    const ok = s.match(/oklab\(([^)]+)\)/);
+    if (ok) {
+      const parts = ok[1].split(/[\s/]+/).filter(Boolean).map(parseFloat);
+      const alpha = parts.length > 3 ? parts[3] : 1;
+      return { ...oklabToRgb(parts[0], parts[1], parts[2]), a: alpha };
+    }
+    const okc = s.match(/oklch\(([^)]+)\)/);
+    if (okc) {
+      const parts = okc[1].split(/[\s/]+/).filter(Boolean).map(parseFloat);
+      const alpha = parts.length > 3 ? parts[3] : 1;
+      const [L, C, h] = parts;
+      const rad = (h * Math.PI) / 180;
+      return { ...oklabToRgb(L, C * Math.cos(rad), C * Math.sin(rad)), a: alpha };
+    }
+    const hex = s.match(/#[0-9a-fA-F]{6}\b/);
+    if (hex) {
+      return {
+        r: parseInt(hex[0].slice(1, 3), 16),
+        g: parseInt(hex[0].slice(3, 5), 16),
+        b: parseInt(hex[0].slice(5, 7), 16),
+        a: 1,
+      };
+    }
     const m = s && s.match(/rgba?\(([^)]+)\)/);
     if (!m) return null;
     const p = m[1].split(',').map((x) => parseFloat(x));
     return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
+  };
+
+  // oklab -> sRGB (Björn Ottosson). Dipakai untuk nilai computed Tailwind v4.
+  const oklabToRgb = (L, a, b) => {
+    const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+    const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+    const s_ = L - 0.0894841775 * a - 1.291485548 * b;
+    const l = l_ * l_ * l_, m = m_ * m_ * m_, s = s_ * s_ * s_;
+    const lin = [
+      4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+      -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+      -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+    ];
+    const enc = (c) => {
+      const v = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055;
+      return Math.max(0, Math.min(255, Math.round(v * 255)));
+    };
+    return { r: enc(lin[0]), g: enc(lin[1]), b: enc(lin[2]) };
   };
   const chan = (c) => {
     c /= 255;
@@ -140,9 +185,14 @@
     );
     if (interactive) {
       const r = el.getBoundingClientRect();
-      // Inline links inside running text are not touch controls — exempt them.
+      // Di dalam kanvas pan-zoom (React Flow), ukuran terukur mengikuti skala
+      // kanvas, bukan ukuran nyata kontrol. Di HP kanvas biasanya ter-zoom-out
+      // sehingga semua node terukur 4px. Kontrol navigasi (Controls) tetap
+      // diukur karena berada di luar viewport yang di-zoom.
+      const inCanvas = el.closest('.react-flow__viewport') !== null;
+      // Tautan inline di dalam teks bukan kontrol sentuh.
       const inlineInText = el.tagName === 'A' && el.closest('p, li') && r.height < 30;
-      if (!inlineInText && (r.width < MIN_TAP || r.height < MIN_TAP)) {
+      if (!inCanvas && !inlineInText && (r.width < MIN_TAP || r.height < MIN_TAP)) {
         report.tapTargets.push({
           selector: sel(el),
           text: text(el),
@@ -160,10 +210,14 @@
     }
 
     // --- images without intrinsic size (CLS) ---
+    // <img fill> (next/image) sengaja tanpa width/height: induknya wajib
+    // position:relative dan gambar mengisi panel. Itu bukan CLS. Yang dilaporkan
+    // hanya img benar-benar tanpa ukuran.
     if (el.tagName === 'IMG') {
       const hasAttr = el.hasAttribute('width') && el.hasAttribute('height');
       const hasRatio = s.aspectRatio && s.aspectRatio !== 'auto';
-      if (!hasAttr && !hasRatio) {
+      const fillMode = el.hasAttribute('fill') || s.position === 'absolute';
+      if (!hasAttr && !hasRatio && !fillMode) {
         report.images.push({ selector: sel(el), src: (el.currentSrc || el.src || '').slice(-60) });
       }
     }

@@ -81,7 +81,7 @@ export function PenggunaForm({ persons, onSuccess, onCancel }: {
         <button
           type="submit"
           disabled={busy}
-          className="min-h-11 rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50"
+          className="min-h-11 rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-gold-deep disabled:opacity-50"
         >
           {busy ? "Menyimpan..." : "Buat Akun"}
         </button>

@@ -44,7 +44,7 @@ export function BranchCard({ branch, className }: BranchCardProps) {
             Foto default
           </span>
         )}
-        <div className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-gold-deep/90 backdrop-blur-sm">
+        <div className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-gold-deep backdrop-blur-sm">
           <span className="font-display text-lg font-semibold text-cream">
             {String(branch.branchNumber).padStart(2, "0")}
           </span>

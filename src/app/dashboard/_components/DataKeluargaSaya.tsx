@@ -43,7 +43,7 @@ const PARTNER_STATUS_LABEL: Record<string, string> = {
 const linkClass =
   "inline-flex min-h-11 items-center justify-center rounded-md border border-wood/30 bg-cream px-4 py-2 text-center text-sm font-medium text-forest hover:border-gold/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest";
 const linkAccentClass =
-  "inline-flex min-h-11 items-center justify-center rounded-md border border-wood/30 bg-gold px-4 py-2 text-center text-sm font-semibold text-forest hover:bg-gold-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest";
+  "inline-flex min-h-11 items-center justify-center rounded-md border border-wood/30 bg-gold px-4 py-2 text-center text-sm font-semibold text-ink hover:bg-gold-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest";
 
 const chipClass =
   "inline-flex min-h-11 items-center gap-2 rounded-md border border-wood/15 bg-cream px-3 py-1.5 text-sm text-forest hover:border-gold/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest";

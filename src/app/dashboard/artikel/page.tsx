@@ -46,7 +46,7 @@ export default async function DashboardArtikelPage() {
             action={
               <Link
                 href="/dashboard/artikel/baru"
-                className="inline-flex min-h-11 items-center justify-center rounded-md bg-gold px-4 py-2 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+                className="inline-flex min-h-11 items-center justify-center rounded-md bg-gold px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-gold-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
               >
                 Tulis Artikel Pertama
               </Link>

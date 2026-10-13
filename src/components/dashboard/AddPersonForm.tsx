@@ -88,7 +88,7 @@ export function AddPersonForm() {
       <button
         type="submit"
         disabled={loading}
-        className="rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50"
+        className="rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-gold-deep disabled:opacity-50"
       >
         {loading ? "Mengajukan..." : "Ajukan"}
       </button>

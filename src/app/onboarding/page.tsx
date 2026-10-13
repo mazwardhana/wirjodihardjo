@@ -238,7 +238,7 @@ export default function OnboardingPage() {
         <button
           type="submit"
           disabled={pending}
-          className="mt-2 flex h-11 w-full items-center justify-center rounded-md bg-gold px-5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-2 flex h-11 w-full items-center justify-center rounded-md bg-gold px-5 text-sm font-semibold text-ink transition-colors hover:bg-gold-deep disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending ? "Memproses..." : "Simpan dan Lanjutkan"}
         </button>

@@ -193,7 +193,7 @@ export function AnggotaForm({
         <button
           type="submit"
           disabled={saving}
-          className="rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50"
+          className="rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-gold-deep disabled:opacity-50"
         >
           {saving ? "Menyimpan..." : form.id ? "Simpan Perubahan" : "Simpan Anggota"}
         </button>

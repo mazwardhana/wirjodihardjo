@@ -338,7 +338,7 @@ export function HallOfFameForm({ entryId, initial, initialPerson, onSuccess, onC
         <button
           type="submit"
           disabled={saving || uploading}
-          className="min-h-11 rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          className="min-h-11 rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-gold-deep disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           {saving ? "Menyimpan..." : entryId ? "Simpan Perubahan" : "Simpan Entri"}
         </button>

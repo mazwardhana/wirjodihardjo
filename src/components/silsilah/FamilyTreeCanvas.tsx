@@ -103,7 +103,7 @@ export function FamilyTreeCanvas({
           <Background color="#8a6238" gap={24} size={1} style={{ opacity: 0.12 }} />
           <Controls
             showInteractive={false}
-            className="!rounded-md !border !border-wood/25 !bg-cream"
+            className="!rounded-md !border !border-wood/25 !bg-cream [&_button]:!h-11 [&_button]:!w-11 [&_button]:!text-lg"
           />
           <MiniMap
             pannable

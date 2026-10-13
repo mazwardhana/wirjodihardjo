@@ -226,7 +226,7 @@ export function ArticleForm({ categories }: { categories: CategoryOption[] }) {
         <button
           type="submit"
           disabled={saving || categories.length === 0}
-          className="rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-forest transition-colors hover:bg-gold-deep disabled:opacity-50"
+          className="rounded-md bg-gold px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-gold-deep disabled:opacity-50"
         >
           {saving ? "Mengirim..." : "Kirim untuk Review"}
         </button>

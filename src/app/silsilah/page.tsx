@@ -88,7 +88,7 @@ export default async function SilsilahPage({
             type="search"
             defaultValue={q ?? ""}
             placeholder="Cari nama atau nama panggilan…"
-            className="block min-h-11 w-full rounded-md border border-wood/30 bg-cream px-4 py-2.5 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
+            className="block min-h-11 w-full rounded-md border border-wood/30 bg-cream px-4 py-2.5 text-base text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
           />
           <button
             type="submit"

@@ -195,7 +195,7 @@ export function BukuTamuRombongan({ reunionId }: { reunionId: string }) {
                           <span
                             className={`${badge} ${
                               m.hasAccount
-                                ? "bg-forest/10 text-forest"
+                                ? "bg-forest/10 text-ink"
                                 : "bg-gold/20 text-gold-deep"
                             }`}
                           >

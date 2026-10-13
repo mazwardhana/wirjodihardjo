@@ -136,7 +136,7 @@ export function ReunionRegistrations({
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
                     reg.status === "CONFIRMED"
-                      ? "bg-forest/10 text-forest"
+                      ? "bg-forest/10 text-ink"
                       : reg.status === "CANCELLED"
                         ? "bg-wood/10 text-wood"
                         : "bg-gold/10 text-gold-deep"

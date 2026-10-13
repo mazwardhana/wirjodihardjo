@@ -50,7 +50,7 @@ export default async function HomePage() {
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/silsilah"
-                className="inline-flex h-12 items-center justify-center rounded-md bg-gold px-6 text-base font-semibold text-forest transition-colors hover:bg-gold-deep hover:text-cream"
+                className="inline-flex h-12 items-center justify-center rounded-md bg-gold px-6 text-base font-semibold text-ink transition-colors hover:bg-gold-deep hover:text-cream"
               >
                 Jelajahi Silsilah
               </Link>
@@ -194,7 +194,7 @@ export default async function HomePage() {
           </div>
           <Link
             href="/login"
-            className="inline-flex h-12 shrink-0 items-center justify-center rounded-md bg-gold px-7 text-base font-semibold text-forest transition-colors hover:bg-cream"
+            className="inline-flex h-12 shrink-0 items-center justify-center rounded-md bg-gold px-7 text-base font-semibold text-ink transition-colors hover:bg-cream"
           >
             Masuk ke Dashboard
           </Link>
