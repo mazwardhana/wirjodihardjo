@@ -114,6 +114,9 @@ export function PersonNodeCard({
           <img
             src={person.photoUrl}
             alt=""
+            width={36}
+            height={36}
+            loading="lazy"
             className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-gold/40"
           />
         ) : (
