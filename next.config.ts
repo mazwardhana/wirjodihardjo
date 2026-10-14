@@ -11,6 +11,17 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**" },
     ],
   },
+  // Service worker tidak boleh di-cache lama: kalau tertahan di cache peramban
+  // atau CDN, perbaikan PWA baru tidak pernah sampai ke perangkat yang sudah
+  // memasang aplikasi.
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache, must-revalidate" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

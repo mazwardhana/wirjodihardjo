@@ -64,7 +64,7 @@ export function Navbar() {
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-wood/15 bg-cream/90 backdrop-blur-sm">
+    <header className="sticky top-0 z-50 border-b border-wood/15 bg-cream/90 pt-[env(safe-area-inset-top)] backdrop-blur-sm">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link
           href="/"

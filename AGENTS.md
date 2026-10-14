@@ -55,8 +55,13 @@ Klaim "selesai" tanpa output audit **tidak diterima**.
 | Scroll horizontal | tidak ada pada lebar 360px |
 | Warna hardcode | 0 |
 | Gambar | punya `width`+`height`, atau `fill` dengan induk berposisi |
+| PWA | 5 sinyal (`pwa` di audit) semua `true` |
 
 Target: `summary.pass === true` untuk setiap halaman yang disentuh.
+
+**Sebelum mengubah apa pun yang berbau PWA** (manifest, ikon, service worker,
+meta iOS, safe-area), baca `DESIGN.md` bagian 9. Warna PWA dan ikon dibaca dari
+token, tidak boleh diketik manual.
 
 ## Cara kerja UI
 

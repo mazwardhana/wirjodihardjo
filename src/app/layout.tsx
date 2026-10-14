@@ -8,6 +8,7 @@ import { MobileBottomNav } from "@/components/pwa/MobileBottomNav";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 import { Providers } from "@/components/Providers";
 import { ToastContainer } from "@/components/ui/Toast";
+import { PALET } from "@/lib/theme-tokens";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -27,7 +28,25 @@ export const metadata: Metadata = {
   },
   description:
     "Rumah digital keluarga besar Wirjodihardjo: silsilah interaktif, galeri kenangan, hall of fame, dan reuni keluarga.",
-  manifest: "/manifest.json",
+  // /manifest.webmanifest dilayani oleh src/app/manifest.ts.
+  manifest: "/manifest.webmanifest",
+  // Tanpa appleWebApp, iOS membuka PWA dengan bilah Safari dan status bar gaya
+  // peramban. black-translucent menyatukan status bar dengan latar cream.
+  // startupImage: tanpa ini iOS menampilkan layar putih polos saat aplikasi
+  // dibuka dari layar utama. Berkas dibuat scripts/generate-logo.mjs.
+  appleWebApp: {
+    capable: true,
+    title: "KB Wirjodihardjo",
+    statusBarStyle: "black-translucent",
+    startupImage: [
+      { url: "/splash-430x932.png", media: "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" },
+      { url: "/splash-393x852.png", media: "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" },
+      { url: "/splash-390x844.png", media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" },
+      { url: "/splash-375x812.png", media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" },
+      { url: "/splash-414x896.png", media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" },
+      { url: "/splash-768x1024.png", media: "(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" },
+    ],
+  },
   icons: {
     icon: [
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
@@ -35,10 +54,17 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
+  other: {
+    // Sinyal lama yang masih dibaca iOS untuk mode standalone.
+    "apple-mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1A4D2E",
+  themeColor: PALET.forest,
+  // Tanpa viewport-fit=cover, env(safe-area-inset-*) bernilai 0 di iPhone
+  // sehingga nav bawah tertutup home indicator.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

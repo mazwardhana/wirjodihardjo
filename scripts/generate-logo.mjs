@@ -1,9 +1,14 @@
 // Skrip pembuat aset logo monogram "W" untuk PWA.
 // SVG dirender menjadi PNG memakai sharp (librsvg).
+//
+// Warna TIDAK ditulis di sini: dibaca dari token `--color-*` di
+// src/app/globals.css supaya ikon tidak bisa melenceng dari palet.
+// theme-tokens.test.ts menjaga aturan ini.
+//
 // Font Fraunces diunduh saat skrip dijalankan karena container tidak
 // menyediakan font sistem; bila unduhan gagal, dipakai bentuk vektor cadangan.
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -13,11 +18,17 @@ import sharp from "sharp";
 const AKAR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PUBLIK = path.join(AKAR, "public");
 
-const WARNA = {
-  hutan: "#1A4D2E",
-  krem: "#FFFBF5",
-  emas: "#B4872A",
-};
+function bacaToken() {
+  const css = readFileSync(path.join(AKAR, "src/app/globals.css"), "utf8");
+  const ambil = (nama) => {
+    const m = css.match(new RegExp(`--color-${nama}:\\s*(#[0-9a-fA-F]{6})`));
+    if (!m) throw new Error(`token --color-${nama} tidak ada di globals.css`);
+    return m[1];
+  };
+  return { hutan: ambil("forest"), krem: ambil("cream"), emas: ambil("gold") };
+}
+
+const WARNA = bacaToken();
 
 // Semua koordinat digambar pada ruang 512 lalu diperkecil saat ekspor.
 const KANVAS = 512;
@@ -81,8 +92,10 @@ function jalurCadangan() {
 }
 
 function buatSvg({ maskable, pakaiFont }) {
-  // Padding aman maskable 20% di tiap sisi, sehingga konten menempati 60%.
-  const skala = maskable ? 0.6 : 1;
+  // Padding aman maskable. Android memotong sampai lingkaran 80% kanvas, jadi
+  // konten dijaga di dalam lingkaran itu; 0.85 memberi monogram ~57% lebar
+  // kanvas (sebelumnya 41%, terlihat kekecilan di peluncur Android).
+  const skala = maskable ? 0.85 : 1;
   const monogram = pakaiFont
     ? `<text x="256" y="352" text-anchor="middle" font-family="${FONT_FAMILI}"
         font-size="330" font-weight="600" fill="${WARNA.hutan}">W</text>`
@@ -98,6 +111,29 @@ function buatSvg({ maskable, pakaiFont }) {
 </svg>`;
 }
 
+// Layar pembuka iOS (apple-touch-startup-image). Monogram ditempatkan di
+// tengah pada skala tetap terhadap tinggi layar, jadi satu bentuk saja cukup
+// untuk semua ukuran perangkat.
+function buatSplashSvg(lebar, tinggi, pakaiFont) {
+  const monogram = pakaiFont
+    ? `<text x="${lebar / 2}" y="${tinggi / 2 + 62}" text-anchor="middle"
+        font-family="${FONT_FAMILI}" font-size="200" font-weight="600"
+        fill="${WARNA.hutan}">W</text>`
+    : `<path d="M${lebar / 2 - 84} ${tinggi / 2 - 62} L${lebar / 2 - 40} ${tinggi / 2 + 68}
+        L${lebar / 2} ${tinggi / 2 - 20} L${lebar / 2 + 40} ${tinggi / 2 + 68}
+        L${lebar / 2 + 84} ${tinggi / 2 - 62}"
+        fill="none" stroke="${WARNA.hutan}" stroke-width="21"
+        stroke-linejoin="round" stroke-linecap="round"/>`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${lebar}" height="${tinggi}"
+      viewBox="0 0 ${lebar} ${tinggi}">
+  <rect width="${lebar}" height="${tinggi}" fill="${WARNA.krem}"/>
+  ${monogram}
+  <rect x="${lebar / 2 - 41}" y="${tinggi / 2 + 92}" width="82" height="7"
+        rx="3.5" fill="${WARNA.emas}"/>
+</svg>`;
+}
+
 async function render(nama, ukuran, opsi, pakaiFont) {
   const svg = buatSvg({ ...opsi, pakaiFont });
   const tujuan = path.join(PUBLIK, nama);
@@ -109,12 +145,35 @@ async function render(nama, ukuran, opsi, pakaiFont) {
   console.log(`[logo] ${nama} ${meta.width}x${meta.height} (${meta.format})`);
 }
 
+// Ukuran splash mengikuti perangkat iOS yang paling banyak dipakai.
+// (lebar CSS, tinggi CSS, device pixel ratio)
+const SPLASH = [
+  [430, 932, 3],
+  [393, 852, 3],
+  [390, 844, 3],
+  [375, 812, 3],
+  [414, 896, 2],
+  [768, 1024, 2],
+];
+
+async function renderSplash(pakaiFont) {
+  for (const [w, h, dpr] of SPLASH) {
+    const nama = `splash-${w}x${h}.png`;
+    const svg = buatSplashSvg(w * dpr, h * dpr, pakaiFont);
+    await sharp(Buffer.from(svg))
+      .png({ compressionLevel: 9 })
+      .toFile(path.join(PUBLIK, nama));
+    console.log(`[logo] ${nama} ${w * dpr}x${h * dpr}`);
+  }
+}
+
 async function utama() {
   const pakaiFont = await siapkanFont();
   await render("icon-192.png", 192, { maskable: false }, pakaiFont);
   await render("icon-512.png", 512, { maskable: false }, pakaiFont);
   await render("apple-touch-icon.png", 180, { maskable: false }, pakaiFont);
   await render("icon-maskable-512.png", 512, { maskable: true }, pakaiFont);
+  await renderSplash(pakaiFont);
 }
 
 utama().catch((galat) => {

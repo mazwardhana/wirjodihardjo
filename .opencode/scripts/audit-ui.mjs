@@ -56,6 +56,7 @@ for (const url of urls) {
       imagesWithoutSize: s.imagesWithoutSize,
       emojiIcons: s.emojiIcons,
       hardcodedHex: s.hardcodedHex,
+      pwa: report.pwa,
       horizontalScroll: report.horizontalScroll,
       pass: s.pass,
       worst: (report.contrast || []).slice(0, 5),

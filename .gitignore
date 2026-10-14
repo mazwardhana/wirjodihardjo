@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# service worker dibangun dari scripts/sw-template.js (versi cache ikut build id)
+/public/sw.js
+
 # production
 /build
 

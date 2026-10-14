@@ -229,8 +229,52 @@ Jalankan dan tempel angkanya. Klaim "selesai" tanpa output tidak diterima.
 | Scroll horizontal | tidak ada di 360px | audit UI |
 | Warna hardcode | 0 di luar `globals.css` | audit UI |
 | Gambar | punya `width`+`height` atau `fill` | audit UI |
+| PWA | 5 sinyal `pwa` semua `true` | audit UI |
 | Tes | tidak ada regresi | `npx tsx --test $(git ls-files '*.test.ts' '*.test.tsx')` |
 | Tipe | 0 error | `npx tsc --noEmit` |
 | Build | sukses | `npm run build` |
 
 Target akhir tiap halaman: `summary.pass === true`.
+
+## 9. PWA dan tampilan mobile
+
+Aplikasi ini dipasang ke layar utama lewat Chrome (Android) dan Safari (iOS).
+Salah satu jalur pemasangan tidak punya devtools, jadi perilakunya harus benar
+sejak awal.
+
+**Sinyal wajib di `<head>` (diperiksa audit UI, kunci `pwa`):**
+
+| Sinyal | Sumber | Akibat bila hilang |
+|---|---|---|
+| `viewport-fit=cover` | `viewport.viewportFit` di `src/app/layout.tsx` | `env(safe-area-inset-*)` = 0, nav bawah tertutup home indicator iPhone |
+| `link[rel=manifest]` | `metadata.manifest` | tidak bisa dipasang |
+| `meta[name=theme-color]` | `viewport.themeColor` | bilah status tidak sewarna aplikasi |
+| `meta[apple-mobile-web-app-capable=yes]` | `metadata.appleWebApp.capable` | iOS membuka dengan bilah Safari |
+| CSS `safe-area-inset` | `globals.css` + `pt-[env(safe-area-inset-top)]` di Navbar | konten atas tertutup poni |
+
+**Warna PWA tidak boleh diketik manual.** `theme_color`, `background_color`, dan
+warna ikon dibaca dari token: `src/lib/theme-tokens.ts` untuk manifest,
+`src/app/globals.css` untuk `scripts/generate-logo.mjs`. `theme-tokens.test.ts`
+gagal bila ketiganya berbeda. Palet lama (`#FFFBF5`, `#1A4D2E`) dilarang.
+
+**Manifest dibuat di `src/app/manifest.ts`**, bukan `public/manifest.json`,
+supaya nilainya bisa memakai token dan tidak ada dua sumber kebenaran.
+
+**Service worker.** `public/sw.js` tidak di-commit; ia dibangun dari
+`scripts/sw-template.js` oleh `scripts/build-sw.mjs` sebagai bagian dari
+`npm run build`. Versi cache memakai `.next/BUILD_ID` supaya setiap deploy
+membuang cache lama. `Cache-Control: no-cache` untuk `/sw.js` diatur di
+`next.config.ts`. Halaman luring ada di `/offline` dan di-pra-cache.
+
+**Aturan sentuh mobile:** nav bawah hanya tampil di bawah `md`, disembunyikan di
+`/admin`, `/login`, `/onboarding`, `/sso`. Body diberi padding bawah lewat
+`body:has(.member-bottom-nav:not([hidden]))` di `globals.css`, jadi halaman
+tanpa nav tidak kena padding ganda.
+
+**Gerbang aset:** `pwa-assets.test.ts` memastikan setiap ikon dan splash yang
+dirujuk `layout.tsx` benar-benar ada dan tidak kosong. Menghapus aset tanpa
+mengubah rujukannya menggagalkan tes.
+
+**Ikon maskable:** Android memotong sampai lingkaran 80% kanvas. Konten harus
+seluruhnya di dalam lingkaran itu, tapi jangan terlalu kecil: target ~55% lebar
+kanvas (monogram 41% terlihat kecil di peluncur).

@@ -1,5 +1,20 @@
-const CACHE_NAME = 'wirjodihardjo-v1';
-const PRECACHE_URLS = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png'];
+// Templat service worker. Disalin ke public/sw.js oleh scripts/build-sw.mjs
+// saat build, dengan __BUILD_ID__ diganti id build Next.js.
+//
+// public/sw.js TIDAK di-commit (lihat .gitignore): versi cache harus ikut
+// berubah setiap build, kalau tidak perbaikan PWA tidak pernah sampai ke
+// perangkat yang sudah memasang aplikasi.
+const CACHE_NAME = 'wirjodihardjo-__BUILD_ID__';
+const OFFLINE_URL = '/offline';
+const PRECACHE_URLS = [
+  OFFLINE_URL,
+  '/',
+  '/manifest.webmanifest',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png',
+  '/apple-touch-icon.png',
+];
 
 const NEVER_CACHE_PREFIXES = ['/admin', '/api/admin', '/api/auth'];
 const NEVER_CACHE_QUERY = 'status=PENDING';
@@ -18,7 +33,14 @@ function isCacheableAsset(url, request) {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
+      // addAll gagal seluruhnya bila satu URL 404, dan service worker tidak
+      // pernah terpasang. Simpan satu per satu supaya satu aset hilang tidak
+      // mematikan seluruh PWA.
+      .then((cache) => Promise.all(
+        PRECACHE_URLS.map((url) => cache.add(url).catch((err) => {
+          console.warn('[sw] lewati pra-cache', url, err.message);
+        }))
+      ))
       .then(() => self.skipWaiting())
   );
 });
@@ -57,7 +79,9 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => caches.match(request).then((cached) => cached || Response.error()))
+        // Halaman cadangan luring lebih ramah daripada error bawaan peramban.
+        .catch(() => caches.match(request).then((cached) =>
+          cached || caches.match(OFFLINE_URL) || Response.error()))
     );
     return;
   }

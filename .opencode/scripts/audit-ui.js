@@ -148,6 +148,35 @@
     hardcodedHex: [],
   };
 
+  // --- PWA ---
+  // Sinyal di <head> dan CSS yang menentukan apakah aplikasi terpasang
+  // berperilaku benar di HP. Tanpa cek ini, regresi PWA lolos tanpa terlihat.
+  const metaContent = (nama) =>
+    document.querySelector(`meta[name="${nama}"]`)?.getAttribute("content") || "";
+  const viewportContent = metaContent("viewport");
+  // env(safe-area-inset-*) hanya bernilai bukan-nol bila ada viewport-fit=cover.
+  const adaCssSafeArea = (() => {
+    for (const sheet of document.styleSheets) {
+      let rules;
+      try {
+        rules = sheet.cssRules;
+      } catch {
+        continue; // stylesheet lintas-asal
+      }
+      for (const rule of rules) {
+        if (rule.cssText && rule.cssText.includes("safe-area-inset")) return true;
+      }
+    }
+    return false;
+  })();
+  report.pwa = {
+    viewportFitCover: /viewport-fit\s*=\s*cover/.test(viewportContent),
+    manifest: !!document.querySelector('link[rel="manifest"]'),
+    themeColor: !!document.querySelector('meta[name="theme-color"]'),
+    appleCapable: metaContent("apple-mobile-web-app-capable") === "yes",
+    safeAreaCss: adaCssSafeArea,
+  };
+
   const all = [...document.querySelectorAll('body *')].filter(visible);
 
   for (const el of all) {
@@ -247,11 +276,13 @@
     imagesWithoutSize: report.images.length,
     emojiIcons: report.emojiIcons.length,
     hardcodedHex: report.hardcodedHex.length,
+    pwaViolations: Object.values(report.pwa).filter((v) => !v).length,
     pass:
       report.contrast.length === 0 &&
       report.tapTargets.length === 0 &&
       report.inputFont.length === 0 &&
       report.images.length === 0 &&
+      Object.values(report.pwa).every(Boolean) &&
       !report.horizontalScroll,
   };
 
