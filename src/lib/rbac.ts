@@ -15,8 +15,8 @@ type PrismaBoundary = {
   user: {
     findUnique(args: {
       where: { id: string };
-      select: { role: true; branchAdminOf: { select: { id: true } } };
-    }): Promise<{ role: Role; branchAdminOf: { id: string } | null } | null>;
+      select: { role: true; isActive: true; branchAdminOf: { select: { id: true } } };
+    }): Promise<{ role: Role; isActive: boolean; branchAdminOf: { id: string } | null } | null>;
   };
   person: {
     findUnique(args: {
@@ -42,12 +42,16 @@ export async function getActorScope(userId: string, db: PrismaBoundary = prisma)
     where: { id: userId },
     select: {
       role: true,
+      isActive: true,
       branchAdminOf: { select: { id: true } },
     },
   });
 
   if (!user) {
     throw new AuthorizationError("User tidak ditemukan", 404);
+  }
+  if (!user.isActive) {
+    throw new AuthorizationError("Akun dinonaktifkan", 403);
   }
 
   return {

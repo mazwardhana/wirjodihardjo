@@ -138,3 +138,22 @@ W4: laporan audit ini adalah deliverable-nya (commit `a9afab4`). Fix Gap 1 (isAc
 ---
 
 *Audit dilakukan oleh Beta — 2026-10-27*
+
+---
+
+## 7. Gap 1 FIX — EKSEKUSI (2026-10-28)
+
+Setelah audit, keputusan Bos/Alpha (via goal judge) membolehkan eksekusi fix. Gap 1
+(isActive tidak dicek di requireAdminScope) telah diperbaiki:
+
+- File: `src/lib/rbac.ts`
+- Perubahan: getActorScope kini select `isActive` dan menolak user nonaktif dengan
+  `AuthorizationError("Akun dinonaktifkan", 403)`.
+- Dampak: 48 route yang memakai auth()+requireAdminScope kini TERLINDUNGI dari akun
+  SUPER_ADMIN/BRANCH_ADMIN yang dinonaktifkan namun session JWT-nya masih hidup.
+- Test: `src/lib/rbac.test.ts` + 2 kasus baru (inactive user 403). 22/22 PASS via tsx.
+- tsc --noEmit: PASS.
+
+Gap 2 (mustChangeCredentials pada route standar) TIDAK di-fix — konsisten dengan
+niatan asli: hanya endpoint impor (menulis langsung ke DB) yang wajib ganti kata
+sandi awal. Ini didokumentasikan, bukan dilupakan.

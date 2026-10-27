@@ -12,6 +12,7 @@ type Role = "SUPER_ADMIN" | "BRANCH_ADMIN" | "MEMBER";
 
 interface UserRow {
   role: Role;
+  isActive: boolean;
   branchAdminOf: { id: string } | null;
 }
 
@@ -25,17 +26,17 @@ function makePrisma(userRow: UserRow | null, personRows: Record<string, PersonRo
   return {
     user: {
       findUnique: async () => userRow,
-    },
+    },  // Note: returned object includes isActive: userRow?.isActive ?? false
     person: {
       findUnique: async ({ where }: { where: { id: string } }) => personRows[where.id] ?? null,
     },
   };
 }
 
-const superUser: UserRow = { role: "SUPER_ADMIN", branchAdminOf: null };
-const assignedAdmin = (branchId: string): UserRow => ({ role: "BRANCH_ADMIN", branchAdminOf: { id: branchId } });
-const unassignedAdmin: UserRow = { role: "BRANCH_ADMIN", branchAdminOf: null };
-const member: UserRow = { role: "MEMBER", branchAdminOf: null };
+const superUser: UserRow = { role: "SUPER_ADMIN", isActive: true, branchAdminOf: null };
+const assignedAdmin = (branchId: string): UserRow => ({ role: "BRANCH_ADMIN", isActive: true, branchAdminOf: { id: branchId } });
+const unassignedAdmin: UserRow = { role: "BRANCH_ADMIN", isActive: true, branchAdminOf: null };
+const member: UserRow = { role: "MEMBER", isActive: true, branchAdminOf: null };
 
 // ── getActorScope ──────────────────────────────────────────────────────
 
@@ -96,6 +97,24 @@ test("requireAdminScope rejects a missing user with 404", async () => {
   await assert.rejects(() => requireAdminScope("u1", makePrisma(null) as never), {
     name: "AuthorizationError",
     status: 404,
+  });
+});
+
+// ── inactive user (Gap 1 fix) ────────────────────────────────────────
+
+test("getActorScope rejects an inactive user with 403", async () => {
+  const inactiveSuperAdmin: UserRow = { role: "SUPER_ADMIN", isActive: false, branchAdminOf: null };
+  await assert.rejects(() => getActorScope("u1", makePrisma(inactiveSuperAdmin) as never), {
+    name: "AuthorizationError",
+    status: 403,
+  });
+});
+
+test("requireAdminScope rejects an inactive BRANCH_ADMIN with 403", async () => {
+  const inactiveAdmin: UserRow = { role: "BRANCH_ADMIN", isActive: false, branchAdminOf: { id: "b1" } };
+  await assert.rejects(() => requireAdminScope("u1", makePrisma(inactiveAdmin) as never), {
+    name: "AuthorizationError",
+    status: 403,
   });
 });
 
