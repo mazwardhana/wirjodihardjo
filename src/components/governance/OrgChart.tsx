@@ -80,7 +80,7 @@ function EmptySlot({ notes }: { notes?: string | null }) {
         ?
       </span>
       <div className="min-w-0">
-        <span className="block text-xs italic text-muted/60">(Kosong)</span>
+        <span className="block text-xs italic text-muted">(Kosong)</span>
         {notes && <span className="mt-1 block text-xs leading-relaxed text-wood/70">{notes}</span>}
       </div>
     </div>
@@ -135,7 +135,7 @@ export function OrgChart({ data }: { data: OrgChartData }) {
                     </div>
                   ) : (
                     <div className="flex min-h-11 items-center gap-3 rounded-lg border border-dashed border-wood/20 bg-parchment/30 p-3">
-                      <span className="text-xs italic text-muted/60">(Kosong)</span>
+                      <span className="text-xs italic text-muted">(Kosong)</span>
                     </div>
                   )}
                 </div>
