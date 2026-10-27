@@ -83,6 +83,16 @@ function IconReuni() {
   );
 }
 
+// Lonceng notifikasi untuk anggota yang sudah masuk (O1).
+function IconNotifikasi() {
+  return (
+    <NavIcon>
+      <path d="M12 4a5 5 0 0 0-5 5c0 4-2 5.5-2 5.5h14S19 13 19 9a5 5 0 0 0-5-5Z" />
+      <path d="M10 19a2 2 0 0 0 4 0" />
+    </NavIcon>
+  );
+}
+
 function IconProfil() {
   return (
     <NavIcon>
@@ -107,18 +117,28 @@ function IconRegistrasi() {
 // Item pertama selalu sama. Item terakhir menyesuaikan: anggota melihat Profil,
 // sedangkan pengunjung yang belum masuk melihat Registrasi (form /registrasi)
 // yang dapat diisi tanpa akun.
+// Untuk anggota yang sudah masuk, lonceng notifikasi diselipkan sebelum Profil
+// (total 6 item; grid-cols-6).
 function itemsFor(authenticated: boolean) {
-  return [
+  const baseItems = [
     // Beranda mengarah ke dashboard anggota bila sudah masuk, atau ke halaman
     // depan publik (landing) bila belum masuk.
     { href: authenticated ? "/dashboard" : "/", label: "Beranda", icon: <IconBeranda /> },
     { href: "/silsilah", label: "Silsilah", icon: <IconSilsilah /> },
     { href: "/galeri", label: "Galeri", icon: <IconGaleri /> },
     { href: "/reuni", label: "Reuni", icon: <IconReuni /> },
-    authenticated
-      ? { href: "/dashboard/profil", label: "Profil", icon: <IconProfil /> }
-      : { href: "/registrasi", label: "Registrasi", icon: <IconRegistrasi /> },
   ];
+
+  if (authenticated) {
+    baseItems.push(
+      { href: "/dashboard/notifikasi", label: "Notifikasi", icon: <IconNotifikasi /> },
+      { href: "/dashboard/profil", label: "Profil", icon: <IconProfil /> },
+    );
+  } else {
+    baseItems.push({ href: "/registrasi", label: "Registrasi", icon: <IconRegistrasi /> });
+  }
+
+  return baseItems;
 }
 
 export function MobileBottomNav() {
@@ -136,7 +156,12 @@ export function MobileBottomNav() {
       hidden={hidden}
       className="member-bottom-nav fixed inset-x-0 bottom-0 z-[120] border-t border-wood/15 bg-cream/95 backdrop-blur-sm md:hidden"
     >
-      <ul className="mx-auto grid max-w-lg grid-cols-5 px-1 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <ul
+        className={cn(
+          "mx-auto grid max-w-lg px-1 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]",
+          authenticated ? "grid-cols-6" : "grid-cols-5",
+        )}
+      >
         {items.map((item) => {
           const active = isActivePath(pathname, item.href);
           return (

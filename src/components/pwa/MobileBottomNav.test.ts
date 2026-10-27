@@ -64,27 +64,33 @@ function render(
   return renderToStaticMarkup(exports.MobileBottomNav!() as React.ReactElement);
 }
 
-test("renders five member nav items with Indonesian labels", () => {
+test("renders six member nav items for authenticated users (O1: notifikasi added)", () => {
   const html = render("/dashboard");
-  for (const label of ["Beranda", "Silsilah", "Galeri", "Reuni", "Profil"]) {
-    assert.ok(html.includes(label), `missing label ${label}`);
+  for (const label of ["Beranda", "Silsilah", "Galeri", "Reuni", "Notifikasi", "Profil"]) {
+    assert.ok(html.includes(label), `missing label: ${label}`);
   }
   assert.ok(html.includes('class="member-bottom-nav'));
   assert.ok(html.includes('href="/dashboard"'));
   assert.ok(html.includes('href="/silsilah"'));
   assert.ok(html.includes('href="/galeri"'));
   assert.ok(html.includes('href="/reuni"'));
+  assert.ok(html.includes('href="/dashboard/notifikasi"'), "O1: notifikasi link missing");
   assert.ok(html.includes('href="/dashboard/profil"'));
+  // grid-cols-6 for authenticated
+  assert.ok(html.includes("grid-cols-6"), "O1: authenticated nav should use grid-cols-6");
 });
 
-test("shows Registrasi instead of Profil when not authenticated", () => {
+test("shows five items for unauthenticated users (no notifikasi, no profil)", () => {
   const html = render("/dashboard", "unauthenticated");
   for (const label of ["Beranda", "Silsilah", "Galeri", "Reuni", "Registrasi"]) {
-    assert.ok(html.includes(label), `missing label ${label}`);
+    assert.ok(html.includes(label), `missing label: ${label}`);
   }
-  assert.ok(html.includes('href="/registrasi"'));
   assert.ok(!html.includes('href="/dashboard/profil"'), "Profil must be hidden when logged out");
   assert.ok(!html.includes(">Profil<"), "Profil label must be hidden when logged out");
+  assert.ok(!html.includes('href="/dashboard/notifikasi"'), "Notifikasi must be hidden for guests");
+  assert.ok(!html.includes(">Notifikasi<"), "Notifikasi label must be hidden for guests");
+  // grid-cols-5 for guest
+  assert.ok(html.includes("grid-cols-5"), "O1: guest nav should use grid-cols-5");
 });
 
 test("points Beranda to the landing page when not authenticated", () => {
@@ -146,4 +152,9 @@ test("hides on admin, login, onboarding, and sso routes", () => {
       `expected visible on ${pathname}`,
     );
   }
+});
+
+test("notifikasi link points to /dashboard/notifikasi (O1)", () => {
+  const html = render("/dashboard", "authenticated");
+  assert.ok(html.includes('href="/dashboard/notifikasi"'), "notifikasi must link to /dashboard/notifikasi");
 });
