@@ -38,11 +38,17 @@ export function AnggotaForm({
   initial,
   defaultBranchId,
   lockBranch = false,
+  onSuccess,
+  onCancel,
 }: {
   branches: { id: string; name: string }[];
   initial?: Partial<FormState>;
   defaultBranchId?: string;
   lockBranch?: boolean;
+  // O3: modal create (AnggotaCreateModal) memakai callback; halaman
+  // /admin/anggota/tambah tidak mengirim keduanya dan tetap memakai router.
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>({
@@ -82,8 +88,12 @@ export function AnggotaForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Gagal menyimpan");
-      router.push("/admin/anggota");
-      router.refresh();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push("/admin/anggota");
+        router.refresh();
+      }
     } catch (err) {
       setError((err as Error).message);
       setSaving(false);
@@ -199,7 +209,7 @@ export function AnggotaForm({
         </button>
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={onCancel ?? (() => router.back())}
           className="rounded-md border border-wood/30 px-5 py-2.5 text-sm text-muted transition-colors hover:bg-wood/10"
         >
           Batal
