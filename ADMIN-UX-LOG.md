@@ -1,7 +1,7 @@
 # Admin UX Rework — Progress Log
 
 **Task:** Fix blocking bug + modernize admin UX (modal forms, instant filter/search, mobile bottom nav)
-**Branch:** `develop`
+**Branch:** `main` (162 commit `develop` sudah semuanya ada di `main` sejak 14 Okt 2026; `develop` dihapus)
 **Mulai:** 27 September 2026
 **Base commit:** `6605b57 docs: mark develop progress final state`
 
