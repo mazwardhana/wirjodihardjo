@@ -129,10 +129,11 @@ Karena Gap 1 (isActive) adalah celah nyata yang bisa dieksploitasi di 48 route l
 
 | Temuan | Commit |
 |---|---|
-| W1 — Sinkron branch + ADMIN-UX-LOG | `7166a3c` (develop) |
-| W2+W3 — Font 16px input + WCAG AA /pengurus | `6c12870` (fix/w1-w4-mandatory-audit-202610272235) |
+| W1 — Sinkron branch + ADMIN-UX-LOG | `a734ac2` (fix/w1-w4-mandatory-audit-202610272235) |
+| W2 — Font 16px input form auth | `6c12870` (fix/w1-w4-mandatory-audit-202610272235) |
+| W3 — WCAG AA contrast /pengurus | `6c12870` (fix/w1-w4-mandatory-audit-202610272235) |
 
-W4 akan di-commit terpisah bersama Gap 1 fix (opsional, belum dieksekusi tanpa persetujuan Bos/Alpha).
+W4: laporan audit ini adalah deliverable-nya (commit `a9afab4`). Fix Gap 1 (isActive di rbac.ts) tidak dieksekusi — butuh persetujuan Bos/Alpha dulu karena menyentuh guard otorisasi 48 route standar.
 
 ---
 
