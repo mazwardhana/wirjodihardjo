@@ -1,7 +1,7 @@
 # Admin UX Rework — Progress Log
 
 **Task:** Fix blocking bug + modernize admin UX (modal forms, instant filter/search, mobile bottom nav)
-**Branch:** `main` (162 commit `develop` sudah semuanya ada di `main` sejak 14 Okt 2026; `develop` dihapus)
+**Branch:** `main` (kode rilis). `develop` kini TERSINKRON penuh dengan `main` sejak 27 Okt 2026 — 162 commit yang sempat tertinggal sudah semuanya ada di `main` sejak 14 Okt 2026. Commit koreksi audit (W1–W4) dibuat di branch kerja `fix/w1-w4-mandatory-audit-202610272235`, belum di-push, belum di-merge.
 **Mulai:** 27 September 2026
 **Base commit:** `6605b57 docs: mark develop progress final state`
 
