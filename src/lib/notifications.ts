@@ -113,6 +113,40 @@ export async function notifyMediaModeration(params: {
   });
 }
 
+/**
+ * Serahkan token reset password ke admin.
+ *
+ * Repositori belum punya pengiriman email (tidak ada SMTP/nodemailer/resend),
+ * jadi satu-satunya saluran internal yang ada adalah notifikasi admin. Token
+ * hanya muncul di sini dan di audit log; kolom `passwordResetToken` selalu
+ * menyimpan hash-nya. Lihat docs/ADR-012-reset-password.md.
+ */
+export async function notifyAdminsOfPasswordReset(params: {
+  username: string;
+  token: string;
+}) {
+  const admins = await prisma.user.findMany({
+    where: { role: { in: ["SUPER_ADMIN", "BRANCH_ADMIN"] }, isActive: true },
+    select: { id: true },
+  });
+  if (admins.length === 0) return;
+
+  // Satu batch INSERT untuk seluruh admin, mengikuti pola
+  // notifyAdminsOfNewSubmission.
+  await prisma.notification.createMany({
+    data: admins.map((admin) => ({
+      userId: admin.id,
+      type: "PASSWORD_RESET_TOKEN",
+      title: "Permintaan reset password menunggu",
+      body:
+        `Akun ${params.username} meminta reset password. ` +
+        `Token: ${params.token} (berlaku 1 jam). ` +
+        "Serahkan ke pemilik akun lewat saluran yang bisa dipercaya.",
+      link: "/admin/pengguna",
+    })),
+  });
+}
+
 /** Notifikasi ke peserta saat reuni diterbitkan atau berubah status. */
 export async function notifyReunionPublished(reunionId: string) {
   const reunion = await prisma.reunion.findUnique({
