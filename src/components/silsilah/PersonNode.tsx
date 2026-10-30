@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, memo, useContext, type ComponentType } from "react";
+import { createContext, memo, useCallback, useContext, type ComponentType } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import {
   FaFacebookF,
@@ -21,9 +21,11 @@ export type PersonNodeData = {
   partnerStatus: "MARRIED" | "DIVORCED" | "WIDOWED" | "UNKNOWN" | null;
 };
 
-/** Aksi tombol info (buka detail) yang diberikan oleh FamilyTreeCanvas. */
+/** Aksi kartu orang: buka detail, lipat/buka cabang, fokus ke orang ini. */
 export type PersonNodeActions = {
   openDetail: (person: PublicPerson) => void;
+  toggleCollapse: (personId: string) => void;
+  focusPerson: (personId: string) => void;
 };
 
 export const PersonNodeActionsContext =
@@ -69,6 +71,19 @@ function ageLabel(person: PublicPerson): string | null {
   return age === null ? null : `usia ${age} tahun`;
 }
 
+/** Tahun lahir–wafat ringkas; tahun tunggal bila salah satunya kosong. */
+function yearSpan(person: PublicPerson): string | null {
+  const birth = person.birthDate
+    ? String(new Date(person.birthDate).getFullYear())
+    : null;
+  if (!person.isDeceased) return birth;
+  const death = person.deathDate
+    ? String(new Date(person.deathDate).getFullYear())
+    : null;
+  if (birth && death) return `${birth}–${death}`;
+  return death ? `wafat ${death}` : birth;
+}
+
 /**
  * Isi kartu profil, komponen murni agar mudah diuji tanpa konteks React Flow.
  * `onOpenDetail` opsional: bila kosong tombol info tidak ditampilkan.
@@ -77,99 +92,131 @@ export function PersonNodeCard({
   data,
   selected,
   onOpenDetail,
+  onToggleCollapse,
+  onFocusPerson,
 }: {
   data: PersonNodeData;
   selected?: boolean;
   onOpenDetail?: (person: PublicPerson) => void;
+  onToggleCollapse?: (personId: string) => void;
+  onFocusPerson?: (personId: string) => void;
 }) {
-  const { person, childCount, hasHiddenChildren, partnerStatus } = data;
+  const { person, childCount, hasHiddenChildren, collapsed, partnerStatus } = data;
   const badge = partnerStatus ? statusBadge[partnerStatus] : null;
-
-  const birthYear = person.birthDate
-    ? String(new Date(person.birthDate).getFullYear())
-    : null;
-  const shortInfo = [
-    getGenerationLabel(person.generationLevel),
-    birthYear,
-    person.branch?.name ?? null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const years = yearSpan(person);
   const age = ageLabel(person);
+  const genLabel = getGenerationLabel(person.generationLevel);
   // Tautan sosial dari pohon tidak melewati proyeksi profil, jadi saring
   // protokol di sini: hanya http(s) yang boleh jadi href.
   const safeSocialLinks = person.socialLinks.filter((link) => isSafeUrl(link.url));
 
+  // Baris meta pendek: generasi lalu tahun. Umur hanya bila muat.
+  const metaLine = [genLabel, years].filter(Boolean).join(" · ");
+  const subLine = age;
+
   return (
     <div
-      className={`w-[260px] rounded-lg border bg-cream px-3 py-2.5 shadow-sm transition-all ${
+      className={`relative w-[168px] rounded-md border bg-cream px-2.5 py-2 shadow-sm transition-all ${
         selected
           ? "border-gold ring-2 ring-gold/40"
           : "border-wood/25 hover:border-gold/60"
       } ${person.isDeceased ? "opacity-80" : ""}`}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-start gap-2">
         {person.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={person.photoUrl}
             alt=""
-            width={36}
-            height={36}
+            width={32}
+            height={32}
             loading="lazy"
-            className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-gold/40"
+            className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-gold/40"
           />
         ) : (
           <span
             aria-hidden="true"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-forest/10 text-[10px] font-semibold text-forest ring-1 ring-forest/15"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-forest/10 text-[11px] font-semibold text-forest ring-1 ring-forest/15"
           >
             {initials(person.fullName)}
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold leading-tight text-forest">
+          <p className="line-clamp-2 text-[13px] font-semibold leading-[1.15] text-forest">
             {person.fullName}
           </p>
-          <p className="text-[10px] font-medium text-wood">
-            {[shortInfo, age].filter(Boolean).join(" · ")}
+          <p className="mt-0.5 text-[11px] font-medium leading-tight text-wood tabular-nums">
+            {metaLine}
           </p>
+          {subLine && (
+            <p className="text-[11px] leading-tight text-muted">{subLine}</p>
+          )}
         </div>
 
-        {onOpenDetail && (
-          /*
-            Tombol info: memiliki handler eksplisit sehingga membuka detail
-            orang ini tanpa bergantung pada event bubbling ke node wrapper.
-            Diletakkan di luar elemen interaktif lain dan diberi kelas nodrag
-            agar tidak mengganggu React Flow.
-          */
-          <button
-            type="button"
-            aria-label={`Lihat detail ${person.fullName}`}
-            className="nodrag -mr-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-forest/60 transition-colors hover:bg-forest/10 hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
-            onClick={() => onOpenDetail(person)}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
+        <div className="flex shrink-0 flex-col items-center gap-1">
+          {onFocusPerson && (
+            /*
+              Tombol fokus: menempatkan orang ini sebagai pusat kanvas supaya
+              pengguna HP bisa “menancapkan” diri tanpa pan manual.
+            */
+            <button
+              type="button"
+              aria-label={`Fokus ke ${person.fullName}`}
+              className="nodrag grid h-7 w-7 place-items-center rounded-full text-forest/60 transition-colors hover:bg-forest/10 hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+              onClick={() => onFocusPerson(person.id)}
             >
-              <circle cx="12" cy="12" r="9" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-          </button>
-        )}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="7" />
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+              </svg>
+            </button>
+          )}
+
+          {onOpenDetail && (
+            /*
+              Tombol info: memiliki handler eksplisit sehingga membuka detail
+              orang ini tanpa bergantung pada event bubbling ke node wrapper.
+              Diletakkan di luar elemen interaktif lain dan diberi kelas nodrag
+              agar tidak mengganggu React Flow.
+            */
+            <button
+              type="button"
+              aria-label={`Lihat detail ${person.fullName}`}
+              className="nodrag grid h-7 w-7 place-items-center rounded-full text-forest/60 transition-colors hover:bg-forest/10 hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+              onClick={() => onOpenDetail(person)}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="9" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {safeSocialLinks.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <div className="mt-1 flex flex-wrap items-center gap-1">
           {safeSocialLinks.map((link) => {
             const Icon = socialIcons[(link.platform.iconName ?? "").toLowerCase()];
             return (
@@ -195,7 +242,7 @@ export function PersonNodeCard({
         </div>
       )}
 
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+      <div className="mt-1 flex flex-wrap items-center gap-1">
         {person.isDeceased && (
           <span className="rounded-full bg-muted/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted">
             Almarhum
@@ -209,13 +256,51 @@ export function PersonNodeCard({
           </span>
         )}
         {childCount > 0 && (
-          <span className="ml-auto rounded-full bg-forest/10 px-1.5 py-0.5 text-[9px] font-medium text-forest">
+          <span className="ml-auto rounded-full bg-forest/10 px-1.5 py-0.5 text-[9px] font-medium text-forest tabular-nums">
             {hasHiddenChildren
               ? `${childCount} disembunyikan`
               : `${childCount} anak`}
           </span>
         )}
       </div>
+
+      {/*
+        Lipat/buka cabang: tombol eksplisit di tepi bawah kartu (target sentuh
+        44px agar nyaman di HP), bukan hanya klik ganda. Padanan keyboard
+        ditangani di wrapper node di bawah.
+      */}
+      {childCount > 0 && onToggleCollapse && (
+        <button
+          type="button"
+          aria-label={
+            collapsed
+              ? `Buka cabang ${person.fullName}`
+              : `Lipat cabang ${person.fullName}`
+          }
+          aria-expanded={!collapsed}
+          data-testid={`collapse-${person.id}`}
+          className="nodrag absolute -bottom-3 left-1/2 flex h-6 w-11 -translate-x-1/2 items-center justify-center rounded-full border border-wood/30 bg-parchment text-forest shadow-sm transition-colors hover:border-gold/60 hover:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          onClick={() => onToggleCollapse(person.id)}
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            {collapsed ? (
+              <path d="M6 9l6 6 6-6" />
+            ) : (
+              <path d="M6 15l6-6 6 6" />
+            )}
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
@@ -223,8 +308,34 @@ export function PersonNodeCard({
 function PersonNodeComponent({ data, selected }: NodeProps) {
   const d = data as unknown as PersonNodeData;
   const actions = useContext(PersonNodeActionsContext);
+
+  // Padanan keyboard untuk tombol di kartu. React Flow sudah menangani panah
+  // untuk pan kanvas pada wrapper node, jadi ArrowLeft/ArrowRight di sini
+  // dipakai untuk geser fokus antar saudara/keluarga yang tampil.
+  const onKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        // Enter/Space di wrapper kartu = buka detail (padanan klik kartu).
+        event.preventDefault();
+        actions?.openDetail(d.person);
+        return;
+      }
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        actions?.focusPerson(d.person.id);
+      }
+    },
+    [actions, d.person],
+  );
+
   return (
-    <div className="relative">
+    <div
+      className="relative outline-none"
+      role="group"
+      aria-label={`Kartu ${d.person.fullName}`}
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+    >
       <Handle
         id="bus"
         type="target"
@@ -235,6 +346,8 @@ function PersonNodeComponent({ data, selected }: NodeProps) {
         data={d}
         selected={selected}
         onOpenDetail={actions?.openDetail}
+        onToggleCollapse={actions?.toggleCollapse}
+        onFocusPerson={actions?.focusPerson}
       />
       <Handle
         type="source"

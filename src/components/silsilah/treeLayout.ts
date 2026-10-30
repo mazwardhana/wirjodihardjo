@@ -62,11 +62,11 @@ export type FamilyMarriageEdgeData = {
   y2: number;
 };
 
-const NODE_W = 260;
-const NODE_H = 130; // tinggi kartu orang
-const COUPLE_SPACING = NODE_W + 40; // jarak kartu primary ke kartu pasangan
-const GAP_X = 60; // spasi horizontal antar blok / anak di dalam baris
-const GAP_Y = 80; // spasi vertikal antar baris dan antar komponen
+const NODE_W = 168;
+const NODE_H = 92; // tinggi kartu orang
+const COUPLE_SPACING = NODE_W + 32; // jarak kartu primary ke kartu pasangan
+const GAP_X = 24; // spasi horizontal antar blok / anak di dalam baris
+const GAP_Y = 48; // spasi vertikal antar baris dan antar komponen
 
 /** Jarak minimum antar kartu pada baris yang sama, dipakai jaminan anti tumpuk. */
 export const NODE_MIN_GAP = 16;
@@ -672,20 +672,21 @@ function partnerLineStyle(status?: string) {
     case "DIVORCED":
       return { stroke: "#7a3b2e", strokeWidth: 2, strokeDasharray: "5 4" };
     case "WIDOWED":
-      return { stroke: "#b4872a", strokeWidth: 1.5, strokeDasharray: "2 5" };
+      // Emas titik-titik, opacity rendah agar tidak bersaing dengan garis keturunan.
+      return { stroke: "#b4872a", strokeWidth: 1.5, strokeDasharray: "2 5", strokeOpacity: 0.75 };
     default:
-      return { stroke: "#b4872a", strokeWidth: 2 };
+      return { stroke: "#b4872a", strokeWidth: 2, strokeOpacity: 0.85 };
   }
 }
 
 function childLineStyle(edge?: ChildEdge) {
   if (edge?.isAdopted) {
-    return { stroke: "#2c4f3b", strokeWidth: 1.5, strokeDasharray: "1 5" };
+    return { stroke: "#2c4f3b", strokeWidth: 1.25, strokeDasharray: "1 5", strokeOpacity: 0.65 };
   }
   if (edge?.isStep) {
-    return { stroke: "#8a6238", strokeWidth: 1.5, strokeDasharray: "6 4" };
+    return { stroke: "#8a6238", strokeWidth: 1.25, strokeDasharray: "6 4", strokeOpacity: 0.6 };
   }
-  return { stroke: "#6f4a2b", strokeWidth: 1.5, strokeOpacity: 0.7 };
+  return { stroke: "#6f4a2b", strokeWidth: 1.25, strokeOpacity: 0.5 };
 }
 
 function appendTo<K, V>(map: Map<K, V[]>, key: K, value: V) {

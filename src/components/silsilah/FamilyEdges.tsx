@@ -7,7 +7,7 @@ import type {
 } from "@/components/silsilah/treeLayout";
 
 /** Sudut pembulatan konektor ortogonal. */
-const CORNER_RADIUS = 8;
+const CORNER_RADIUS = 6;
 
 /**
  * Path ortogonal untuk satu garis keturunan:
@@ -59,7 +59,11 @@ export function FamilyChildEdge({ data, style, targetX, targetY }: EdgeProps) {
   );
 }
 
-/** Garis pernikahan: horizontal antar pasangan sebaris, atau menurun ke pasangan. */
+/**
+ * Garis pernikahan: horizontal pendek antar pasangan sebaris, atau menurun ke
+ * pasangan di baris lain. Ambang vertikal 1px memastikan pasangan sebaris
+ * benar-benar tergambar satu garis lurus, bukan dua segmen bertumpuk.
+ */
 export function FamilyMarriageEdge({ data, style }: EdgeProps) {
   const { x1, y1, x2, y2 } = data as unknown as FamilyMarriageEdgeData;
   const path =

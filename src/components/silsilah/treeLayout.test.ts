@@ -412,12 +412,12 @@ test("buildTreeGraph memusatkan orang tua pada bentang penuh subtree anak", () =
   const x = xOf("X");
   const leftEdge = Math.min(xOf("Y1"), xOf("Y2"), ...["Z1", "Z2", "Z3", "Z4", "Z5"].map(xOf));
   const rightEdge = Math.max(
-    xOf("Y1") + 260,
-    xOf("Y2") + 260,
-    ...["Z1", "Z2", "Z3", "Z4", "Z5"].map((id) => xOf(id) + 260),
+    xOf("Y1") + 168,
+    xOf("Y2") + 168,
+    ...["Z1", "Z2", "Z3", "Z4", "Z5"].map((id) => xOf(id) + 168),
   );
   const subtreeCenter = (leftEdge + rightEdge) / 2;
-  const parentCenter = x + 260 / 2;
+  const parentCenter = x + 168 / 2;
 
   assert.ok(
     Math.abs(parentCenter - subtreeCenter) <= NODE_MIN_GAP,
@@ -438,8 +438,8 @@ test("buildTreeGraph memak saudara daun di kontur baris, bukan setelah subtree l
   assert.equal(yOf("AP"), yOf("A"), "pasangan AP sebaris dengan A");
   assert.ok(xOf("B") > xOf("AP"), "B harus di kanan pasangan A");
   assert.ok(
-    xOf("B") - (xOf("AP") + 260) >= NODE_MIN_GAP,
-    `B tidak boleh menimpa AP, jarak=${Math.round(xOf("B") - (xOf("AP") + 260))}`,
+    xOf("B") - (xOf("AP") + 168) >= NODE_MIN_GAP,
+    `B tidak boleh menimpa AP, jarak=${Math.round(xOf("B") - (xOf("AP") + 168))}`,
   );
 });
 
@@ -595,8 +595,8 @@ test("buildTreeGraph menaruh titik asal pasangan di celah antara dua kartu", () 
   const xOf = (id: string) => nodes.find((n) => n.id === id)!.position.x;
   const kids = childEdgesOf(edges).filter((e) => ["Y1", "Y2"].includes(e.target));
   const { originX } = childData(kids[0]);
-  // Kartu A di x=0, kartu B di x=300 (260 + 40). Titik tengah celah = 280.
-  const mid = (xOf("A") + 260 + xOf("B")) / 2;
+  // Kartu A di x=0, kartu B di x=200 (168 + 32). Titik tengah celah = 184.
+  const mid = (xOf("A") + 168 + xOf("B")) / 2;
   assert.ok(
     Math.abs(originX - mid) <= NODE_MIN_GAP,
     `titik asal harus di celah pasangan, origin=${originX} mid=${mid}`,
