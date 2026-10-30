@@ -125,6 +125,55 @@ export function FamilyTreeCanvas(props: {
   );
 }
 
+/** Banyak tetangga relasi (pasangan + orang tua/anak) satu simpul. */
+function getNodeDegree(data: FamilyTreeData, id: string): number {
+  let deg = 0;
+  for (const pe of data.partnerEdges) {
+    if (pe.partnerAId === id || pe.partnerBId === id) deg++;
+  }
+  for (const ce of data.childEdges) {
+    if (ce.parentId === id || ce.childId === id) deg++;
+  }
+  return deg;
+}
+
+/**
+ * Simpul awal fokus untuk tamu: bukan akar komponen kecil yang terisolasi,
+ * melainkan "pusat keluarga" — simpul dengan tetangga terbanyak (tie:
+ * generationLevel terkecil lalu id), supaya layar pembuka selalu menampilkan
+ * keluarga inti yang paling informatif. Pengguna login selalu memakai
+ * personId sesinya sendiri.
+ */
+function bestFamilyCenter(data: FamilyTreeData): string | null {
+  if (data.persons.length === 0) return null;
+  const personIds = new Set(data.persons.map((p) => p.id));
+  const degree = new Map<string, number>();
+  for (const pe of data.partnerEdges) {
+    if (personIds.has(pe.partnerAId)) degree.set(pe.partnerAId, (degree.get(pe.partnerAId) ?? 0) + 1);
+    if (personIds.has(pe.partnerBId)) degree.set(pe.partnerBId, (degree.get(pe.partnerBId) ?? 0) + 1);
+  }
+  for (const ce of data.childEdges) {
+    if (personIds.has(ce.parentId)) degree.set(ce.parentId, (degree.get(ce.parentId) ?? 0) + 1);
+    if (personIds.has(ce.childId)) degree.set(ce.childId, (degree.get(ce.childId) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let bestDegree = -1;
+  const levelById = new Map(data.persons.map((p) => [p.id, p.generationLevel ?? 999]));
+  for (const [id, deg] of degree) {
+    if (
+      deg > bestDegree ||
+      (deg === bestDegree && (levelById.get(id) ?? 999) < (levelById.get(best!) ?? 999)) ||
+      (deg === bestDegree &&
+        (levelById.get(id) ?? 999) === (levelById.get(best!) ?? 999) &&
+        id < best!)
+    ) {
+      best = id;
+      bestDegree = deg;
+    }
+  }
+  return best ?? data.persons[0].id;
+}
+
 function FamilyTreeCanvasInner({
   data,
   isAuthenticated,
@@ -185,7 +234,7 @@ function FamilyTreeCanvasInner({
     setEdges(visibleGraph.edges);
   }, [visibleGraph, setNodes, setEdges]);
 
-  const { fitView } = useReactFlow();
+  const { setViewport } = useReactFlow();
 
   const nodeById = useMemo(() => {
     const map = new Map<string, (typeof nodes)[number]>();
@@ -193,36 +242,84 @@ function FamilyTreeCanvasInner({
     return map;
   }, [visibleGraph]);
 
-  /** Fokus kanvas ke satu simpul dengan zoom yang membuat teks terbaca. */
+  /** Fokus kanvas ke satu simpul + pasangan pertamanya — konteks inti yang
+   *  membuat nama di kartu selalu terbaca (kartu ≥ ~140px di 390px). */
   const focusOn = useCallback(
     (id: string | null) => {
       if (!id) return;
       const node = nodeById.get(id);
       if (!node) return;
       setFocusId(id);
-      // fitView pada satu simpul: zoom dipatok ke MAX_ZOOM supaya kartu terbaca
-      // penuh, bukan sekadar minZoom (kartu 168px * 1.6 = 269px di layar).
-      fitView({
-        nodes: [{ id }],
-        padding: 0.2,
-        minZoom: MIN_ZOOM,
-        maxZoom: MAX_ZOOM,
-        duration: 400,
+      // Subset fokus = simpul ini + pasangan pertamanya, diambil dari `data`
+      // mentah supaya tidak bergantung pada geometri.
+      const ids = new Set<string>([id]);
+      // Pasangan pertama saja (orderIndex terkecil): pasangan ganda membuat
+      // subset lebar dan zoom jatuh di bawah ambang baca. Orang tua dan anak
+      // sengaja TIDAK ikut sama alasan; keduanya tetap ada di kanvas (geser
+      // kanvas atau ketuk breadcrumb untuk berpindah).
+      const partners = data.partnerEdges
+        .filter((pe) => pe.partnerAId === id || pe.partnerBId === id)
+        .sort((a, b) => a.orderIndex - b.orderIndex);
+      if (partners.length > 0) {
+        const pe = partners[0];
+        const other = pe.partnerAId === id ? pe.partnerBId : pe.partnerAId;
+        ids.add(other);
+      }
+      const visibleIds = [...ids].filter((x) => nodeById.has(x));
+      if (visibleIds.length === 0) return;
+      // Hitung kotak bounding subset dari koordinat layout + ukuran kartu
+      // (168×92, sama dengan NODE_W/NODE_H treeLayout) lalu fitBounds. Ini
+      // tidak bergantung pada node yang sudah terukur React Flow, jadi tetap
+      // bekerja untuk simpul yang sedang di-cull `onlyRenderVisibleElements`.
+      const xs = visibleIds.flatMap((x) => {
+        const n = nodeById.get(x)!;
+        return [n.position.x, n.position.x + 168];
       });
+      const ys = visibleIds.flatMap((x) => {
+        const n = nodeById.get(x)!;
+        return [n.position.y, n.position.y + 92];
+      });
+      const pad = 12;
+      // Kotak bounding subset dalam koordinat kanvas.
+      const box = {
+        x: Math.min(...xs) - pad,
+        y: Math.min(...ys) - pad,
+        width: Math.max(...xs) - Math.min(...xs) + pad * 2,
+        height: Math.max(...ys) - Math.min(...ys) + pad * 2,
+      };
+      // Hitung viewport sendiri dari ukuran wadah: zoom dibatasi [MIN_ZOOM,
+      // 1.2] supaya nama di kartu selalu terbaca (≥ ~140px pada 390px) dan
+      // tidak meledak menjadi satu kartu raksasa. Tidak bergantung pada node
+      // yang sudah terukur React Flow, jadi bekerja juga untuk simpul yang
+      // sedang di-cull `onlyRenderVisibleElements`.
+      const host = document.querySelector<HTMLElement>(".react-flow");
+      const vw = host?.clientWidth ?? 0;
+      const vh = host?.clientHeight ?? 0;
+      if (vw > 0 && vh > 0) {
+        const zoom = Math.min(1.2, Math.max(MIN_ZOOM, Math.min(vw / box.width, vh / box.height) * 0.9));
+        setViewport(
+          {
+            zoom,
+            x: vw / 2 - (box.x + box.width / 2) * zoom,
+            y: vh / 2 - (box.y + box.height / 2) * zoom,
+          },
+          { duration: 400 },
+        );
+      }
     },
-    [nodeById, fitView, setFocusId],
+    [nodeById, setViewport, setFocusId, data],
   );
 
-  // Fokus awal: satu keluarga inti, bukan seluruh pohon. Prioritas: sesi login,
-  // lalu simpul akar. Tanpa keduanya biarkan React Flow memakai `fitView`.
-  const [initialFocusTarget] = useState<string | null>(
-    () => sessionPersonId ?? rootId,
+  // Fokus awal: satu keluarga inti, bukan seluruh pohon. Pengguna login →
+  // personId sesinya; tamu → pusat keluarga terbesar (bukan akar komponen
+  // terisolasi seperti akun uji tanpa relasi). Dijalankan lewat `onInit`
+  // React Flow supaya wadah sudah terukur saat viewport dihitung.
+  const [initialFocusTarget] = useState<string | null>(() =>
+    sessionPersonId ??
+    (rootId && getNodeDegree(data, rootId) > 0 ? rootId : bestFamilyCenter(data)),
   );
-  useEffect(() => {
-    if (!initialFocusTarget) return;
-    // Tunggu node terukur oleh React Flow sebelum memusatkan tampilan.
-    const raf = requestAnimationFrame(() => focusOn(initialFocusTarget));
-    return () => cancelAnimationFrame(raf);
+  const onFlowInit = useCallback(() => {
+    if (initialFocusTarget) focusOn(initialFocusTarget);
   }, [initialFocusTarget, focusOn]);
 
   const openDetail = useCallback((person: PublicPerson) => {
@@ -283,6 +380,7 @@ function FamilyTreeCanvasInner({
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
+          onInit={onFlowInit}
           onNodeClick={onNodeClick}
           onNodeDoubleClick={onNodeDoubleClick}
           fitView
