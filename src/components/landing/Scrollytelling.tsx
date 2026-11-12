@@ -86,7 +86,7 @@ export function Scrollytelling() {
             {BABAK.map((_, i) => (
               <span
                 key={i}
-                className={`block h-3 w-3 rounded-full transition-all ${
+                className={`block h-3 w-3 rounded-full transition-colors transition-opacity ${
                   i === active
                     ? "scale-125 bg-gold"
                     : i < active

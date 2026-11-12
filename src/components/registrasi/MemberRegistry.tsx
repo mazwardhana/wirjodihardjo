@@ -203,7 +203,7 @@ export function MemberRegistry({
                         registrasi. Data lama tanpa batch tidak diberi lencana
                         apa pun, supaya tidak terbaca sebagai "bukan anggota". */}
                     {row.fromRegistration && (
-                      <span className="mt-1 inline-block rounded-sm bg-gold-deep/10 px-1.5 py-0.5 text-[0.7rem] font-medium text-gold-deep">
+                      <span className="mt-1 inline-block rounded-sm bg-gold-deep/10 px-1.5 py-0.5 text-base font-medium text-gold-deep">
                         Via form registrasi
                       </span>
                     )}

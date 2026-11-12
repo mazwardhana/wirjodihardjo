@@ -63,6 +63,8 @@ Target: `summary.pass === true` untuk setiap halaman yang disentuh.
 meta iOS, safe-area), baca `DESIGN.md` bagian 9. Warna PWA dan ikon dibaca dari
 token, tidak boleh diketik manual.
 
+**Sebelum menyentuh tampilan, baca `DESIGN.md` sebagai sumber kebenaran visual.**
+
 ## Cara kerja UI
 
 **Sebelum menulis kode layar baru, tulis tiga kalimat arah seni:** untuk siapa

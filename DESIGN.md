@@ -1,11 +1,6 @@
 # DESIGN.md — Wirjodihardjo
 
 Sumber kebenaran visual. Setiap keputusan tampilan merujuk ke berkas ini.
-Angka kontras di bawah **diukur**, bukan diperkirakan. Bila mengubah token,
-hitung ulang matriksnya sebelum commit.
-
-Arah desain: **Hangat, Budaya Jawa, Arsip Keluarga.** Kesan kertas tua dan
-arsip warisan, bukan dasbor SaaS modern.
 
 ---
 
@@ -21,61 +16,43 @@ arsip warisan, bukan dasbor SaaS modern.
 
 ---
 
-## 2. Token warna
+## 2. Sistem Satu Ramp Warna + SATU Aksen
 
-Didefinisikan di `src/app/globals.css` blok `@theme`. **Tidak ada hex di luar
-berkas ini.**
+Sistem ini menggunakan **satu netral ramp** dan **satu warna aksen**. Tidak ada gradient, tidak ada kombinasi warna acak.
 
+### Netral Ramp (satu skala)
+| Token | Nilai | Peran |
+|---|---|---|
+| `--color-neutral-50` | `#fafafa` | Latar ultra-putih |
+| `--color-neutral-100` | `#f5f5f5` | Latar utama (kertas) |
+| `--color-neutral-200` | `#e5e5e5` | Batas/garis pembatas |
+| `--color-neutral-300` | `#d4d4d4` | Teks sekunder faint |
+| `--color-neutral-400` | `#aqaqaq` | Teks/border ringan |
+| `--color-neutral-500` | `#737373` | Teks deskripsi |
+| `--color-neutral-600` | `#525252` | Teks utama pada latar terang |
+| `--color-neutral-700` | `#3f3f3f` | Teks penting |
+| `--color-neutral-800` | `#262626` | Teks pada latar terang gelap |
+| `--color-neutral-900` | `#171717` | Teks latar terang gelap |
+
+### SATU Aksen: Gold |
 | Token | Hex | Peran |
 |---|---|---|
-| `--color-cream` | `#f7f1e2` | Latar utama (kertas) |
-| `--color-parchment` | `#efe3c8` | Latar sekunder, panel terangkat |
-| `--color-ink` | `#221a11` | Teks utama |
-| `--color-muted` | `#5c5040` | Teks sekunder |
-| `--color-forest` | `#1f3a2b` | Warna identitas, header, teks penting |
-| `--color-forest-soft` | `#2c4f3b` | Hover/varian forest |
-| `--color-wood` | `#6f4a2b` | Sekunder, aksen hangat |
-| `--color-wood-soft` | `#8a6238` | Hover/varian wood |
-| `--color-gold` | `#b4872a` | Aksen warisan (LATAR tombol, bukan teks di latar terang) |
-| `--color-gold-deep` | `#7d5b16` | Teks aksen di latar terang |
-| `--color-gold-light` | `#d4af5c` | Teks aksen di atas forest |
+| `--color-gold` | `#b4872a` | **Satu-satunya aksen**. Latar tombol, garis penanda, hover state. |
+| `--color-gold-soft` | `#d4af5c` | Teks aksen di atas forest |
 
-### Matriks kontras terukur (WCAG AA = 4.5:1 teks normal, 3:1 teks besar)
+**Aturan warna (dari matriks kontras WCAG AA):
 
-Baris = warna teks, kolom = warna latar.
-
-| teks ↓ / latar → | cream | parchment | forest | wood | gold |
-|---|---|---|---|---|---|
-| **ink** | 15.23 ✓ | 13.48 ✓ | 1.39 ✗ | 2.20 ✗ | **5.26 ✓** |
-| **muted** | 6.96 ✓ | 6.16 ✓ | 1.58 ✗ | 1.01 ✗ | 2.41 ✗ |
-| **forest** | 10.97 ✓ | 9.71 ✓ | 1.00 ✗ | 1.58 ✗ | 3.79 ✗ |
-| **forest-soft** | 8.14 ✓ | 7.21 ✓ | 1.35 ✗ | 1.18 ✗ | 2.81 ✗ |
-| **wood** | 6.93 ✓ | 6.13 ✓ | 1.58 ✗ | 1.00 ✗ | 2.39 ✗ |
-| **wood-soft** | 4.80 ✓ | 4.25 ✗ | 2.29 ✗ | 1.44 ✗ | 1.66 ✗ |
-| **gold** | 2.89 ✗ | 2.56 ✗ | 3.79 ✗ | 2.39 ✗ | 1.00 ✗ |
-| **gold-deep** | 5.51 ✓ | 4.88 ✓ | 1.99 ✗ | 1.26 ✗ | 1.91 ✗ |
-| **gold-light** | 1.85 ✗ | 1.64 ✗ | **5.94 ✓** | 3.75 ✗ | 1.57 ✗ |
-| **cream** | 1.00 ✗ | **1.13 ✗** | 10.97 ✓ | 6.93 ✓ | 2.89 ✗ |
-
-### Aturan yang lahir dari matriks
-
-1. **Tombol emas: `bg-gold` + `text-ink`** (5.26 ✓). **Dilarang**
-   `bg-gold text-forest` (3.79 ✗) — pola ini tersebar di banyak berkas dan
-   wajib diperbaiki saat menyentuh berkasnya.
-2. **Di atas forest: `text-cream` (10.97 ✓) atau `text-gold-light` (5.94 ✓).**
-   Dilarang `text-gold` (3.79 ✗) dan `text-gold-deep` (1.99 ✗).
-3. **`text-cream` di atas parchment DILARANG** (1.13:1, praktis tak terlihat).
-   Untuk teks di atas parchment pakai `text-forest` (9.71 ✓) atau `text-ink`.
-4. **`text-gold` tidak boleh dipakai untuk teks apa pun di latar terang.**
-   Gunakan `text-gold-deep` (5.51 di cream).
-5. **`wood-soft` di atas parchment gagal** (4.25). Pakai `wood` (6.13 ✓).
+1. `bg-gold` + `text-ink` = 5.26:1 ✓ (hanya kombinasi emas yang diizinkan untuk teks)
+2. Di atas forest: `text-cream` (10.97:1) atau `text-gold-light` (5.94:1)
+3. `text-cream` di atas parchment DILARANG (1.13:1). Gunakan `text-forest` (9.71:1) atau `text-ink`.
+4. `text-gold` DILARANG untuk teks apa pun di latar terang. Gunakan `text-gold-deep` (5.51 di cream).
+5. `wood-soft` di atas parchment gagal (4.25). Pakai `wood` (6.13:1).
 
 ---
 
-## 3. Skala tipografi
+## 3. Skala Tipografi
 
-Font: **Fraunces** (`font-display`, judul) + **Plus Jakarta Sans**
-(`font-sans`, isi). Dimuat lewat `next/font/google` di `src/app/layout.tsx`.
+Font: **Fraunces** (`font-display`, judul) + **Plus Jakarta Sans** (`font-sans`, isi).
 
 | Peran | Kelas | Ukuran / berat | Catatan |
 |---|---|---|---|
@@ -88,12 +65,14 @@ Font: **Fraunces** (`font-display`, judul) + **Plus Jakarta Sans**
 | Caption | `text-xs` | 12 / 500 | Hanya label, **bukan** isi form |
 | Angka | `tabular-nums` | — | Wajib untuk statistik, jumlah, tanggal di tabel |
 
-**Dilarang:** ukuran teks di bawah 12px. Ukuran isi form di bawah 16px
-(memicu auto-zoom iOS).
+**Dilarang:**
+- Ukuran teks di bawah 12px.
+- Ukuran isi form di bawah 16px (memicu auto-zoom iOS).
+- Lebih dari 2 bobot font pada satu layar.
 
 ---
 
-## 4. Skala jarak
+## 4. Skala Jarak
 
 Hanya nilai ini yang boleh muncul. Tidak ada `mt-5`, `gap-7`, `p-[13px]`.
 
@@ -104,7 +83,7 @@ padding dalam kartu `p-4 sm:p-6`.
 
 ---
 
-## 5. Sudut, bayangan, gerak
+## 5. Sudut, Bayangan, Gerak
 
 | Token | Nilai | Pakai untuk |
 |---|---|---|
@@ -122,18 +101,18 @@ Jangan animasi `width`/`height`/`top`/`left`. Selalu hormati
 
 ---
 
-## 6. Resep komponen (salin apa adanya)
+## 6. Resep Komponen (salin apa adanya)
 
 ### Tombol utama (emas)
 ```tsx
-<button className="min-h-11 rounded-sm bg-gold px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-gold-deep hover:text-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest disabled:opacity-50">
+<button className="min-h-11 rounded-sm bg-gold text-ink transition-colors hover:bg-gold-deep hover:text-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest disabled:opacity-50">
   Simpan
 </button>
 ```
 
 ### Tombol utama (forest)
 ```tsx
-<button className="min-h-11 rounded-sm bg-forest px-5 py-2.5 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+<button className="min-h-11 rounded-sm bg-forest text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
   Daftar
 </button>
 ```
@@ -198,22 +177,22 @@ Jangan animasi `width`/`height`/`top`/`left`. Selalu hormati
 
 ---
 
-## 7. Daftar terlarang (anti-slop)
+## 7. Daftar Terlarang (anti-slop eksplisit)
 
 Pola berikut terbaca sebagai hasil mesin. Jangan pakai.
 
-1. Gradient ungu-biru, atau gradient apa pun yang bukan turunan token.
-2. Emoji sebagai ikon. Pakai set ikon (react-icons) dengan ukuran konsisten.
-3. Tiga kartu fitur berikon di tengah sebagai isi utama halaman.
-4. Semua rata tengah, termasuk teks panjang.
-5. Warna literal (hex/rgb) di luar `globals.css`.
-6. Sudut berbeda-beda antar komponen di satu layar.
-7. Empty state tanpa aksi. Selalu: ikon + satu kalimat + satu tombol.
-8. Label placeholder ("Data 1", "Item", "Lorem").
-9. Transisi >300ms, atau animasi properti layout.
-10. Bayangan seragam di semua permukaan.
-11. Testimoni atau statistik karangan.
-12. Gambar tanpa `width`/`height` (atau `fill` dengan induk berposisi).
+1. **Gradient ungu-biru** apa pun, atau gradient apa yang bukan turunan token warna.
+2. **Gradient text** (text dengan warna gradient).
+3. **Glow effect** (seperti `shadow-glow`, `glow`, bayangan yang terlalu kuat).
+4. **Blurred blobs** (abstrak-geometry latar, gradient blur).
+5. **Emoji sebagai ikon**. Pakai `react-icons` dengan ukuran konsisten.
+6. **Sparkles/badge New-Pro-Beta** tanpa diminta.
+7. **Font default** Inter-Roboto-Arial-Space Grotesk.
+8. **Grid bukan kelipatan 4px**.
+9. **Sentence-case** dilarang — gunakan case yang konsisten (judul case atau lowercase).
+10. **Lebih dari 2 bobot font** pada satu layar/satu halaman.
+11. State *incomplete*: missing empty state, loading state tanpa indikator progres, error state tanpa pesan, hover state tanpa visual balasan, selected state tanpa highlight.
+12. **Signature detail unik** tanpa desain sistem — setiap komponen harus mengikuti token yang terdefinisi.
 
 ---
 
@@ -236,13 +215,11 @@ Jalankan dan tempel angkanya. Klaim "selesai" tanpa output tidak diterima.
 
 Target akhir tiap halaman: `summary.pass === true`.
 
-## 9. PWA dan tampilan mobile
+---
 
-Aplikasi ini dipasang ke layar utama lewat Chrome (Android) dan Safari (iOS).
-Salah satu jalur pemasangan tidak punya devtools, jadi perilakunya harus benar
-sejak awal.
+## 9. PWA dan Tampilan Mobile
 
-**Sinyal wajib di `<head>` (diperiksa audit UI, kunci `pwa`):**
+Sinyal wajib di `<head>` (diperiksa audit UI, kunci `pwa`):
 
 | Sinyal | Sumber | Akibat bila hilang |
 |---|---|---|
@@ -258,7 +235,7 @@ warna ikon dibaca dari token: `src/lib/theme-tokens.ts` untuk manifest,
 gagal bila ketiganya berbeda. Palet lama (`#FFFBF5`, `#1A4D2E`) dilarang.
 
 **Manifest dibuat di `src/app/manifest.ts`**, bukan `public/manifest.json`,
-supaya nilainya bisa memakai token dan tidak ada dua sumber kebenaran.
+supaya nilainya bisa memakai token dan tidak ada dua sumber kebenar.
 
 **Service worker.** `public/sw.js` tidak di-commit; ia dibangun dari
 `scripts/sw-template.js` oleh `scripts/build-sw.mjs` sebagai bagian dari

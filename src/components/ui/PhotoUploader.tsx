@@ -90,7 +90,7 @@ export function PhotoUploader({
       <label
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
-        className={`group relative cursor-pointer overflow-hidden rounded-full ring-2 ring-gold/30 transition-all hover:ring-gold/60 ${
+        className={`group relative cursor-pointer overflow-hidden rounded-full ring-2 ring-gold/30 transition-colors hover:ring-gold/60 ${
           uploading ? "opacity-60" : ""
         }`}
       >

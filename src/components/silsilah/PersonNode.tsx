@@ -116,10 +116,10 @@ export function PersonNodeCard({
 
   return (
     <div
-      className={`relative w-[168px] rounded-md border bg-cream px-2.5 py-2 shadow-sm transition-all ${
+      className={`relative w-[168px] rounded-md border bg-cream px-2.5 py-2 shadow-sm transition-colors ${
         selected
           ? "border-gold ring-2 ring-gold/40"
-          : "border-wood/25 hover:border-gold/60"
+          : "border-wood/35 hover:border-gold/60"
       } ${person.isDeceased ? "opacity-80" : ""}`}
     >
       <div className="flex items-start gap-2">
@@ -136,7 +136,7 @@ export function PersonNodeCard({
         ) : (
           <span
             aria-hidden="true"
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-forest/10 text-[11px] font-semibold text-forest ring-1 ring-forest/15"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-forest/10 text-[12px] font-semibold text-forest ring-1 ring-forest/15"
           >
             {initials(person.fullName)}
           </span>
@@ -145,11 +145,11 @@ export function PersonNodeCard({
           <p className="line-clamp-2 text-[13px] font-semibold leading-[1.15] text-forest">
             {person.fullName}
           </p>
-          <p className="mt-0.5 text-[11px] font-medium leading-tight text-wood tabular-nums">
+          <p className="mt-0.5 text-[12px] font-medium leading-tight text-wood tabular-nums">
             {metaLine}
           </p>
           {subLine && (
-            <p className="text-[11px] leading-tight text-muted">{subLine}</p>
+            <p className="text-[12px] leading-tight text-muted">{subLine}</p>
           )}
         </div>
 
@@ -244,19 +244,19 @@ export function PersonNodeCard({
 
       <div className="mt-1 flex flex-wrap items-center gap-1">
         {person.isDeceased && (
-          <span className="rounded-full bg-muted/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted">
+          <span className="rounded-full bg-muted/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">
             Almarhum
           </span>
         )}
         {badge && (
           <span
-            className={`rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${badge.cls}`}
+            className={`rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${badge.cls}`}
           >
             {badge.label}
           </span>
         )}
         {childCount > 0 && (
-          <span className="ml-auto rounded-full bg-forest/10 px-1.5 py-0.5 text-[9px] font-medium text-forest tabular-nums">
+          <span className="ml-auto rounded-full bg-forest/10 px-1.5 py-0.5 text-[10px] font-medium text-forest tabular-nums">
             {hasHiddenChildren
               ? `${childCount} disembunyikan`
               : `${childCount} anak`}

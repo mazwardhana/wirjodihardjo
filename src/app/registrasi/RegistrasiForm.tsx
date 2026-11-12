@@ -300,7 +300,7 @@ function SealMark() {
     <span className="relative grid h-24 w-24 shrink-0 place-items-center sm:h-28 sm:w-28">
       <span
         aria-hidden="true"
-        className="seal-ink absolute inset-0 rounded-full border-2 border-gold-deep/70"
+        className="seal-ink absolute inset-0 rounded-full border-1 border-gold-deep/70"
       />
       <svg
         viewBox="0 0 120 120"
