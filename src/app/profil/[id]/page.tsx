@@ -6,6 +6,7 @@ import { getImmediateFamily, getClassifiedSiblings } from "@/lib/genealogy";
 import { FamilyPanel } from "@/components/profil/FamilyPanel";
 import { ProfileCard } from "@/components/profile/ProfileCard";
 import { projectPublicProfile, projectMemberProfile } from "@/lib/profile";
+import { ContextualHelp } from "@/components/ui/ContextualHelp";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -66,6 +67,11 @@ export default async function ProfilPage({ params }: { params: Promise<{ id: str
   } : null;
 
   return <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+    <ContextualHelp title="Tentang profil ini">
+      Halaman ini menampilkan data anggota yang bersifat publik: nama, generasi,
+      pendidikan, dan tautan. Data kontak hanya terlihat oleh anggota yang login
+      dan sesuai pengaturan privasi pemilik profil.
+    </ContextualHelp>
     {viewer?.personId === id && <Link href="/dashboard/profil" className="mb-6 inline-flex min-h-11 items-center rounded-md border border-wood/30 px-4 text-sm text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">Kelola profil saya</Link>}
     <ProfileCard profile={profile} contacts={contacts} isMember={isMember} />
     {familyData && <div className="mt-8"><FamilyPanel data={familyData} /></div>}

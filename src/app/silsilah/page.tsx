@@ -7,6 +7,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FamilyTreeCanvas } from "@/components/silsilah/FamilyTreeCanvas";
 import { FilterPanel } from "@/components/silsilah/FilterPanel";
+import { ContextualHelp } from "@/components/ui/ContextualHelp";
+import { FamilyPdfDownload } from "@/components/silsilah/FamilyPdfDownload";
 
 // Data silsilah dibaca langsung dari basis data saat diminta.
 export const dynamic = "force-dynamic";
@@ -71,7 +73,14 @@ export default async function SilsilahPage({
           </p>
         </div>
 
-        {/* Filter — client component */}
+        <ContextualHelp title="Cara menjelajahi silsilah">
+          Cari nama atau gunakan filter keluarga cabang dan generasi untuk
+          mempersempit pohon. Ketuk kartu anggota untuk membuka profilnya, dan
+          gunakan tombol unduh untuk menyimpan ringkasan keluarga sebagai PDF.
+        </ContextualHelp>
+        {session?.user && <FamilyPdfDownload />}
+
+      {/* Filter — client component */}
         <FilterPanel
           branches={branches.map((b) => ({ id: b.id, name: b.name }))}
           generations={genBreakdown.filter((g): g is { level: number; count: number } => g.level !== null)}
