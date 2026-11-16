@@ -1,0 +1,25 @@
+[
+  {
+    "screen": "kalender-des2026",
+    "hasEvent": true,
+    "hasRsvp": true,
+    "excerpt": "Lompat ke konten | W | Wirjodihardjo | Silsilah | Galeri | Hall of Fame | Kalender | Reuni | Registrasi | Statistik | Pengurus | Tentang | AT | Admin Test | Keluarga | Kalender Keluarga | Milad, haul, reuni, dan acara keluarga lainnya dalam satu kalender. Anda dapat menandai kehadiran dan menerima pengingat otomatis. | ← | Desember 2026 | → | Sen | Sel | Rab | Kam | Jum | Sab | Min | 1 | Smoke Test Release Merge | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16"
+  },
+  {
+    "screen": "admin-kalender",
+    "hasEvent": true,
+    "excerpt": "Lompat ke konten | W | Wirjodihardjo | Silsilah | Galeri | Hall of Fame | Kalender | Reuni | Registrasi | Statistik | Pengurus | Tentang | AT | Admin Test | W | Admin | SUPER ADMIN | Admin Test | ◉ | Overview | ⊞ | Pengajuan | ⊡ | Data Anggota | ⊟ | Keluarga Cabang | ⊕ | Keluarga | ⊠ | Galeri | ♪ | Memori | ★ | Hall of Fame | ▤ | Artikel | ⌘ | Kepengurusan | ⇧ | Impor Data | ✎ | Registrasi | ◫ | Kalender | ◈ | Reuni | ◔ | Statistik | ☷ | Pengguna | ▦ | Audit Log | ← Dashboard | Keluar | Kalender Kel"
+  },
+  {
+    "screen": "admin-memori",
+    "hasMemory": false,
+    "excerpt": "Lompat ke konten | W | Wirjodihardjo | Silsilah | Galeri | Hall of Fame | Kalender | Reuni | Registrasi | Statistik | Pengurus | Tentang | AT | Admin Test | W | Admin | SUPER ADMIN | Admin Test | ◉ | Overview | ⊞ | Pengajuan | ⊡ | Data Anggota | ⊟ | Keluarga Cabang | ⊕ | Keluarga | ⊠ | Galeri | ♪ | Memori | ★ | Hall of Fame | ▤ | Artikel | ⌘ | Kepengurusan | ⇧ | Impor Data | ✎ | Registrasi | ◫ | Kalender | ◈ | Reuni | ◔ | Statistik | ☷ | Pengguna | ▦ | Audit Log | ← Dashboard | Keluar | Memori | Setu"
+  },
+  {
+    "screen": "profil-timeline",
+    "hasTimelineHeading": false,
+    "hasLifeEvent": true,
+    "hasMemory": true,
+    "excerpt": "Lompat ke konten | W | Wirjodihardjo | Silsilah | Galeri | Hall of Fame | Kalender | Reuni | Registrasi | Statistik | Pengurus | Tentang | AT | Admin Test | Tentang profil ini | S | Soedjinah | Soedjinah | Nickname: Soedjinah | Anak | Keluarga Cabang Keluarga Soedjinah | Almarhum/Almarhumah | Jenis kelamin | Perempuan | Usia | Belum diisi | Kota | Belum diisi | Pekerjaan | Belum diisi | Tentang | Bio belum diisi. | Pendidikan | Belum ada data pendidikan. | Sosial media | Belum ada tautan publik. | Informasi kontak | Anggota ini tidak membagikan data kontak. | Keluarga Terdekat | ORANG TUA | TW | Tn. Wirjodihardjo(Wali) | NW | Ny. Wirjodihardjo(Wali) | PASANGAN | WN | Wi"
+  }
+]

@@ -1,0 +1,15 @@
+[
+  {
+    "screen": "admin-memori-antrean",
+    "hasPendingMemory": true,
+    "bodySnippet": "Lompat ke konten | W | Wirjodihardjo | Silsilah | Galeri | Hall of Fame | Kalender | Reuni | Registrasi | Statistik | Pengurus | Tentang | AT | Admin Test | W | Admin | SUPER ADMIN | Admin Test | ◉ | Overview | ⊞ | Pengajuan | ⊡ | Data Anggota | ⊟ | Keluarga Cabang | ⊕ | Keluarga | ⊠ | Galeri | ♪ | Memori | ★ | Hall of Fame | ▤ | Artikel | ⌘ | Kepengurusan | ⇧ | Impor Data | ✎ | Registrasi | ◫ | Kalender | ◈ | Reuni | ◔ | Statistik | ☷ | Pengguna | ▦ | Audit Log | ← Dashboard | Keluar | Memori | Setujui, tolak, atau hapus cerita dan berkas yang dikirim anggota keluarga. | JUDUL\tJENIS\tPENGIRIM\tORANG\tSTATUS\tAKSI | Kenangan menunggu moderasi (uji merge) | 16/11/2026 | \t | Cerita\tadmin\tSoedjinah\tMenunggu\t | Setujui | Tolak | Hapus | W | Keluarga Besar Wirjodihardjo | Rumah digital untuk mencatat silsilah, menyimpan kenangan, dan menjaga silaturahmi keluarga lintas generasi. | Jelajahi | Silsilah Keluarga | Galeri | Hall of Fame | Reuni | Registrasi Data Keluarga | Statistik Keluarga | Pengurus | Tentang Keluarga | © 2026 Keluarga Besar Wirjodihardjo. Dikelola bersama oleh keluarga."
+  },
+  {
+    "screen": "profil",
+    "hasJejakHidup": true,
+    "hasLifeEvent": true,
+    "hasMemoriSection": true,
+    "hasApprovedMemory": true,
+    "memorySnippet": "Jejak Hidup | Peristiwa yang membentuk perjalanan hidupnya. | 1955 | Menikah (uji merge) | Blitar | Tanpa tanggal | Lahir | Blitar | Tanpa tanggal | Wafat | Lokasi Terkait | Tempat yang menandai perjalanan hidupnya. | Blitar1955 | Tampilkan peta | © OpenStreetMap contributors | Memori | Kenangan menunggu moderasi (uji merge) | Cerita | Menunggu moderasi | Kiriman uji untuk membuktikan antrean moderasi admin pada branch rilis. | Kenangan uji merge | Cerita | Dibuat saat verifikasi gabungan branch rilis oleh Delta. | Kirim memori | Bagikan"
+  }
+]
