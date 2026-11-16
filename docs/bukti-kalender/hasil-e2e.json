@@ -1,0 +1,72 @@
+[
+  {
+    "step": "login admin",
+    "ok": true,
+    "detail": "http://127.0.0.1:3112/admin"
+  },
+  {
+    "step": "panel admin memuat 5 event seed",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "admin buat event terbit",
+    "ok": true,
+    "detail": "Ngaji Bareng E2E mwitxnv0"
+  },
+  {
+    "step": "turunkan (unpublish) event",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "terbitkan kembali event",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "draft seed diturunkan (bahan uji kebocoran)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "kalender publik memuat event terbit (bulan ini + agenda mendatang)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "draft tidak bocor ke member",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "RSVP Hadir tersimpan (state tombol)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "API admin ditolak untuk member",
+    "ok": true,
+    "detail": "status=401"
+  },
+  {
+    "step": "panel admin me-redirect member",
+    "ok": true,
+    "detail": "landed=http://127.0.0.1:3112/dashboard"
+  },
+  {
+    "step": "anonim diarahkan ke /login",
+    "ok": true,
+    "detail": "http://127.0.0.1:3112/login"
+  },
+  {
+    "step": "dashboard member dimuat (pemicu pengingat)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "step": "mobile 390px ter-capture",
+    "ok": true,
+    "detail": ""
+  }
+]
