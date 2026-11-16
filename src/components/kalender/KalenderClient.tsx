@@ -22,6 +22,9 @@ export function KalenderClient({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Agenda lintas bulan (bukan hanya bulan yang sedang dilihat): milad/haul
+  // berulang & reuni bisa jatuh di bulan lain, jadi diambil dari ?agenda=1.
+  const [upcoming, setUpcoming] = useState<EventSummary[] | null>(null);
 
   const selected = events.find((e) => e.id === selectedId) ?? null;
 
@@ -50,6 +53,19 @@ export function KalenderClient({
     loadMonth(year, month);
   }, [year, month, loadMonth]);
 
+  const loadUpcoming = useCallback(async () => {
+    try {
+      const res = await fetch("/api/kalender?agenda=1");
+      if (res.ok) setUpcoming((await res.json()) as EventSummary[]);
+    } catch {
+      setUpcoming([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadUpcoming();
+  }, [loadUpcoming]);
+
   const handleRsvp = useCallback(async (id: string, status: RsvpStatus) => {
     setBusy(true);
     try {
@@ -60,6 +76,9 @@ export function KalenderClient({
       });
       if (!res.ok) return;
       setEvents((prevEvents) => prevEvents.map((e) => (e.id === id ? { ...e, rsvp: status } : e)));
+      setUpcoming((prevUpcoming) =>
+        prevUpcoming ? prevUpcoming.map((e) => (e.id === id ? { ...e, rsvp: status } : e)) : prevUpcoming,
+      );
     } finally {
       setBusy(false);
     }
@@ -102,6 +121,22 @@ export function KalenderClient({
           <h3 className="font-display text-lg font-semibold text-forest">Agenda Bulan Ini</h3>
           <div className="mt-3">
             <AgendaList events={events} onSelect={(e) => setSelectedId(e.id)} selectedId={selectedId} />
+          </div>
+
+          <h3 className="mt-8 font-display text-lg font-semibold text-forest">Agenda Mendatang</h3>
+          <p className="mt-1 text-xs text-muted">
+            Milad, haul, dan acara keluarga terdekat — termasuk yang jatuh di bulan berikutnya.
+          </p>
+          <div className="mt-3">
+            {upcoming === null ? (
+              <LoadingState label="Memuat agenda mendatang" />
+            ) : upcoming.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-wood/30 bg-parchment/40 px-4 py-6 text-center text-sm text-muted">
+                Belum ada agenda mendatang. Admin keluarga dapat menambahkannya dari panel admin.
+              </p>
+            ) : (
+              <AgendaList events={upcoming} onSelect={(e) => setSelectedId(e.id)} selectedId={selectedId} />
+            )}
           </div>
         </section>
         <aside className="lg:col-span-2" aria-label="Kehadiran">
