@@ -106,6 +106,20 @@ enum ImportStatus {
   FAILED
 }
 
+enum FamilyEventType {
+  MILAD
+  HAUL
+  REUNI
+  HALAL_BIHALAL
+  LAINNYA
+}
+
+enum RsvpStatus {
+  GOING
+  MAYBE
+  NOT_GOING
+}
+
 // ──────────────────────────────────────
 // Genealogy core
 // ──────────────────────────────────────
@@ -308,6 +322,8 @@ model User {
   moderatedMemories    PersonMemory[]        @relation("MemoryModerator")
   hallOfFameEntries    HallOfFameEntry[]     @relation("EntryCreator")
   reunions             Reunion[]             @relation("ReunionCreator")
+  familyEvents         FamilyEvent[]         @relation("FamilyEventCreator")
+  familyEventRsvps     FamilyEventRsvp[]
   reunionRegistrations ReunionRegistration[]
   notifications        Notification[]
   auditLogs            AuditLog[]
@@ -500,6 +516,56 @@ model ReunionRegistration {
   @@unique([reunionId, personId])
   @@index([reunionId, checkedInAt])
   @@index([checkInGroupId])
+}
+
+// ──────────────────────────────────────
+// Registrasi keluarga (form publik)
+// ──────────────────────────────────────
+
+// Jejak satu kiriman form registrasi publik: cabang asal, jumlah baris,
+// akun yang dibuat, dan peserta reuni. Dipakai untuk audit + statistik.
+model FamilyEvent {
+  id           String          @id @default(uuid())
+  title        String
+  type         FamilyEventType
+  description  String?
+  startsAt     DateTime
+  endsAt       DateTime?
+  locationName String?
+  // true untuk milad/haul yang dirayakan setiap tahun; `startsAt` menyimpan
+  // tanggal makna (tanggal lahir / wafat), dan perayaan dihitung ulang
+  // per tahun di lib/calendar.ts.
+  repeatYearly Boolean         @default(false)
+  slug         String          @unique
+  isPublished  Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  createdByUserId String
+  createdBy       User   @relation("FamilyEventCreator", fields: [createdByUserId], references: [id])
+
+  rsvps FamilyEventRsvp[]
+
+  @@index([type])
+  @@index([startsAt])
+  @@index([isPublished])
+}
+
+model FamilyEventRsvp {
+  id        String     @id @default(uuid())
+  status    RsvpStatus
+  notes     String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  eventId String
+  event   FamilyEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
 }
 
 // ──────────────────────────────────────
