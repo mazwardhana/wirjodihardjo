@@ -26,6 +26,9 @@ import {
   type FamilyTreeData,
 } from "@/components/silsilah/treeLayout";
 import { DetailPanel } from "@/components/silsilah/DetailPanel";
+import { KinshipCalculator } from "@/components/silsilah/KinshipCalculator";
+import { PedigreeCanvas } from "@/components/silsilah/PedigreeCanvas";
+import { FanCanvas } from "@/components/silsilah/FanCanvas";
 import { getGenerationLabel } from "@/lib/generations";
 import type { PublicPerson } from "@/lib/data";
 
@@ -35,6 +38,20 @@ const edgeTypes = familyEdgeTypes;
 /** Ambang zoom minimum: teks kartu tidak boleh turun di bawah ukuran baca. */
 const MIN_ZOOM = 0.28;
 const MAX_ZOOM = 1.6;
+
+/**
+ * Mode tampilan pohon. Ketiganya berbagi data yang sama (`FamilyTreeData`)
+ * dan fokus yang sama, jadi berpindah mode tidak memuat ulang apa pun dan
+ * tidak mengubah orang yang sedang dilihat.
+ */
+export type TreeViewMode = "tree" | "pedigree" | "fan";
+
+const VIEW_MODES: { id: TreeViewMode; label: string; hint: string }[] = [
+  { id: "tree", label: "Pohon", hint: "Tampilan pohon mendatar: pasangan dan anak" },
+  { id: "pedigree", label: "Pedigree", hint: "Garis leluhur murni ke atas" },
+  { id: "fan", label: "Fan chart", hint: "Leluhur melingkar hingga 7 generasi" },
+];
+
 
 type AncestorEntry = { id: string; fullName: string; label: string };
 
@@ -185,7 +202,10 @@ function FamilyTreeCanvasInner({
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<PublicPerson | null>(null);
+  const [kinshipOpen, setKinshipOpen] = useState(false);
   const [focusId, setFocusId] = useState<string | null>(null);
+  // Mode tampilan kanvas. Pohon (default) → Pedigree → Fan chart.
+  const [viewMode, setViewMode] = useState<TreeViewMode>("tree");
   // Level generasi yang disembunyikan. Kosong = semua generasi tampil.
   const [hiddenGenerations, setHiddenGenerations] = useState<Set<number>>(
     new Set(),
@@ -361,7 +381,15 @@ function FamilyTreeCanvasInner({
       ? "saya"
       : "akar keluarga";
 
-  if (visibleGraph.nodes.length === 0) {
+  // Fokus aktif untuk mode Pedigree/Fan. Pemakaian default (sebelum pengguna
+  // mengetuk apa pun) dipakai sebagai fokus; perpindahan mode tidak mengubah
+  // orang yang sedang dilihat.
+  const activeFocusId = focusId ?? initialFocusTarget;
+
+  // Guard kosong hanya berlaku untuk mode pohon: mode Pedigree/Fan membaca
+  // `data` langsung sehingga bisa menampilkan data yang tidak tampil di pohon
+  // (mis. ketika semua generasi disembunyikan).
+  if (viewMode === "tree" && visibleGraph.nodes.length === 0) {
     return (
       <div className="flex h-full items-center justify-center p-8 text-center text-muted">
         Belum ada data silsilah untuk ditampilkan, atau seluruh generasi
@@ -370,10 +398,19 @@ function FamilyTreeCanvasInner({
     );
   }
 
+  if (viewMode !== "tree" && !activeFocusId) {
+    return (
+      <div className="flex h-full items-center justify-center p-8 text-center text-muted">
+        Belum ada data leluhur untuk ditampilkan.
+      </div>
+    );
+  }
+
   return (
     <div className="relative h-full w-full">
-      <PersonNodeActionsContext.Provider value={nodeActions}>
-        <ReactFlow
+      {viewMode === "tree" && (
+        <PersonNodeActionsContext.Provider value={nodeActions}>
+          <ReactFlow
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
@@ -406,12 +443,65 @@ function FamilyTreeCanvasInner({
             nodeColor="#2c4f3b"
           />
         </ReactFlow>
-      </PersonNodeActionsContext.Provider>
+        </PersonNodeActionsContext.Provider>
+      )}
+
+      {/* Mode Pedigree & Fan Chart — membaca `data` langsung, berbagi fokus */}
+      {viewMode === "pedigree" && activeFocusId && (
+        <PedigreeCanvas
+          data={data}
+          focusId={activeFocusId}
+          onOpenDetail={setSelected}
+          onFocusPerson={setFocusId}
+        />
+      )}
+      {viewMode === "fan" && activeFocusId && (
+        <FanCanvas
+          data={data}
+          focusId={activeFocusId}
+          onOpenDetail={setSelected}
+          onFocusPerson={setFocusId}
+        />
+      )}
 
       {/* ── Panel navigasi HP ── */}
       <div className="pointer-events-none absolute inset-x-2 top-2 flex flex-col gap-2 sm:inset-x-3 sm:top-3">
+        {/* Toggle mode tampilan: Pohon / Pedigree / Fan chart */}
+        <div
+          role="group"
+          aria-label="Mode tampilan pohon"
+          className="pointer-events-auto inline-flex w-fit items-center gap-1 rounded-md border border-wood/25 bg-cream/95 p-1 shadow-sm"
+        >
+          {VIEW_MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setViewMode(m.id)}
+              aria-pressed={viewMode === m.id}
+              title={m.hint}
+              className={`inline-flex min-h-11 items-center rounded-sm border px-3 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${
+                viewMode === m.id
+                  ? "border-forest bg-forest text-cream"
+                  : "border-transparent text-forest hover:bg-wood/10"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Kalkulator relasi/sapaan */}
+        <button
+          type="button"
+          onClick={() => setKinshipOpen(true)}
+          className="pointer-events-auto inline-flex min-h-11 items-center gap-1 rounded-md border border-wood/25 bg-cream/95 px-3 text-xs font-semibold text-forest shadow-sm transition-colors hover:bg-wood/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+        >
+          <span aria-hidden="true">🔗</span>
+          Kalkulator Relasi
+        </button>
+
         {/* Breadcrumb jalur leluhur (anak › orang tua › kakek) */}
-        {(ancestors.length > 0 || focusId) && (
+        {viewMode === "tree" && (ancestors.length > 0 || focusId) && (
           <nav
             aria-label="Posisi di pohon silsilah"
             className="pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-md border border-wood/25 bg-cream/95 px-2 py-1.5 text-xs shadow-sm"
@@ -440,7 +530,8 @@ function FamilyTreeCanvasInner({
           </nav>
         )}
 
-        <div className="pointer-events-auto flex flex-wrap items-center gap-2">
+        {viewMode === "tree" && (
+          <div className="pointer-events-auto flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => focusOn(sessionPersonId ?? rootId)}
@@ -472,10 +563,12 @@ function FamilyTreeCanvasInner({
               Lihat akar
             </button>
           )}
-        </div>
+
+          </div>
+        )}
 
         {/* Kontrol level generasi: sembunyikan generasi jauh */}
-        {levels.length > 1 && (
+        {viewMode === "tree" && levels.length > 1 && (
           <div className="pointer-events-auto rounded-md border border-wood/25 bg-cream/95 px-2 py-1.5 shadow-sm">
             <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted">
               Generasi tampil
@@ -523,17 +616,21 @@ function FamilyTreeCanvasInner({
         )}
       </div>
 
-      {/* Legenda generasi kecil di kanvas */}
-      <div className="pointer-events-none absolute bottom-2 left-2 rounded-md border border-wood/20 bg-cream/90 px-2 py-1 text-[10px] text-muted shadow-sm sm:bottom-3 sm:left-3">
-        <span className="font-medium text-forest">Kartu</span> = orang ·{" "}
-        <span className="font-medium text-forest">garis emas</span> = pasangan ·{" "}
-        <span className="font-medium text-forest">garis coklat</span> = anak
-      </div>
+      {/* Legenda generasi kecil di kanvas — hanya mode pohon */}
+      {viewMode === "tree" && (
+        <div className="pointer-events-none absolute bottom-2 left-2 rounded-md border border-wood/20 bg-cream/90 px-2 py-1 text-[10px] text-muted shadow-sm sm:bottom-3 sm:left-3">
+          <span className="font-medium text-forest">Kartu</span> = orang ·{" "}
+          <span className="font-medium text-forest">garis emas</span> = pasangan ·{" "}
+          <span className="font-medium text-forest">garis coklat</span> = anak
+        </div>
+      )}
 
-      <p className="pointer-events-none absolute bottom-2 right-2 hidden rounded-md bg-cream/90 px-3 py-1.5 text-xs text-muted shadow-sm sm:block">
-        Ketuk kartu untuk detail, ketuk ikon fokus untuk memusatkan, ketuk
-        tombol lipat untuk menyembunyikan cabang
-      </p>
+      {viewMode === "tree" && (
+        <p className="pointer-events-none absolute bottom-2 right-2 hidden rounded-md bg-cream/90 px-3 py-1.5 text-xs text-muted shadow-sm sm:block">
+          Ketuk kartu untuk detail, ketuk ikon fokus untuk memusatkan, ketuk
+          tombol lipat untuk menyembunyikan cabang
+        </p>
+      )}
 
       {selected && (
         <DetailPanel
@@ -542,6 +639,12 @@ function FamilyTreeCanvasInner({
           onClose={() => setSelected(null)}
         />
       )}
+      <KinshipCalculator
+        data={data}
+        initialPerson={selected}
+        open={kinshipOpen}
+        onClose={() => setKinshipOpen(false)}
+      />
     </div>
   );
 }
