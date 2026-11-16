@@ -6,6 +6,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { getGenerationLabel } from "@/lib/generations";
 import { getImmediateFamily, getClassifiedSiblings } from "@/lib/genealogy";
 import { recordUpcomingReunionReminders } from "@/lib/notifications";
+import { recordUpcomingFamilyEventReminders } from "@/lib/notifications";
 import { DataKeluargaSaya } from "./_components/DataKeluargaSaya";
 import { ContextualHelp } from "@/components/ui/ContextualHelp";
 
@@ -49,6 +50,7 @@ export default async function DashboardPage() {
       user.person ? getImmediateFamily(user.person.id) : Promise.resolve(null),
       user.person ? getClassifiedSiblings(user.person.id) : Promise.resolve([]),
       recordUpcomingReunionReminders(user.id).catch(() => undefined),
+      recordUpcomingFamilyEventReminders(user.id).catch(() => undefined),
     ]);
 
   return (
