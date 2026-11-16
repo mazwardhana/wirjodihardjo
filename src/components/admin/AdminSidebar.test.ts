@@ -69,6 +69,7 @@ const ALL_VISIBLE = [
   "/admin/anggota",
   "/admin/keluarga",
   "/admin/galeri",
+  "/admin/memori",
   "/admin/hall-of-fame",
   "/admin/artikel",
   "/admin/reuni",
@@ -96,8 +97,8 @@ test("no two menu entries share the same icon glyph", () => {
   const icons = [...html.matchAll(/<span class="w-5 text-center text-xs">([^<]*)<\/span>/g)].map(
     (m) => m[1],
   );
-  // 15 menu entries for super admin; footer "Dashboard"/"Keluar" are not icon spans.
-  assert.equal(icons.length, 15, `expected 15 menu icons, got ${icons.length}`);
+  // 16 menu entries for super admin; footer "Dashboard"/"Keluar" are not icon spans.
+  assert.equal(icons.length, 16, `expected 16 menu icons, got ${icons.length}`);
   const unique = new Set(icons);
   assert.equal(unique.size, icons.length, `duplicate icon glyphs: ${JSON.stringify([...unique])}`);
 });
