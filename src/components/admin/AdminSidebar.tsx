@@ -11,6 +11,7 @@ const menu = [
   { href: "/admin/cabang", label: "Keluarga Cabang", icon: "⊟", role: "SUPER_ONLY" as const },
   { href: "/admin/keluarga", label: "Keluarga", icon: "⊕", role: "ALL" as const },
   { href: "/admin/galeri", label: "Galeri", icon: "⊠", role: "ALL" as const },
+  { href: "/admin/memori", label: "Memori", icon: "♪", role: "ALL" as const },
   { href: "/admin/hall-of-fame", label: "Hall of Fame", icon: "★", role: "ALL" as const },
   { href: "/admin/artikel", label: "Artikel", icon: "▤", role: "ALL" as const },
   { href: "/admin/pengurus", label: "Kepengurusan", icon: "⌘", role: "SUPER_ONLY" as const },
