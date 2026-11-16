@@ -301,10 +301,22 @@ export function computeKinship(
       kind: "SIBLING",
       label,
       reverseLabel: reverse,
-      description: `${a.fullName} adalah ${label.toLowerCase()} (saudara kandung) dari ${b.fullName}.`,
+      description: `${a.fullName} adalah ${label.toLowerCase()} dari ${b.fullName}.`,
       reverseDescription: `${b.fullName} adalah ${reverse.toLowerCase()} dari ${a.fullName}.`,
     };
   }
+
+  // Nama leluhur bersama untuk deskripsi (jangan pernah menampilkan id mentah).
+  const lcaPerson = ctx.persons.find((p) => p.id === lca);
+  /** Frasa "berbagi kakek Soemaryono" / "berbagi buyut X"; "" bila tak diketahui. */
+  const sharedAncestorPhrase = (
+    level: number,
+    fallback: string,
+  ): string => {
+    if (!lcaPerson) return ` (berbagi ${fallback})`;
+    const term = getAncestorLabel(level, lcaPerson.gender).toLowerCase();
+    return ` (berbagi ${term} ${lcaPerson.fullName})`;
+  };
 
   // Sepupu (generasi sama, berbagi kakek/nenek/dst.).
   if (distA === distB) {
@@ -317,7 +329,7 @@ export function computeKinship(
       kind: "COUSIN",
       label,
       reverseLabel: label,
-      description: `${a.fullName} adalah ${label.toLowerCase()} dari ${b.fullName} (berbagi leluhur, ${distA} generasi di bawah).`,
+      description: `${a.fullName} adalah ${label.toLowerCase()} dari ${b.fullName}${sharedAncestorPhrase(distA, `${distA} generasi ke atas`)}.`,
       reverseDescription: `${b.fullName} adalah ${label.toLowerCase()} dari ${a.fullName}.`,
     };
   }
@@ -372,7 +384,7 @@ export function computeKinship(
     kind: "COUSIN_REMOVED",
     label,
     reverseLabel: label,
-    description: `${a.fullName} dan ${b.fullName} adalah ${label.toLowerCase()} (berbagi leluhur ${lca}).`,
+    description: `${a.fullName} dan ${b.fullName} adalah ${label.toLowerCase()}${sharedAncestorPhrase(minDist, `${minDist} generasi ke atas`)}.`,
     reverseDescription: `${a.fullName} dan ${b.fullName} adalah ${label.toLowerCase()}.`,
   };
 }
