@@ -665,6 +665,9 @@ model ImportBatch {
   successRows Int          @default(0)
   errorRows   Int          @default(0)
   reportJson  Json?
+
+  // Diisi saat batch impor (mis. GEDCOM) dibatalkan via rollback commit.
+  rolledBackAt DateTime?
   createdAt   DateTime     @default(now())
 
   createdById String

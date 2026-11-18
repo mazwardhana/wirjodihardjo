@@ -113,6 +113,15 @@ export type GedcomBatchPayload = {
     childEdgesCreated: number;
     partnerEdgesCreated: number;
   };
+
+  /** Snapshot rencana per orang (sebelum commit) — dipakai ringkasan & audit. */
+  planPersons?: GedcomPlanPerson[];
+  /** ID Person yang benar-benar dibuat saat commit (dipakai rollback). */
+  createdPersonIds?: string[];
+  /** ID PersonChild yang dibuat saat commit (dipakai rollback). */
+  createdChildEdgeIds?: string[];
+  /** ID PersonPartner yang dibuat saat commit (dipakai rollback). */
+  createdPartnerEdgeIds?: string[];
 };
 
 /** Satu baris pratinjau tampilan. */

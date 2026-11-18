@@ -46,6 +46,21 @@ type GedcomCommitTx = {
   };
 };
 
+/** Snapshot ID hasil commit, disimpan di payload batch untuk kebutuhan rollback. */
+type GedcomCommitSnapshot = {
+  createdPersonIds: string[];
+  createdChildEdgeIds: string[];
+  createdPartnerEdgeIds: string[];
+};
+
+function snapshotFromPayload(payload: GedcomBatchPayload): GedcomCommitSnapshot {
+  return {
+    createdPersonIds: payload.createdPersonIds ?? [],
+    createdChildEdgeIds: payload.createdChildEdgeIds ?? [],
+    createdPartnerEdgeIds: payload.createdPartnerEdgeIds ?? [],
+  };
+}
+
 function parentRoleFor(gender: string | undefined): ParentRole {
   if (gender === "MALE") return "FATHER";
   if (gender === "FEMALE") return "MOTHER";
@@ -98,6 +113,14 @@ export async function commitGedcomImport(
           partnerEdgesCreated: 0,
         };
 
+        // Snapshot ID yang dibuat dalam commit ini. Dihitung dari payload yang
+        // sudah ada (kalau ada) supaya rollback berikutnya idempoten — commit
+        // yang diulang setelah gagal sebagian tidak menambah ID dua kali.
+        const snapshot = snapshotFromPayload(payload);
+        const createdPersonIds = new Set(snapshot.createdPersonIds);
+        const createdChildEdgeIds = new Set(snapshot.createdChildEdgeIds);
+        const createdPartnerEdgeIds = new Set(snapshot.createdPartnerEdgeIds);
+
         // 1) Peta gedcomId → person.id. Orang yang sudah ada di DB tetap dipakai
         //    (untuk relasi); hanya yang belum ada yang dibuat baru.
         const gedcomToPersonId = new Map<string, string>();
@@ -130,6 +153,7 @@ export async function commitGedcomImport(
               },
             });
             gedcomToPersonId.set(person.gedcomId, created.id);
+            createdPersonIds.add(created.id);
             counts.personsCreated++;
           } catch (error) {
             if (
@@ -168,13 +192,14 @@ export async function commitGedcomImport(
               const childId = gedcomToPersonId.get(childRef);
               if (!childId || childId === parentId) continue;
               try {
-                await gedTx.personChild.create({
+                const childEdge = await gedTx.personChild.create({
                   data: {
                     parentId,
                     childId,
                     parentRole: parentRole as ParentRole,
                   },
                 });
+                createdChildEdgeIds.add(childEdge.id);
                 counts.childEdgesCreated++;
               } catch (error) {
                 if (
@@ -199,7 +224,7 @@ export async function commitGedcomImport(
           if (!partnerAId || !partnerBId || partnerAId === partnerBId) continue;
 
           try {
-            await gedTx.personPartner.create({
+            const partnerEdge = await gedTx.personPartner.create({
               data: {
                 partnerAId,
                 partnerBId,
@@ -209,6 +234,7 @@ export async function commitGedcomImport(
                 notes: family.notes || undefined,
               },
             });
+            createdPartnerEdgeIds.add(partnerEdge.id);
             counts.partnerEdgesCreated++;
           } catch (error) {
             if (
@@ -229,7 +255,14 @@ export async function commitGedcomImport(
             status: "COMMITTED",
             successRows: counts.personsCreated,
             errorRows: 0,
-            reportJson: { ...payload, counts },
+            reportJson: {
+              ...payload,
+              counts,
+              planPersons: payload.planPersons,
+              createdPersonIds: Array.from(createdPersonIds),
+              createdChildEdgeIds: Array.from(createdChildEdgeIds),
+              createdPartnerEdgeIds: Array.from(createdPartnerEdgeIds),
+            },
           },
         });
 

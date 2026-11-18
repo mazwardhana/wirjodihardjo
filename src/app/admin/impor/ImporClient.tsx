@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 import { MAX_IMPORT_BYTES } from "@/lib/import/types";
+import { GedcomTab } from "@/components/admin/GedcomTab";
 
 type BatchSummary = {
   id: string;
@@ -27,6 +28,7 @@ export function ImporClient({ recentBatches }: { recentBatches: BatchSummary[] }
   const [filename, setFilename] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [tab, setTab] = useState<"excel" | "gedcom">("excel");
 
   async function upload(files: FileList | null) {
     if (inFlight.current || !files?.length) return;
@@ -72,6 +74,40 @@ export function ImporClient({ recentBatches }: { recentBatches: BatchSummary[] }
 
   return (
     <div className="min-w-0 space-y-8 text-forest [overflow-wrap:anywhere]">
+      <div
+        role="tablist"
+        aria-label="Jenis impor"
+        className="flex gap-6 border-b border-wood/20"
+      >
+        <button
+          type="button"
+          role="tab"
+          id="tab-excel"
+          aria-selected={tab === "excel"}
+          aria-controls="panel-excel"
+          onClick={() => setTab("excel")}
+          className={`min-h-11 border-b-2 px-1 pb-3 text-sm font-semibold transition-colors ${tab === "excel" ? "border-gold text-forest" : "border-transparent text-muted hover:text-forest"}`}
+        >
+          Excel / CSV
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-gedcom"
+          aria-selected={tab === "gedcom"}
+          aria-controls="panel-gedcom"
+          onClick={() => setTab("gedcom")}
+          className={`min-h-11 border-b-2 px-1 pb-3 text-sm font-semibold transition-colors ${tab === "gedcom" ? "border-gold text-forest" : "border-transparent text-muted hover:text-forest"}`}
+        >
+          GEDCOM
+        </button>
+      </div>
+
+      <div role="tabpanel" id="panel-gedcom" aria-labelledby="tab-gedcom" hidden={tab !== "gedcom"}>
+        <GedcomTab />
+      </div>
+
+      <div role="tabpanel" id="panel-excel" aria-labelledby="tab-excel" hidden={tab !== "excel"}>
       <section className="rounded-lg border border-wood/20 bg-cream p-4 sm:p-6" aria-labelledby="upload-title">
         <h2 id="upload-title" className="text-lg font-semibold">Unggah file impor</h2>
         <a href="/api/admin/impor/template" download className={`my-4 inline-flex min-h-11 items-center rounded-md border border-wood px-4 py-2 text-sm font-semibold hover:bg-parchment ${focus}`}>
@@ -142,6 +178,7 @@ export function ImporClient({ recentBatches }: { recentBatches: BatchSummary[] }
           </ul>
         )}
       </section>
+      </div>
     </div>
   );
 }
