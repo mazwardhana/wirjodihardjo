@@ -100,6 +100,10 @@ export async function POST(request: Request) {
       childEdgesCreated: plan.childEdgesCreated,
       partnerEdgesCreated: plan.partnerEdgesCreated,
     },
+    // Snapshot rencana disimpan agar halaman pratinjau bisa menampilkan
+    // ringkasan analisis tanpa menghitung ulang (dan agar rollback punya acuan
+    // orang mana yang direncanakan dibuat).
+    planPersons: plan.persons,
   };
 
   const batch = await prisma.importBatch.create({
