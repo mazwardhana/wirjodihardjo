@@ -5,6 +5,7 @@ import { formatDateTime } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FAMILY_EVENT_TYPE_LABEL } from "@/lib/calendar";
 import { EventCreateModal } from "@/components/admin/EventModals";
+import { RSVP_STATUS_LABEL } from "@/lib/rsvp";
 import { EventRowActions } from "@/components/admin/EventRowActions";
 import type { FamilyEventType } from "@prisma/client";
 
@@ -15,6 +16,40 @@ const typeStyle: Record<FamilyEventType, string> = {
   HALAL_BIHALAL: "bg-emerald-100 text-emerald-800",
   LAINNYA: "bg-ink/10 text-ink",
 };
+
+type RsvpRow = {
+  status: keyof typeof RSVP_STATUS_LABEL;
+  user: { person: { fullName: string } | null } | null;
+};
+
+function rsvpTotal(rsvps: RsvpRow[]): number {
+  return rsvps.length;
+}
+
+/** Rekap RSVP per status (GOING/MAYBE/NOT_GOING) beserta nama peserta. */
+function RsvpRekap({ rsvps }: { rsvps: RsvpRow[] }) {
+  if (rsvps.length === 0) {
+    return <p className="mt-2 text-xs text-muted">Belum ada RSVP.</p>;
+  }
+  const perStatus = (["GOING", "MAYBE", "NOT_GOING"] as const).map((status) => {
+    const rows = rsvps.filter((r) => r.status === status);
+    return { status, count: rows.length, names: rows.map((r) => r.user?.person?.fullName).filter(Boolean) as string[] };
+  });
+  return (
+    <dl className="mt-3 grid gap-x-6 gap-y-2 border-t border-wood/15 pt-3 text-xs sm:grid-cols-3">
+      {perStatus.map(({ status, count, names }) => (
+        <div key={status}>
+          <dt className="font-medium text-forest">
+            {RSVP_STATUS_LABEL[status]}: <span className="tabular-nums">{count}</span>
+          </dt>
+          <dd className="mt-0.5 text-muted">
+            {names.length > 0 ? names.join(", ") : "—"}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 export default async function AdminKalenderPage() {
   const session = await auth();
@@ -29,7 +64,12 @@ export default async function AdminKalenderPage() {
 
   const events = await prisma.familyEvent.findMany({
     orderBy: { startsAt: "desc" },
-    include: { _count: { select: { rsvps: true } } },
+    include: {
+      rsvps: {
+        orderBy: { createdAt: "desc" },
+        select: { status: true, user: { select: { person: { select: { fullName: true } } } } },
+      },
+    },
   });
 
   return (
@@ -81,8 +121,9 @@ export default async function AdminKalenderPage() {
                   <p className="mt-0.5 text-xs text-muted">
                     {formatDateTime(event.startsAt)}
                     {event.locationName ? ` · ${event.locationName}` : ""}
-                    {` · ${event._count.rsvps} RSVP`}
+                    {` · ${rsvpTotal(event.rsvps)} RSVP`}
                   </p>
+                  <RsvpRekap rsvps={event.rsvps} />
                 </div>
                 <EventRowActions
                   event={{

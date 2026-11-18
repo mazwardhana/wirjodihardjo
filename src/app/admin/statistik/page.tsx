@@ -7,6 +7,10 @@ import { DEFAULT_REGISTRATION_PASSWORD } from "@/lib/registrasi";
 import { getStatistics, getRegistrationCredentials } from "@/lib/statistik";
 import { asStatisticsDb, type StatisticsDb, type CredentialDb } from "@/lib/statistik";
 import { EmptyState } from "@/components/ui/States";
+import { angka } from "@/components/statistik/shared";
+import { RingkasanAngka } from "@/components/statistik/ringkasan";
+import { SebaranCabangAdmin } from "@/components/statistik/sebaran";
+import { RingkasanReuniAdmin } from "@/components/statistik/reuni";
 import { FilterBar } from "@/components/admin/FilterBar";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +23,6 @@ export const dynamic = "force-dynamic";
 const CREDENTIAL_LIMIT = 200;
 
 const db = asStatisticsDb<StatisticsDb & CredentialDb>(prisma);
-
-function angka(n: number): string {
-  return n.toLocaleString("id-ID");
-}
 
 /**
  * Satu sel angka untuk daftar ringkasan. Baris pemisah memakai border asli,
@@ -86,10 +86,6 @@ export default async function AdminStatistikPage({
     : credentials;
   const terpotong = credentials.length >= CREDENTIAL_LIMIT;
 
-  const totalCabang = branches.reduce((sum, b) => sum + b.total, 0);
-  const hidupCabang = branches.reduce((sum, b) => sum + b.living, 0);
-  const wafatCabang = branches.reduce((sum, b) => sum + b.deceased, 0);
-
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <header className="border-b border-wood/20 pb-6">
@@ -124,20 +120,7 @@ export default async function AdminStatistikPage({
             </p>
           </div>
 
-          <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:col-span-8 lg:grid-cols-3">
-            <Angka label="Masih hidup" value={angka(family.living)} />
-            <Angka label="Sudah wafat" value={angka(family.deceased)} />
-            <Angka label="Laki-laki" value={angka(family.male)} />
-            <Angka label="Perempuan" value={angka(family.female)} />
-            <Angka
-              label="Belum ditugaskan ke keluarga besar"
-              value={angka(family.unassigned)}
-            />
-            <Angka
-              label="Jumlah keluarga besar"
-              value={angka(branches.length)}
-            />
-          </dl>
+          <RingkasanAngka family={family} />
         </div>
 
         <div className="mt-8 border-t border-wood/15 pt-6">
@@ -183,79 +166,7 @@ export default async function AdminStatistikPage({
           terhitung di tabel ini, hanya di Ringkasan.
         </p>
 
-        {branches.length === 0 ? (
-          <div className="mt-4">
-            <EmptyState
-              title="Belum ada keluarga besar"
-              description="Buat cabang di menu Cabang supaya sebaran anggota bisa dihitung per keluarga besar."
-            />
-          </div>
-        ) : (
-          <div className="mt-4 overflow-x-auto rounded-lg border border-wood/15">
-            <table className="w-full min-w-[34rem] text-left text-sm">
-              <caption className="sr-only">
-                Sebaran anggota per keluarga besar: jumlah total, yang masih
-                hidup, dan yang sudah wafat.
-              </caption>
-              <thead>
-                <tr className="border-b border-wood/15 bg-parchment/40 text-xs font-medium uppercase tracking-wide text-muted">
-                  <th scope="col" className="px-4 py-3">
-                    Keluarga besar
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right">
-                    Total
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right">
-                    Hidup
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right">
-                    Wafat
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {branches.map((branch) => (
-                  <tr key={branch.id} className="border-t border-wood/15">
-                    <th
-                      scope="row"
-                      className="px-4 py-3 text-left font-semibold text-forest"
-                    >
-                      <span className="block break-words">{branch.name}</span>
-                      <span className="mt-0.5 block text-xs font-normal text-muted">
-                        Cabang {branch.branchNumber}
-                      </span>
-                    </th>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {angka(branch.total)}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-muted">
-                      {angka(branch.living)}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-muted">
-                      {angka(branch.deceased)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-wood/25 font-semibold text-forest">
-                  <th scope="row" className="px-4 py-3 text-left">
-                    Seluruh keluarga besar
-                  </th>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {angka(totalCabang)}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {angka(hidupCabang)}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {angka(wafatCabang)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
+        <SebaranCabangAdmin branches={branches} />
       </section>
 
       <section aria-labelledby="judul-reuni" className="mt-12">
@@ -266,65 +177,7 @@ export default async function AdminStatistikPage({
           Reuni 2027
         </h2>
 
-        {!reunion.title ? (
-          <div className="mt-4">
-            <EmptyState
-              title="Belum ada acara reuni"
-              description="Buat acara reuni di menu Reuni agar jumlah peserta bisa dihitung di sini."
-            />
-          </div>
-        ) : (
-          <div className="mt-4 grid gap-6 rounded-lg border border-wood/15 bg-parchment/30 p-5 lg:grid-cols-12">
-            <div className="lg:col-span-5">
-              <p className="font-display text-lg font-semibold text-forest">
-                {reunion.title}
-              </p>
-              <p className="mt-1 text-sm text-muted">
-                {reunion.startAt
-                  ? formatDateTimeOrDate(reunion.startAt)
-                  : "Tanggal & waktu menyusul"}
-              </p>
-              <p className="text-sm text-muted">
-                {reunion.locationName
-                  ? `Lokasi: ${reunion.locationName}`
-                  : "Lokasi menyusul"}
-              </p>
-              <p className="mt-3">
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    reunion.registrationOpen
-                      ? "bg-forest/10 text-forest"
-                      : "bg-muted/10 text-muted"
-                  }`}
-                >
-                  {reunion.registrationOpen
-                    ? "Pendaftaran dibuka"
-                    : "Pendaftaran ditutup"}
-                </span>
-              </p>
-            </div>
-
-            <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:col-span-7">
-              <Angka
-                label="Total peserta"
-                value={angka(reunion.attendeeCount)}
-                hint="terdaftar + waitlist"
-              />
-              <Angka
-                label="Terkonfirmasi"
-                value={angka(reunion.confirmedPeople)}
-              />
-              <Angka
-                label="Waitlist"
-                value={angka(reunion.waitlistPeople)}
-              />
-              <Angka
-                label="Dibatalkan"
-                value={angka(reunion.cancelledPeople)}
-              />
-            </dl>
-          </div>
-        )}
+        <RingkasanReuniAdmin reunion={reunion} />
       </section>
 
       <section aria-labelledby="judul-kredensial" className="mt-12">

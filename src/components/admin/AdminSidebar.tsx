@@ -8,7 +8,7 @@ const menu = [
   { href: "/admin", label: "Overview", icon: "◉", role: "ALL" as const },
   { href: "/admin/pengajuan", label: "Pengajuan", icon: "⊞", role: "ALL" as const },
   { href: "/admin/anggota", label: "Data Anggota", icon: "⊡", role: "ALL" as const },
-  { href: "/admin/cabang", label: "Keluarga Cabang", icon: "⊟", role: "SUPER_ONLY" as const },
+  { href: "/admin/keluarga/cabang", label: "Keluarga Cabang", icon: "⊟", role: "SUPER_ONLY" as const },
   { href: "/admin/keluarga", label: "Keluarga", icon: "⊕", role: "ALL" as const },
   { href: "/admin/galeri", label: "Galeri", icon: "⊠", role: "ALL" as const },
   { href: "/admin/memori", label: "Memori", icon: "♪", role: "ALL" as const },
@@ -29,14 +29,14 @@ const CABANG_SEGMENT = "/admin/keluarga/cabang";
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/admin") return pathname === "/admin";
-  // "Keluarga Cabang" nav entry lights on both the legacy /admin/cabang route (which now
-  // redirects to the unified segment) and the unified /admin/keluarga/cabang segment.
-  if (href === CABANG_HREF) {
+  // "Keluarga Cabang" nav entry lights on the unified segment and on the legacy
+  // /admin/cabang route that still redirects to it for backward compatibility.
+  if (href === CABANG_SEGMENT) {
     return (
-      pathname === CABANG_HREF ||
-      pathname.startsWith(`${CABANG_HREF}/`) ||
       pathname === CABANG_SEGMENT ||
-      pathname.startsWith(`${CABANG_SEGMENT}/`)
+      pathname.startsWith(`${CABANG_SEGMENT}/`) ||
+      pathname === CABANG_HREF ||
+      pathname.startsWith(`${CABANG_HREF}/`)
     );
   }
   // "Keluarga" stays exclusive: do not light when the unified cabang segment
