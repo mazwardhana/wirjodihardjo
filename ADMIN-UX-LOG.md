@@ -1,7 +1,7 @@
 # Admin UX Rework — Progress Log
 
 **Task:** Fix blocking bug + modernize admin UX (modal forms, instant filter/search, mobile bottom nav)
-**Branch:** `develop`
+**Branch:** `main` (kode rilis). `develop` kini TERSINKRON penuh dengan `main` sejak 27 Okt 2026 — 162 commit yang sempat tertinggal sudah semuanya ada di `main` sejak 14 Okt 2026. Commit koreksi audit (W1–W4) dibuat di branch kerja `fix/w1-w4-mandatory-audit-202610272235`, belum di-push, belum di-merge. Rantai branch kerja lanjutan: `fix/sebaikan-s1-s6-b` (temuan S1–S6, worktree terpisah) dan `fix/opsional-o1-o8-s11` (temuan opsional O1–O8, dibangun di atas branch W1–W4). Semua belum di-push dan belum di-merge ke `main`.
 **Mulai:** 27 September 2026
 **Base commit:** `6605b57 docs: mark develop progress final state`
 
@@ -54,17 +54,17 @@ Tidak ada modul kosong. Semua fungsional:
 
 ## Checklist Verifikasi
 
-- [ ] `npx tsc --noEmit` exit 0
+- [x] `npx tsc --noEmit` exit 0
 - [ ] `npx eslint` scope bersih
 - [ ] `npm run build` sukses
-- [ ] `/admin/artikel` tidak crash (error 516787906 hilang)
-- [ ] `/admin/pengajuan` tidak crash
-- [ ] `/admin/anggota` tidak crash
-- [ ] Modal keyboard (Enter/Space buka, Escape tutup, focus kembali)
-- [ ] Filter instan update URL + data
-- [ ] Bottom nav <640px, target >=44px
+- [x] `/admin/artikel` tidak crash (error 516787906 hilang)
+- [x] `/admin/pengajuan` tidak crash
+- [x] `/admin/anggota` tidak crash
+- [x] Modal keyboard (Enter/Space buka, Escape tutup, focus kembali)
+- [x] Filter instan update URL + data
+- [x] Bottom nav <640px, target >=44px
 - [ ] Kontras WCAG AA
-- [ ] Commit + rebuild container + smoke test produksi
+- [x] Commit + rebuild container + smoke test produksi
 
 ---
 
@@ -83,6 +83,24 @@ Tidak ada modul kosong. Semua fungsional:
   - Important: hapus filter status ganda di pengajuan (pakai tabs); tabs `<a>` jadi `<Link>`; `FilterBar` reset pakai `usePathname`; `router.push` jadi `router.replace` + guard loop debounce; `KategoriModal` `router.refresh()` saat tutup; fallback Batal form ke list route.
   - Minor: Dialog body scroll lock.
 - Task 4 (galeri/hall-of-fame/audit-log) menghasilkan 0 perubahan; ditugaskan ulang ke agent baru.
+
+### 27 Okt 2026 (koreksi audit)
+
+- W1: sinkronisasi branch diklarifikasi (`main` = kode rilis, `develop` tersinkron).
+- W2: input auth font 16px. W3: kontras WCAG AA (text-muted/60 di OrgChart).
+- W4: audit import authorization + Gap 1 fix (isActive di requireAdminScope/getActorScope, 48 route).
+
+### 28 Okt 2026 (temuan opsional O1–O8)
+
+- Branch `fix/opsional-o1-o8-s11` (dari atas branch W1–W4), belum di-push.
+- O1 `ee73968`: lonceng notifikasi di bottom nav member (item ke-6, hanya authenticated, grid-cols-6).
+- O2 `92d33d9`: CTA "Ajukan Pengisian" di `/pengurus` saat data kepengurusan kosong.
+- O3 `61b80dd`: `AnggotaCreateModal` di list admin (pola create modal konsisten); `AnggotaForm` dukung `onSuccess`/`onCancel` opsional; rute `/admin/anggota/tambah` tetap ada.
+- O4 `19036f2`: ADR-011 — `/reuni` (jadwal publik) vs `/dashboard/reuni` (pendaftaran milik anggota) bukan duplikat; dipertahankan, tanpa redirect.
+- O5 `951f709`: hapus three, @react-three/drei, @react-three/fiber, @types/three (0 pemakaian).
+- O6 `590b0d6`: ADR-010 upload lokal vs Uploadthing (lokal dipilih, alasan + trigger migrasi).
+- O7: direktori `.worktrees/` kosong (0 file) dihapus via rmdir; bukan worktree git aktif.
+- O8: log ini disinkronkan dengan rantai branch kerja (bagian Branch di atas).
 
 ---
 
@@ -127,3 +145,4 @@ Deployment: aplikasi sudah diganti dengan image `sha256:d1dd89feb33b`.
 - Smoke test produksi: 9/9 halaman admin HTTP 200.
 - Browser regression test produksi: 19/19 PASS.
 - Tidak ada operasi git destruktif. Commit hanya dari parent.
+- 28 Okt 2026: modal create anggota (O3) kini juga termasuk pola create modal; daftar halaman yang sudah modal: cabang, pengguna, reuni, galeri, Hall of Fame, anggota (O3). Artikel tetap halaman tersendiri sesuai keputusan user.

@@ -175,4 +175,50 @@ describe("/pengurus placeholder", () => {
     assert.equal(chart!.props.data!.structure!.name, "Kepengurusan 2026");
     assert.equal(chart!.props.data!.levels[0].positions[0].name, "Ketua");
   });
+
+  test("O2: tanpa struktur aktif, halaman menampilkan ajakan pengisian", async () => {
+    const rendered = await loadPage(fixture())();
+    const stack: unknown[] = [rendered];
+    const hrefs: string[] = [];
+    while (stack.length) {
+      const node = stack.pop() as Rendered | undefined;
+      if (!node || typeof node !== "object") continue;
+      const props = (node as { props?: Record<string, unknown> }).props ?? {};
+      if (typeof props.href === "string") hrefs.push(props.href);
+      const children = props.children;
+      if (Array.isArray(children)) stack.push(...children);
+      else if (children && typeof children === "object") stack.push(children);
+    }
+    assert.ok(
+      hrefs.includes("/admin/pengurus"),
+      "O2: ajakan pengisian harus mengarah ke /admin/pengurus",
+    );
+  });
+
+  test("O2: dengan struktur aktif, ajakan pengisian tidak muncul", async () => {
+    const state = fixture();
+    state.structure = {
+      name: "Kepengurusan 2026",
+      description: "Susunan resmi",
+      positions: [
+        { id: "pos-1", name: "Ketua", description: null, level: 0, assignments: [] },
+      ],
+    };
+    const rendered = await loadPage(state)();
+    const stack: unknown[] = [rendered];
+    const hrefs: string[] = [];
+    while (stack.length) {
+      const node = stack.pop() as Rendered | undefined;
+      if (!node || typeof node !== "object") continue;
+      const props = (node as { props?: Record<string, unknown> }).props ?? {};
+      if (typeof props.href === "string") hrefs.push(props.href);
+      const children = props.children;
+      if (Array.isArray(children)) stack.push(...children);
+      else if (children && typeof children === "object") stack.push(children);
+    }
+    assert.ok(
+      !hrefs.includes("/admin/pengurus"),
+      "O2: ajakan pengisian tidak boleh muncul saat struktur sudah aktif",
+    );
+  });
 });

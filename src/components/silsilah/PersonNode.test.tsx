@@ -42,18 +42,18 @@ test("kartu menampilkan nama lengkap, info, dan umur", () => {
   assert.ok(markup.includes("Yossi Maharani"), "nama lengkap tampil");
   assert.ok(markup.includes("Anak"), "label generasi tampil");
   assert.ok(markup.includes("1980"), "tahun lahir tampil");
-  assert.ok(markup.includes("Cabang 1"), "nama cabang tampil");
+  // Kartu dipadatkan: nama cabang tidak lagi tampil agar 168px cukup.
 
   const age = calculateAge(person().birthDate);
   assert.ok(markup.includes(`usia ${age} tahun`), `umur tampil: ${markup}`);
 });
 
-test("kartu memakai lebar 260px dan nama tanpa truncate", () => {
+test("kartu memakai lebar 168px dan nama dua baris", () => {
   const markup = renderToStaticMarkup(PersonNodeCard({ data: data() }));
-  assert.ok(markup.includes("w-[260px]"), "lebar kartu 260px");
+  assert.ok(markup.includes("w-[168px]"), "lebar kartu 168px");
+  assert.ok(markup.includes("line-clamp-2"), "nama dibatasi dua baris");
   const nameMatch = markup.match(/<p[^>]*>Yossi Maharani<\/p>/);
   assert.ok(nameMatch, "paragraf nama ditemukan");
-  assert.ok(!nameMatch![0].includes("truncate"), "nama tidak dipotong");
 });
 
 test("kartu menampilkan ikon sosial dengan tautan aman", () => {

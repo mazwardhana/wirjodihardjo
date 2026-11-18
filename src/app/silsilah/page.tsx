@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { getGenerationLabel } from "@/lib/generations";
 import { searchPersons, getFamilyTree, getBranches, getGenerationBreakdown } from "@/lib/data";
+import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FamilyTreeCanvas } from "@/components/silsilah/FamilyTreeCanvas";
 import { FilterPanel } from "@/components/silsilah/FilterPanel";
+import { ContextualHelp } from "@/components/ui/ContextualHelp";
+import { FamilyPdfDownload } from "@/components/silsilah/FamilyPdfDownload";
 
 // Data silsilah dibaca langsung dari basis data saat diminta.
 export const dynamic = "force-dynamic";
@@ -38,11 +41,18 @@ export default async function SilsilahPage({
     isDeceased: deceased !== undefined ? deceased === "true" : undefined,
   };
 
-  const [results, treeData, branches, genBreakdown] = await Promise.all([
+  const [results, treeData, branches, genBreakdown, sessionPersonId] = await Promise.all([
     q ? searchPersons(q) : null,
     getFamilyTree(filters),
     getBranches(),
     getGenerationBreakdown(),
+    // personId milik pengguna yang login, dipakai tombol "Fokus ke saya".
+    // Dibaca terpisah agar halaman tetap utuh bila tautan belum ada.
+    session?.user?.id
+      ? prisma.user
+          .findUnique({ where: { id: session.user.id }, select: { personId: true } })
+          .then((row) => row?.personId ?? null)
+      : null,
   ]);
 
   return (
@@ -57,12 +67,20 @@ export default async function SilsilahPage({
           </h1>
           <p className="mt-2 max-w-xl text-muted">
             Cari anggota keluarga dan jelajahi pohon silsilah interaktif.
-            Klik simpul untuk detail, klik ganda untuk melipat keluarga cabang.
-            Data kontak hanya untuk anggota yang login.
+            Ketuk kartu untuk detail, ketuk ikon fokus untuk memusatkan, ketuk
+            tombol lipat untuk menyembunyikan cabang. Data kontak hanya untuk
+            anggota yang login.
           </p>
         </div>
 
-        {/* Filter — client component */}
+        <ContextualHelp title="Cara menjelajahi silsilah">
+          Cari nama atau gunakan filter keluarga cabang dan generasi untuk
+          mempersempit pohon. Ketuk kartu anggota untuk membuka profilnya, dan
+          gunakan tombol unduh untuk menyimpan ringkasan keluarga sebagai PDF.
+        </ContextualHelp>
+        {session?.user && <FamilyPdfDownload />}
+
+      {/* Filter — client component */}
         <FilterPanel
           branches={branches.map((b) => ({ id: b.id, name: b.name }))}
           generations={genBreakdown.filter((g): g is { level: number; count: number } => g.level !== null)}
@@ -180,6 +198,7 @@ export default async function SilsilahPage({
         <FamilyTreeCanvas
           data={treeData}
           isAuthenticated={!!session?.user}
+          sessionPersonId={sessionPersonId}
         />
       </section>
     </div>

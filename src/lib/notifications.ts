@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { nextOccurrenceOnOrAfter, FAMILY_EVENT_TYPE_LABEL } from "@/lib/calendar";
 import { submissionTypeLabel } from "@/app/dashboard/pengajuan/labels";
 
 /**
@@ -113,6 +114,40 @@ export async function notifyMediaModeration(params: {
   });
 }
 
+/**
+ * Serahkan token reset password ke admin.
+ *
+ * Repositori belum punya pengiriman email (tidak ada SMTP/nodemailer/resend),
+ * jadi satu-satunya saluran internal yang ada adalah notifikasi admin. Token
+ * hanya muncul di sini dan di audit log; kolom `passwordResetToken` selalu
+ * menyimpan hash-nya. Lihat docs/ADR-012-reset-password.md.
+ */
+export async function notifyAdminsOfPasswordReset(params: {
+  username: string;
+  token: string;
+}) {
+  const admins = await prisma.user.findMany({
+    where: { role: { in: ["SUPER_ADMIN", "BRANCH_ADMIN"] }, isActive: true },
+    select: { id: true },
+  });
+  if (admins.length === 0) return;
+
+  // Satu batch INSERT untuk seluruh admin, mengikuti pola
+  // notifyAdminsOfNewSubmission.
+  await prisma.notification.createMany({
+    data: admins.map((admin) => ({
+      userId: admin.id,
+      type: "PASSWORD_RESET_TOKEN",
+      title: "Permintaan reset password menunggu",
+      body:
+        `Akun ${params.username} meminta reset password. ` +
+        `Token: ${params.token} (berlaku 1 jam). ` +
+        "Serahkan ke pemilik akun lewat saluran yang bisa dipercaya.",
+      link: "/admin/pengguna",
+    })),
+  });
+}
+
 /** Notifikasi ke peserta saat reuni diterbitkan atau berubah status. */
 export async function notifyReunionPublished(reunionId: string) {
   const reunion = await prisma.reunion.findUnique({
@@ -177,6 +212,57 @@ export async function recordUpcomingReunionReminders(userId: string) {
       body: `${new Intl.DateTimeFormat("id-ID", { dateStyle: "full", timeStyle: "short" }).format(
         reg.reunion.startAt,
       )}${reg.reunion.locationName ? ` · ${reg.reunion.locationName}` : ""}`,
+      link,
+    });
+  }
+}
+
+
+/**
+ * Reminder event keluarga (kalender) yang akan datang dalam 7 hari.
+ * Dipanggil dari halaman dashboard & /kalender; idempoten lewat pengecekan
+ * notifikasi serupa (type + link). Reuse `createNotification` / `notificationExists`
+ * yang sudah ada.
+ */
+export async function recordUpcomingFamilyEventReminders(userId: string) {
+  const now = new Date();
+  const dalamTujuhHari = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  const rsvps = await prisma.familyEventRsvp.findMany({
+    where: {
+      userId,
+      status: "GOING",
+      event: { isPublished: true },
+    },
+    select: {
+      id: true,
+      event: {
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          startsAt: true,
+          repeatYearly: true,
+          locationName: true,
+        },
+      },
+    },
+  });
+
+  for (const rsvp of rsvps) {
+    const occ = nextOccurrenceOnOrAfter(rsvp.event.startsAt, rsvp.event.repeatYearly, now);
+    if (occ > dalamTujuhHari) continue;
+
+    const link = `/kalender#event-${rsvp.event.id}`;
+    if (await notificationExists({ userId, type: "EVENT_REMINDER", link })) continue;
+
+    await createNotification({
+      userId,
+      type: "EVENT_REMINDER",
+      title: `${FAMILY_EVENT_TYPE_LABEL[rsvp.event.type]}: ${rsvp.event.title} segera tiba`,
+      body: `${new Intl.DateTimeFormat("id-ID", { dateStyle: "full", timeStyle: "short" }).format(
+        occ,
+      )}${rsvp.event.locationName ? ` · ${rsvp.event.locationName}` : ""}`,
       link,
     });
   }

@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getGenerationLabel } from "@/lib/generations";
 import { FilterBar } from "@/components/admin/FilterBar";
+import { AnggotaCreateModal } from "./AnggotaCreateModal";
 
 export default async function AdminAnggotaPage({
   searchParams,
@@ -58,6 +59,11 @@ export default async function AdminAnggotaPage({
   ]);
 
   const totalPages = Math.ceil(total / perPage);
+  // BRANCH_ADMIN terkunci ke cabangnya sendiri (O3: modal create anggota).
+  const modalBranches = await prisma.branch.findMany({
+    where: isBranchAdmin && branchId ? { id: branchId } : {},
+    orderBy: { name: "asc" },
+  });
 
   return (
     <div className="p-8">
@@ -66,12 +72,11 @@ export default async function AdminAnggotaPage({
           <h1 className="font-display text-2xl font-semibold text-forest">Data Anggota</h1>
           <p className="mt-1 text-sm text-muted">{total} anggota tercatat</p>
         </div>
-        <Link
-          href="/admin/anggota/tambah"
-          className="rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft"
-        >
-          Tambah Anggota
-        </Link>
+        <AnggotaCreateModal
+          branches={modalBranches.map((b) => ({ id: b.id, name: b.name }))}
+          defaultBranchId={isBranchAdmin ? branchId : undefined}
+          lockBranch={isBranchAdmin}
+        />
       </div>
 
       {/* Search & filters */}
@@ -111,12 +116,11 @@ export default async function AdminAnggotaPage({
                   Hapus pencarian
                 </Link>
               ) : (
-                <Link
-                  href="/admin/anggota/tambah"
-                  className="inline-flex min-h-11 items-center rounded-md bg-forest px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-forest-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
-                >
-                  Tambah Anggota
-                </Link>
+                <AnggotaCreateModal
+                  branches={modalBranches.map((b) => ({ id: b.id, name: b.name }))}
+                  defaultBranchId={isBranchAdmin ? branchId : undefined}
+                  lockBranch={isBranchAdmin}
+                />
               )
             }
           />

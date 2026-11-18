@@ -1,0 +1,62 @@
+[
+  {
+    "name": "01-silsilah-desktop",
+    "path": "/silsilah",
+    "status": 200,
+    "url": "http://127.0.0.1:3103/silsilah",
+    "title": "Keluarga Besar Wirjodihardjo",
+    "textLen": 2142,
+    "bytes": 172573,
+    "pageErrors": []
+  },
+  {
+    "name": "02-kalender-desktop",
+    "path": "/kalender",
+    "status": 200,
+    "url": "http://127.0.0.1:3103/kalender?year=2026&month=11",
+    "title": "Keluarga Besar Wirjodihardjo",
+    "textLen": 1020,
+    "bytes": 92734,
+    "pageErrors": []
+  },
+  {
+    "name": "03-admin-kalender-desktop",
+    "path": "/admin/kalender",
+    "status": 200,
+    "url": "http://127.0.0.1:3103/admin/kalender",
+    "title": "Keluarga Besar Wirjodihardjo",
+    "textLen": 943,
+    "bytes": 87875,
+    "pageErrors": []
+  },
+  {
+    "name": "04-admin-memori-desktop",
+    "path": "/admin/memori",
+    "status": 200,
+    "url": "http://127.0.0.1:3103/admin/memori",
+    "title": "Keluarga Besar Wirjodihardjo",
+    "textLen": 914,
+    "bytes": 84012,
+    "pageErrors": []
+  },
+  {
+    "name": "05-profil-timeline-desktop",
+    "path": "/profil/753238f9-4bd8-426a-9c11-5e5b3121d689",
+    "status": 200,
+    "url": "http://127.0.0.1:3103/profil/753238f9-4bd8-426a-9c11-5e5b3121d689",
+    "title": "Soedjinah · Keluarga Besar Wirjodihardjo",
+    "textLen": 1479,
+    "bytes": 151633,
+    "pageErrors": []
+  },
+  {
+    "name": "06-kalender-mobile",
+    "path": "/kalender",
+    "status": 200,
+    "url": "http://127.0.0.1:3103/kalender?year=2026&month=11",
+    "title": "Keluarga Besar Wirjodihardjo",
+    "textLen": 973,
+    "bytes": 79472,
+    "pageErrors": []
+  }
+]

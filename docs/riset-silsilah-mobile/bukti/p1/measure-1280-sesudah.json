@@ -1,0 +1,11 @@
+{
+  "cardWidth": 202,
+  "cardHeight": 122,
+  "viewportTransform": "matrix(1.2, 0, 0, 1.2, -2925.8, -112.2)",
+  "zoom": 1.2,
+  "nodeCount": 10,
+  "canvasBox": {
+    "w": 1216,
+    "h": 560
+  }
+}

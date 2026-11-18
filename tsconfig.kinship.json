@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/lib/kinship.ts",
+    "src/lib/generations.ts",
+    "src/components/silsilah/KinshipCalculator.tsx",
+    "src/components/silsilah/FamilyTreeCanvas.tsx",
+    "src/components/silsilah/PedigreeCanvas.tsx",
+    "src/components/silsilah/FanCanvas.tsx",
+    "src/components/silsilah/fanLayout.ts",
+    "src/components/silsilah/pedigreeLayout.ts",
+    "src/components/silsilah/treeLayout.ts",
+    "src/components/silsilah/PersonNode.tsx",
+    "src/components/silsilah/FamilyEdges.tsx",
+    "src/components/silsilah/DetailPanel.tsx",
+    "src/lib/data.ts",
+    "src/components/ui/Dialog.tsx",
+    "src/components/ui/Avatar.tsx"
+  ],
+  "exclude": ["node_modules"]
+}

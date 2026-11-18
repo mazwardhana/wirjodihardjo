@@ -6,7 +6,9 @@ import { Avatar } from "@/components/ui/Avatar";
 import { getGenerationLabel } from "@/lib/generations";
 import { getImmediateFamily, getClassifiedSiblings } from "@/lib/genealogy";
 import { recordUpcomingReunionReminders } from "@/lib/notifications";
+import { recordUpcomingFamilyEventReminders } from "@/lib/notifications";
 import { DataKeluargaSaya } from "./_components/DataKeluargaSaya";
+import { ContextualHelp } from "@/components/ui/ContextualHelp";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -48,6 +50,7 @@ export default async function DashboardPage() {
       user.person ? getImmediateFamily(user.person.id) : Promise.resolve(null),
       user.person ? getClassifiedSiblings(user.person.id) : Promise.resolve([]),
       recordUpcomingReunionReminders(user.id).catch(() => undefined),
+      recordUpcomingFamilyEventReminders(user.id).catch(() => undefined),
     ]);
 
   return (
@@ -75,6 +78,12 @@ export default async function DashboardPage() {
           </p>
         </div>
       </div>
+
+      <ContextualHelp title="Panduan dashboard">
+        Kartu ringkasan menampilkan jumlah pengajuan yang menunggu, reuni yang
+        diikuti, dan tautan ke profil. Bagian data keluarga di bawah menampilkan
+        orang tua, pasangan, anak, dan saudara yang sudah tercatat.
+      </ContextualHelp>
 
       {notificationCount > 0 && (
         <div className="mt-6 rounded-md border border-gold/40 bg-gold/10 p-4">

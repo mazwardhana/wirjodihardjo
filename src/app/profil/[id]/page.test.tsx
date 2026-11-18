@@ -12,7 +12,14 @@ const require = createRequire(filename);
 
 async function renderPage(role?: string, visible = true) {
   const privateQueries: Array<{ select: Record<string, boolean> }> = [];
-  const person = { id: "p1", fullName: "Test profile", nickname: null, gender: "MALE", birthDate: null, occupation: null, status: null, bio: null, photoUrl: null, generationLevel: null, isDeceased: false, branch: null, education: [], socialLinks: [] };
+  const person = {
+    id: "p1", fullName: "Test profile", nickname: null, gender: "MALE", birthDate: null, birthPlace: null, deathDate: null, deathPlace: null, occupation: null, status: null, bio: null, photoUrl: null, generationLevel: null, isDeceased: false, branch: null, socialLinks: [],
+    education: [{ id: "edu-1", institution: "Universitas Gadjah Mada", degree: "S1", fieldOfStudy: "Kedokteran", startYear: 1980, endYear: 1986 }],
+    lifeEvents: [
+      { id: "le-1", kind: "CUSTOM", title: "Catatan pribadi", description: "Rincian privat", locationName: null, latitude: null, longitude: null, date: null, datePrecision: null },
+      { id: "le-2", kind: "CUSTOM", title: "Haji", description: null, locationName: "Makkah", latitude: 21.4225, longitude: 39.8262, date: null, datePrecision: null },
+    ],
+  };
   let cardProps: Record<string, unknown> | null = null;
   const prisma = {
     user: { findUnique: async () => ({ personId: "viewer", role }) },
@@ -21,6 +28,8 @@ async function renderPage(role?: string, visible = true) {
       privateQueries.push(args);
       return args.select.city ? { city: "Test city" } : { phone: "private-phone", whatsapp: "081234567890", email: "private@example.test", addressLine: "private-address", visibleToMembers: visible };
     } },
+    // Halaman kini menarik daftar memori; kosongkan agar fokus tes tetap timeline.
+    personMemory: { findMany: async () => [] },
   };
   const output = ts.transpileModule(readFileSync(filename, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
   const exports: { default?: (props: { params: Promise<{ id: string }> }) => Promise<React.ReactNode> } = {};
@@ -36,8 +45,8 @@ async function renderPage(role?: string, visible = true) {
     return require(id.startsWith("@/") ? resolve("src", id.slice(2)) : id);
   } }, { filename });
   const node = await exports.default!({ params: Promise.resolve({ id: "p1" }) });
-  renderToStaticMarkup(node);
-  return { cardProps: cardProps as Record<string, unknown> | null, privateQueries };
+  const markup = renderToStaticMarkup(node);
+  return { cardProps: cardProps as Record<string, unknown> | null, privateQueries, markup };
 }
 
 test("guest public page fetches only city and never passes private fields", async () => {
@@ -63,4 +72,23 @@ test("consent false and unknown viewer roles hide contacts", async () => {
     const { cardProps } = await renderPage(role, visible);
     assert.equal(cardProps?.contacts, null);
   }
+});
+
+test("halaman merender panel timeline dan peta", async () => {
+  const { markup } = await renderPage();
+  assert.ok(markup.includes("Jejak Hidup"));
+  assert.ok(markup.includes("Universitas Gadjah Mada"));
+  assert.ok(markup.includes("Tampilkan peta"));
+  assert.ok(markup.includes("OpenStreetMap contributors"));
+});
+
+test("tamu tidak melihat event privat, anggota melihatnya", async () => {
+  const guest = await renderPage();
+  assert.equal(guest.markup.includes("Catatan pribadi"), false);
+  assert.equal(guest.markup.includes("Rincian privat"), false);
+  // Event CUSTOM berkordinat tetap tampil untuk tamu karena dipakai peta
+  assert.ok(guest.markup.includes("Haji"));
+
+  const member = await renderPage("MEMBER");
+  assert.ok(member.markup.includes("Catatan pribadi"));
 });

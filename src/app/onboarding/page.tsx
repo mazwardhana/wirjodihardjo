@@ -144,7 +144,7 @@ export default function OnboardingPage() {
             }}
             aria-describedby={errors.nickname ? "nickname-error" : undefined}
             aria-invalid={!!errors.nickname}
-            className="mt-1 block h-11 w-full rounded-md border border-wood/30 bg-cream px-4 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
+            className="mt-1 block h-11 w-full rounded-md border border-wood/30 bg-cream px-4 text-base text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
             placeholder="Nama panggilan Anda"
             disabled={pending}
           />
@@ -179,7 +179,7 @@ export default function OnboardingPage() {
             }}
             aria-describedby={errors.newPassword ? "newPassword-error" : undefined}
             aria-invalid={!!errors.newPassword}
-            className="mt-1 block h-11 w-full rounded-md border border-wood/30 bg-cream px-4 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
+            className="mt-1 block h-11 w-full rounded-md border border-wood/30 bg-cream px-4 text-base text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
             placeholder="Minimal 8 karakter"
             disabled={pending}
           />
@@ -214,7 +214,7 @@ export default function OnboardingPage() {
             }}
             aria-describedby={errors.confirmPassword ? "confirmPassword-error" : undefined}
             aria-invalid={!!errors.confirmPassword}
-            className="mt-1 block h-11 w-full rounded-md border border-wood/30 bg-cream px-4 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
+            className="mt-1 block h-11 w-full rounded-md border border-wood/30 bg-cream px-4 text-base text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
             placeholder="Ulangi kata sandi"
             disabled={pending}
           />

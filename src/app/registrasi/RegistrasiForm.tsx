@@ -300,7 +300,7 @@ function SealMark() {
     <span className="relative grid h-24 w-24 shrink-0 place-items-center sm:h-28 sm:w-28">
       <span
         aria-hidden="true"
-        className="seal-ink absolute inset-0 rounded-full border-2 border-gold-deep/70"
+        className="seal-ink absolute inset-0 rounded-full border-1 border-gold-deep/70"
       />
       <svg
         viewBox="0 0 120 120"
@@ -556,7 +556,7 @@ function BranchPicker({
           }}
           onKeyDown={onKeyDown}
           className={cn(
-            "min-h-11 w-full rounded-sm border bg-cream py-2 pl-10 pr-24 text-sm text-ink",
+            "min-h-11 w-full rounded-sm border bg-cream py-2 pl-10 pr-24 text-base text-ink",
             "placeholder:text-muted/80",
             invalid ? "border-wood" : "border-wood/35 focus:border-forest/70",
           )}
@@ -615,7 +615,7 @@ function BranchPicker({
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => choose(branch)}
               className={cn(
-                "flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2 text-sm text-ink",
+                "flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2 text-base text-ink",
                 index === activeIndex ? "bg-parchment" : "bg-transparent",
               )}
             >
@@ -723,7 +723,7 @@ function RuleInput({
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? `${id}-galat` : undefined}
         className={cn(
-          "block min-h-11 w-full rounded-sm border bg-cream px-3 py-2 text-sm text-ink",
+          "block min-h-11 w-full rounded-sm border bg-cream px-3 py-2 text-base text-ink",
           "placeholder:text-muted/80",
           invalid ? "border-wood" : "border-wood/35 focus:border-forest/70",
         )}
@@ -754,7 +754,7 @@ function RuleSelect({
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? `${id}-galat` : undefined}
         className={cn(
-          "block min-h-11 w-full appearance-none rounded-sm border bg-cream py-2 pl-3 pr-8 text-sm text-ink",
+          "block min-h-11 w-full appearance-none rounded-sm border bg-cream py-2 pl-3 pr-8 text-base text-ink",
           invalid ? "border-wood" : "border-wood/35 focus:border-forest/70",
         )}
         {...rest}

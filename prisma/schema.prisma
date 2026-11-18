@@ -106,6 +106,20 @@ enum ImportStatus {
   FAILED
 }
 
+enum FamilyEventType {
+  MILAD
+  HAUL
+  REUNI
+  HALAL_BIHALAL
+  LAINNYA
+}
+
+enum RsvpStatus {
+  GOING
+  MAYBE
+  NOT_GOING
+}
+
 // ──────────────────────────────────────
 // Genealogy core
 // ──────────────────────────────────────
@@ -182,6 +196,8 @@ model Person {
   submissions               Submission[]           @relation("SubmissionApplied")
   hallOfFameEntries         HallOfFameEntry[]
   galleryMedia              GalleryMedia[]
+  lifeEvents                PersonLifeEvent[]
+  memories                  PersonMemory[]
   adminNotes                AdminNote[]
   targetOf                  Submission[]           @relation("SubmissionTarget")
   articles                  Article[]
@@ -302,8 +318,12 @@ model User {
   publishedAlbums      Album[]               @relation("AlbumPublisher")
   galleryUploads       GalleryMedia[]        @relation("MediaUploader")
   moderatedMedia       GalleryMedia[]        @relation("MediaModerator")
+  memoryUploads        PersonMemory[]        @relation("MemoryUploader")
+  moderatedMemories    PersonMemory[]        @relation("MemoryModerator")
   hallOfFameEntries    HallOfFameEntry[]     @relation("EntryCreator")
   reunions             Reunion[]             @relation("ReunionCreator")
+  familyEvents         FamilyEvent[]         @relation("FamilyEventCreator")
+  familyEventRsvps     FamilyEventRsvp[]
   reunionRegistrations ReunionRegistration[]
   notifications        Notification[]
   auditLogs            AuditLog[]
@@ -496,6 +516,56 @@ model ReunionRegistration {
   @@unique([reunionId, personId])
   @@index([reunionId, checkedInAt])
   @@index([checkInGroupId])
+}
+
+// ──────────────────────────────────────
+// Registrasi keluarga (form publik)
+// ──────────────────────────────────────
+
+// Jejak satu kiriman form registrasi publik: cabang asal, jumlah baris,
+// akun yang dibuat, dan peserta reuni. Dipakai untuk audit + statistik.
+model FamilyEvent {
+  id           String          @id @default(uuid())
+  title        String
+  type         FamilyEventType
+  description  String?
+  startsAt     DateTime
+  endsAt       DateTime?
+  locationName String?
+  // true untuk milad/haul yang dirayakan setiap tahun; `startsAt` menyimpan
+  // tanggal makna (tanggal lahir / wafat), dan perayaan dihitung ulang
+  // per tahun di lib/calendar.ts.
+  repeatYearly Boolean         @default(false)
+  slug         String          @unique
+  isPublished  Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  createdByUserId String
+  createdBy       User   @relation("FamilyEventCreator", fields: [createdByUserId], references: [id])
+
+  rsvps FamilyEventRsvp[]
+
+  @@index([type])
+  @@index([startsAt])
+  @@index([isPublished])
+}
+
+model FamilyEventRsvp {
+  id        String     @id @default(uuid())
+  status    RsvpStatus
+  notes     String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  eventId String
+  event   FamilyEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
 }
 
 // ──────────────────────────────────────
@@ -793,4 +863,63 @@ model BranchRepresentative {
   @@index([personId])
   @@index([assignedByUserId])
   @@index([startDate])
+}
+
+// ──────────────────────────────────────
+// Timeline hidup per orang (kontribusi hidup)
+// ──────────────────────────────────────
+
+model PersonLifeEvent {
+  id            String    @id @default(uuid())
+  personId      String
+  person        Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  // BIRTH | DEATH | EDUCATION | MARRIAGE | CUSTOM
+  kind          String    @default("CUSTOM")
+  title         String
+  description   String?
+
+  // Lokasi: nama teks + koordinat opsional (untuk peta).
+  locationName  String?
+  latitude      Float?
+  longitude     Float?
+
+  date          DateTime?
+  datePrecision String?   // DAY | MONTH | YEAR
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([personId, date])
+}
+
+// ──────────────────────────────────────
+// Memori per-orang: cerita / audio / dokumen
+// ──────────────────────────────────────
+
+model PersonMemory {
+  id                String      @id @default(uuid())
+  personId          String
+  person            Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  // STORY | AUDIO | DOCUMENT | IMAGE
+  kind              String      @default("STORY")
+  title             String
+  content           String?
+
+  fileUrl           String?
+  thumbnailUrl      String?
+
+  status            MediaStatus @default(PENDING)
+  uploadedByUserId  String?
+  uploader          User?       @relation("MemoryUploader", fields: [uploadedByUserId], references: [id])
+  moderatedByUserId String?
+  moderatedBy       User?       @relation("MemoryModerator", fields: [moderatedByUserId], references: [id])
+  moderatedAt       DateTime?
+  rejectionReason   String?
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([personId, status])
 }

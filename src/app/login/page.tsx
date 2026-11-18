@@ -90,7 +90,7 @@ function LoginForm() {
             required
             value={usernameOrEmail}
             onChange={(e) => setUsernameOrEmail(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-wood/30 bg-cream px-4 py-2.5 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
+            className="mt-1 block w-full rounded-md border border-wood/30 bg-cream px-4 py-2.5 text-base text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
             placeholder="username atau email@contoh.com"
           />
         </div>
@@ -108,7 +108,7 @@ function LoginForm() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-wood/30 bg-cream px-4 py-2.5 text-sm text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
+            className="mt-1 block w-full rounded-md border border-wood/30 bg-cream px-4 py-2.5 text-base text-forest placeholder:text-muted/60 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
           />
         </div>
 

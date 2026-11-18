@@ -40,7 +40,7 @@ function EmptySlot({ notes }: { notes?: string | null }) {
         ?
       </span>
       <div className="min-w-0">
-        <span className="block text-xs italic text-muted/60">(Kosong)</span>
+        <span className="block text-xs italic text-muted">(Kosong)</span>
         {notes && <span className="mt-1 block text-xs leading-relaxed text-wood/70">{notes}</span>}
       </div>
     </div>
@@ -110,7 +110,7 @@ export function OrgChartMobile({ data }: { data: OrgChartData }) {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs italic text-muted/60">(Kosong)</p>
+                    <p className="text-xs italic text-muted">(Kosong)</p>
                   )}
                 </div>
               ))}

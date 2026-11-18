@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: "/silsilah", label: "Silsilah" },
   { href: "/galeri", label: "Galeri" },
   { href: "/hall-of-fame", label: "Hall of Fame" },
+  { href: "/kalender", label: "Kalender" },
   { href: "/reuni", label: "Reuni" },
   { href: "/registrasi", label: "Registrasi" },
   { href: "/statistik", label: "Statistik" },
