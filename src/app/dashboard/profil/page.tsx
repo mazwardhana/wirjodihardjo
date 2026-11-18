@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { StatusEditor } from "@/components/profile/StatusEditor";
+import { EducationEditor } from "@/components/profile/EducationEditor";
 import { getGenerationLabel } from "@/lib/generations";
 
 function isoDate(value: Date | null) {
@@ -79,6 +80,15 @@ export default async function DashboardProfilPage() {
           username: link.username,
         }))}
       />
+
+      {/* Riwayat pendidikan tampil di profil publik, jadi editornya ikut di sini
+          supaya anggota bisa mengisi sendiri tanpa jalur admin. */}
+      <section className="mt-8 rounded-lg border border-wood/15 bg-cream p-5">
+        <h2 className="font-display text-lg font-semibold text-forest">Pendidikan</h2>
+        <div className="mt-4">
+          <EducationEditor onChanged={() => {}} onBusy={() => {}} />
+        </div>
+      </section>
     </div>
   );
 }
