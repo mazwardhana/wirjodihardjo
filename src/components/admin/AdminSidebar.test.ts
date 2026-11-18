@@ -55,7 +55,7 @@ function render(pathname: string, role: "SUPER_ADMIN" | "BRANCH_ADMIN"): string 
 }
 
 const SUPER_ONLY = [
-  "/admin/cabang",
+  "/admin/keluarga/cabang",
   "/admin/pengurus",
   "/admin/impor",
   "/admin/registrasi",

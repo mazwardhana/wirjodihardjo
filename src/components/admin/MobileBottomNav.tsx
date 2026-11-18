@@ -20,7 +20,7 @@ const primaryItems: AdminNavItem[] = [
 ];
 
 const overflowItems: AdminNavItem[] = [
-  { href: "/admin/cabang", label: "Keluarga Cabang", icon: "⊟", role: "SUPER_ONLY" },
+  { href: "/admin/keluarga/cabang", label: "Keluarga Cabang", icon: "⊟", role: "SUPER_ONLY" },
   { href: "/admin/keluarga", label: "Keluarga", icon: "⊕", role: "ALL" },
   { href: "/admin/galeri", label: "Galeri", icon: "⊠", role: "ALL" },
   { href: "/admin/hall-of-fame", label: "Hall of Fame", icon: "★", role: "ALL" },
@@ -37,13 +37,14 @@ const CABANG_SEGMENT = "/admin/keluarga/cabang";
 
 function isActive(pathname: string, href: string) {
   if (href === "/admin") return pathname === "/admin";
-  // Sama seperti sidebar: entri "Keluarga Cabang" menyala juga di segmen terpadu.
-  if (href === CABANG_HREF) {
+  // Sama seperti sidebar: entri "Keluarga Cabang" menyala di segmen terpadu
+  // dan tetap menyala di rute legacy /admin/cabang yang kini mengalihkan ke sana.
+  if (href === CABANG_SEGMENT) {
     return (
-      pathname === CABANG_HREF ||
-      pathname.startsWith(`${CABANG_HREF}/`) ||
       pathname === CABANG_SEGMENT ||
-      pathname.startsWith(`${CABANG_SEGMENT}/`)
+      pathname.startsWith(`${CABANG_SEGMENT}/`) ||
+      pathname === CABANG_HREF ||
+      pathname.startsWith(`${CABANG_HREF}/`)
     );
   }
   // "Keluarga" eksklusif: jangan menyala di segmen keluarga cabang terpadu.
